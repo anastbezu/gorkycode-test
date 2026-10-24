@@ -33,6 +33,7 @@ backend-01-model-dannyh.md
 | [agent-03](agent-03-slot-filling-i-kontekst.md) | `agent` | Давид | Слот-филлинг, слияние `pending_action`, 1 строка якоря и прямой путь через UI |
 | [agent-04](agent-04-scenarii-spiska-i-poiska.md) | `agent` | Илья | Сценарии списков за период (`ListRecords`) и смыслового поиска (`SearchRecords`) |
 | [product-01](product-01-makety-i-dizayn.md) | `product` | Маша | Макеты 3 экранов в Figma и дизайн-система |
+| [product-02](product-02-dokumentatsiya-fich-i-test-kejsov.md) | `product` | Маша | Документация фич (`docs/features.md`) и эталонные тест-кейсы для демо |
 | [devops-02](devops-02-deploy-prilozheniya-i-ci-cd.md) | `devops` | Настя | Автоматический деплой приложения при пуше в `develop` и CI/CD в GitHub Actions |
 
 Новая задача создаётся по шаблону [`_template.md`](_template.md).
