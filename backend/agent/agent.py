@@ -4,6 +4,8 @@ from dotenv import load_dotenv
 from google import genai
 from google.genai import types
 
+from tools import TOOLS_CONFIG
+
 load_dotenv()
 api_key = os.getenv("GEMINI_API_KEY")
 
@@ -34,7 +36,3 @@ def handle_message(user_id: str, text: str, session_id: str | None = None) -> st
     return reply
 
 
-if __name__ == "__main__":
-    print(handle_message("u1", "Меня зовут Артём, я люблю бегать"))
-    print(handle_message("u1", "Как меня зовут и что я люблю?"))
-    print(handle_message("u2", "Как меня зовут?"))
