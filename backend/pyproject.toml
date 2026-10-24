@@ -1,0 +1,38 @@
+[project]
+name = "gorky-backend"
+version = "0.1.0"
+description = "Голосовой ассистент для задач и встреч — бэкенд"
+requires-python = ">=3.13"
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.30.0",
+    "pydantic>=2.7.0",
+    "sqlalchemy>=2.0.0",
+    "alembic>=1.13.0",
+    "psycopg[binary]>=3.1.0",
+    "pgvector>=0.3.0",
+    "openai>=1.50.0",
+    "python-dotenv>=1.0.0",
+    "tzdata>=2024.1",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0.0",
+    "httpx>=0.27.0",
+    "ruff>=0.6.0",
+]
+
+[tool.uv]
+package = false
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
