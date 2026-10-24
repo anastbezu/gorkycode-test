@@ -88,6 +88,14 @@ git checkout develop
 git pull
 git checkout -b feature/<задача>
 
+# установка зависимостей бэкенда (один раз или при обновлении)
+cd backend && uv sync
+
+# запуск проверок и локального сервера
+uv run ruff check
+uv run pytest
+uv run uvicorn main:app --reload
+
 # в процессе
 git add <файлы>
 git commit -m "feat(<модуль>): <что сделано>"
