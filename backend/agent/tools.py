@@ -1,4 +1,8 @@
 from google.genai import types
+from datetime import datetime, timezone
+from uuid import uuid4
+
+from .models import ActionResult, ListRecords, Record, RecordType
 
 list_records_decl = types.FunctionDeclaration(
     name="list_records",
@@ -42,7 +46,25 @@ list_records_decl = types.FunctionDeclaration(
     )
 )
 
+
+def handle_list_records(user_id, action: ListRecords) -> ActionResult:
+    # TODO: replace with call to Denis's service
+    fake = Record(
+        id=uuid4(),
+        user_id=uuid4(),
+        type=RecordType.MEETING,
+        title="Встреча с командой",
+        start=action.date_from,
+        created_at=datetime.now(timezone.utc),
+    )
+    return ActionResult(action="list_records", ok=True, records=[fake])
+
+
 TOOLS_CONFIG = types.GenerateContentConfig(
     tools=[types.Tool(function_declarations=[list_records_decl])],
     automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
 )
+
+ACTIONS = {
+    "list_records": (ListRecords, handle_list_records),
+}
