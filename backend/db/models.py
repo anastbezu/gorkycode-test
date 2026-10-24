@@ -22,8 +22,9 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
-# TODO(Родион): размерность зависит от выбранной модели эмбеддингов.
-EMBEDDING_DIM = 768
+# Размерность из DECOMPOSITION.md (text-embedding-3-small = 1536; gemini-embedding-001 тоже умеет 1536).
+# TODO(Родион): подтвердить после выбора модели эмбеддингов.
+EMBEDDING_DIM = 1536
 
 
 class RecordType(StrEnum):
