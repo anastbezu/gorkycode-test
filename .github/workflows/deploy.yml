@@ -5,18 +5,43 @@ on:
     branches:
       - develop
 
+# Деплои стенда идут строго по одному: следующий ждёт окончания текущего, не прерывая его.
+concurrency:
+  group: deploy-gorky-bond
+  cancel-in-progress: false
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
       - name: Deploy application on VPS via SSH
-        uses: appleboy/ssh-action@v1.0.3
+        uses: appleboy/ssh-action@v1.2.5
         with:
           host: ${{ secrets.HOST }}
           username: ${{ secrets.USERNAME }}
           key: ${{ secrets.SSH_KEY }}
+          command_timeout: 20m
           script: |
+            set -eu
             cd /opt/gorkycode
-            git pull origin develop
-            docker compose up -d --build
+            git pull --ff-only origin develop
+            docker compose up -d --build --remove-orphans
+
+            # Стенд считается обновлённым, только когда бэкенд ответил на /health
+            # (миграции применяются при старте контейнера).
+            ok=""
+            for i in $(seq 1 30); do
+              if curl -fs http://127.0.0.1:8000/health; then ok=1; echo; break; fi
+              sleep 2
+            done
+            if [ -z "$ok" ]; then
+              # Логи сервисов сюда не выводим: логи Actions в публичном репозитории видны всем.
+              docker compose ps
+              echo "Бэкенд не ответил на /health за 60 с. Логи: docker compose logs backend на сервере." >&2
+              exit 1
+            fi
+
+            # Диск 10 ГБ: удаляем образы, оставшиеся от прошлых сборок, и старый кэш сборки.
+            docker image prune -f
+            docker builder prune -f --filter until=72h
