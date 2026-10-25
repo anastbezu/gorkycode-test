@@ -20,6 +20,7 @@ router = APIRouter(prefix="/api", tags=["chat"])
     "/chat",
     response_model=ChatResponse,
     responses={
+        400: {"description": "Заголовок X-User-Id не UUID"},
         404: {"description": "Разговор не найден (принадлежит другому пользователю)"},
         422: {"description": "Неверное тело запроса или неизвестный часовой пояс"},
     },

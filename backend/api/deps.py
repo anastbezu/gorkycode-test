@@ -25,19 +25,25 @@ def get_current_user_id(
 ) -> CurrentUser:
     """Пользователь — анонимный UUID браузера из заголовка `X-User-Id`.
 
-    Нет заголовка, он пустой или не UUID — выдаём новый `uuid4()`. Он уходит клиенту в
-    заголовке ответа `X-User-Id` (во всех ответах — фронтенду не нужно разбирать тело):
-    фронтенд сохраняет его в localStorage и присылает в следующих запросах.
+    - Заголовка нет или он пустой — выдаём новый `uuid4()` (новый пользователь).
+    - Заголовок есть, но это не UUID — 400: это ошибка клиента, молча подменять id нельзя.
+    - Корректный UUID — это и есть пользователь.
+
+    Итоговый id уходит клиенту в заголовке ответа `X-User-Id` (во всех ответах — фронтенду
+    не нужно разбирать тело): фронтенд сохраняет его в localStorage и присылает дальше.
     """
-    user_id: UUID | None = None
-    if x_user_id and x_user_id.strip():
+    raw = (x_user_id or "").strip()
+    if not raw:
+        user_id, is_new = uuid4(), True
+    else:
         try:
-            user_id = UUID(x_user_id.strip())
-        except ValueError:
-            user_id = None
-    is_new = user_id is None
-    if user_id is None:
-        user_id = uuid4()
+            user_id, is_new = UUID(raw), False
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Заголовок X-User-Id должен быть UUID. "
+                "Уберите его, чтобы получить новый идентификатор.",
+            ) from exc
     response.headers[USER_ID_HEADER] = str(user_id)
     return CurrentUser(id=user_id, is_new=is_new)
 

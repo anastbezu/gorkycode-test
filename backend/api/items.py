@@ -29,7 +29,10 @@ def _to_local(record: Record, tz) -> Record:
 @router.get(
     "/items",
     response_model=list[Record],
-    responses={422: {"description": "Неверные параметры или неизвестный часовой пояс"}},
+    responses={
+        400: {"description": "Заголовок X-User-Id не UUID"},
+        422: {"description": "Неверные параметры или неизвестный часовой пояс"},
+    },
 )
 def list_items(
     user: CurrentUser = Depends(get_current_user_id),
