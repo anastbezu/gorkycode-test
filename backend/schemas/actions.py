@@ -46,7 +46,7 @@ class CreateRecord(BaseModel):
     )
     time_given: bool = Field(
         description="true, только если время названо явно (в том числе «утром»); "
-        "false, если назван только день"
+        "false, если назван только день или дата не названа"
     )
     deadline: AwareDatetime | None = Field(
         default=None,
