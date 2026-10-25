@@ -19,7 +19,8 @@ class SearchFilters(BaseModel):
     )
     date_to: AwareDatetime | None = Field(
         default=None,
-        description="Необязательно. Конец периода, ISO 8601 со смещением: {ISO_EXAMPLE}",
+        description="Необязательно. Конец периода, не включается, ISO 8601 со смещением: "
+        "{ISO_EXAMPLE}",
     )
     status: list[RecordStatus] | None = None
 
@@ -64,7 +65,8 @@ class ListRecords(BaseModel):
         description="Начало интервала, ISO 8601 со смещением: {ISO_EXAMPLE}"
     )
     date_to: AwareDatetime = Field(
-        description="Конец интервала, ISO 8601 со смещением: {ISO_EXAMPLE}"
+        description="Конец интервала, не включается: «сегодня» — до 00:00 следующего дня. "
+        "ISO 8601 со смещением: {ISO_EXAMPLE}"
     )
     types: list[RecordType] | None = None
 
