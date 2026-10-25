@@ -1,17 +1,14 @@
 """Smoke-проверки промпта, схем и локализации через pytest."""
 
-import sys
 from copy import deepcopy
 from datetime import datetime, timedelta
-from pathlib import Path
 from zoneinfo import ZoneInfo
 
 import pytest
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-
 from agent.system_prompt import build_compact_system_prompt
 from agent.tools import get_agent_tools, localize_tools
+from schemas.actions import CreateRecord
 
 
 def test_prompt_calendar_and_timezone():
@@ -67,13 +64,6 @@ def test_localization_isolated_between_requests():
 
 
 def test_shared_create_record_json_and_tool_export():
-    try:
-        from schemas.actions import CreateRecord
-    except ModuleNotFoundError as error:
-        if error.name not in {"schemas", "schemas.actions"}:
-            raise
-        pytest.skip("Ожидается интеграция общих схем из develop")
-
     record = CreateRecord.model_validate_json(
         '{"action":"create_record","type":"meeting","title":"Тест",'
         '"start":"2026-10-25T15:00:00+03:00","time_given":true}'
@@ -88,3 +78,27 @@ def test_shared_create_record_json_and_tool_export():
         "search_records",
         "ask_user",
     }
+
+
+def test_localized_date_fields_have_user_offset_example():
+    # Все поля дат во всех инструментах, включая вложенный SearchFilters в $defs.
+    date_fields = {
+        "create_record": ["start", "end", "deadline"],
+        "list_records": ["date_from", "date_to"],
+    }
+    filters_date_fields = ["date_from", "date_to"]
+    now = datetime(2026, 10, 25, 10, tzinfo=ZoneInfo("Asia/Tokyo"))
+    example = "2026-10-25T15:00:00+09:00"
+
+    tools = {
+        tool["function"]["name"]: tool["function"]["parameters"]
+        for tool in localize_tools(get_agent_tools(), now)
+    }
+
+    for name, fields in date_fields.items():
+        for field in fields:
+            assert example in tools[name]["properties"][field]["description"], (name, field)
+    filters = tools["search_records"]["$defs"]["SearchFilters"]["properties"]
+    for field in filters_date_fields:
+        assert example in filters[field]["description"], ("SearchFilters", field)
+    assert "{ISO_EXAMPLE}" not in str(tools)

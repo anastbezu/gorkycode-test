@@ -2,40 +2,16 @@
 
 from copy import deepcopy
 from datetime import datetime
-from importlib import import_module
+
+from schemas import AskUser, CreateRecord, ListRecords, SearchRecords
 
 from .system_prompt import format_iso_example
 
 
 def get_agent_tools() -> list[dict]:
-    """Экспортировать четыре действия без подстановки {ISO_EXAMPLE}.
-
-    Импорт отложен до вызова: до интеграции схем Дениса остальные функции
-    агента доступны. Временных копий моделей здесь нет.
-    """
-    # Поддерживаются импорты agent.tools из backend и backend.agent.tools
-    # из корня проекта. В обоих случаях используется один каталог schemas.
-    parent_package = __package__.rpartition(".")[0]
-    module_name = (
-        f"{parent_package}.schemas.actions" if parent_package else "schemas.actions"
-    )
-    try:
-        actions = import_module(module_name)
-    except ModuleNotFoundError as error:
-        if error.name not in {module_name, module_name.rpartition(".")[0]}:
-            raise
-        raise RuntimeError(
-            "Общие backend/schemas ещё не подключены. Дождитесь их интеграции "
-            "из develop; создавать копии моделей в агенте не нужно."
-        ) from error
-
+    """Экспортировать четыре действия в формат OpenAI Tools без подстановки {ISO_EXAMPLE}."""
     tools = []
-    for model in (
-        actions.CreateRecord,
-        actions.ListRecords,
-        actions.SearchRecords,
-        actions.AskUser,
-    ):
+    for model in (CreateRecord, ListRecords, SearchRecords, AskUser):
         parameters = model.model_json_schema()
         description = parameters.pop("description", model.__name__)
         tools.append(
