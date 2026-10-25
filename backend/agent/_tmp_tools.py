@@ -37,4 +37,41 @@ LIST_RECORDS_TOOL = {
     },
 }
 
-TOOLS = [LIST_RECORDS_TOOL]  # TODO: заменить схемами из agent-01 (Давид)
+CREATE_RECORD_TOOL = {
+    "type": "function",
+    "function": {
+        "name": "create_record",
+        "description": "Создать задачу, встречу или напоминание: когда просят что-то запланировать, поставить или напомнить.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "type": {"type": "string", "enum": ["task", "meeting", "reminder"]},
+                "title": {"type": "string", "description": "Суть без даты и времени: «позвонить Ивану»"},
+                "start": {"type": "string",
+                          "description": "Начало, ISO 8601 со смещением, например 2026-10-26T15:00:00+03:00. Не указывай, если время не названо."},
+                "deadline": {"type": "string", "description": "Срок, ISO 8601 со смещением («до конца недели»)."},
+                "time_given": {"type": "boolean", "description": "Пользователь назвал время, а не только дату."},
+            },
+            "required": ["type", "title", "time_given"],
+        },
+    },
+}
+
+ASK_USER_TOOL = {
+    "type": "function",
+    "function": {
+        "name": "ask_user",
+        "description": "Задать вопрос, если для действия не хватает данных (например, не названо время встречи).",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "question": {"type": "string"},
+                "missing": {"type": "array", "items": {"type": "string"},
+                            "description": "Каких полей не хватает: start, type"},
+            },
+            "required": ["question", "missing"],
+        },
+    },
+}
+
+TOOLS = [LIST_RECORDS_TOOL, CREATE_RECORD_TOOL, ASK_USER_TOOL]  # TODO: заменить схемами из agent-01 (Давид)

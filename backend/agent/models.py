@@ -101,3 +101,10 @@ class LLMConfig(BaseModel):
     base_url: str | None = None
     api_key: str | None = None
     model: str | None = None
+
+
+class ChatResponse(BaseModel):
+    conversation_id: UUID
+    reply: str  # текст ответа пользователю
+    result: ActionResult | None = None  # что сделано — для показа в интерфейсе
+    awaiting: Literal["answer", "choice"] | None = None  # ассистент ждёт ответа или выбора

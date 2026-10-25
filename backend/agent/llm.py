@@ -16,5 +16,5 @@ def make_client(config: LLMConfig | None = None) -> tuple[AsyncOpenAI, str]:
     if not model:
         raise RuntimeError("Не задан LLM_MODEL")
 
-    client = AsyncOpenAI(base_url=base_url, api_key=api_key, timeout=15)
+    client = AsyncOpenAI(base_url=base_url, api_key=api_key, timeout=15, max_retries=1)
     return client, model
