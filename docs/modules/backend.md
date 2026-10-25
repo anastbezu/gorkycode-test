@@ -194,3 +194,68 @@ uv run python -m scripts.load_dataset --user-id <UUID> --timezone Asia/Yekaterin
 ```
 
 Без `--user-id` создаётся новый UUID; `--timezone` по умолчанию `Europe/Moscow`.
+
+## API — `api/`, `main.py`
+
+Маршруты FastAPI поверх сервисов; бизнес-логики в `api/` нет. Swagger — `/docs`.
+Запуск: `cd backend && uv run uvicorn main:app --reload`.
+
+| Файл | Что внутри |
+|---|---|
+| `main.py` | приложение FastAPI, CORS, подключение роутеров |
+| `api/deps.py` | пользователь из `X-User-Id`, разбор часового пояса, стартовый датасет новому пользователю |
+| `api/chat.py` | `POST /api/chat` |
+| `api/items.py` | `GET /api/items` |
+| `api/health.py` | `GET /health` |
+| `api/dispatch.py` | временный диспетчер чата без LLM — до agent-05 |
+
+### Пользователь — заголовок `X-User-Id`
+
+- Фронтенд хранит UUID в localStorage и присылает его в заголовке `X-User-Id` каждого запроса.
+- Нет заголовка, он пустой или не UUID → сервер выдаёт новый `uuid4()` и возвращает его
+  **в заголовке ответа `X-User-Id`** (CORS открывает его фронтенду через `expose_headers`).
+- Новому пользователю сразу загружается стартовый датасет (`bootstrap_user_data`). Импорт
+  вызывается из маршрута, а не из зависимости: ему нужен часовой пояс, а он приходит в теле
+  `/api/chat` и в параметре `tz` у `/api/items`.
+
+### `POST /api/chat`
+
+Тело — `ChatRequest`, ответ — `ChatResponse` (`docs/contracts/api.md`).
+
+- `conversation_id = null` → новый разговор, сервер присваивает id и создаёт состояние разговора.
+- Чужой `conversation_id` (другого пользователя) → **404**.
+- Неизвестный `timezone` → **422** с понятным текстом.
+- `llm_config` принимается и нигде не сохраняется и не логируется.
+- Сервисы синхронные — вызываются через `asyncio.to_thread` (`docs/decisions.md`).
+
+**Временный диспетчер (`api/dispatch.py`)** — пока агент не подключён (agent-05), реплика
+разбирается простыми правилами и сразу идёт в настоящие сервисы:
+«что у меня…», «покажи…», «какие…», «план…» → список за сегодня / завтра / неделю; остальное →
+задача без даты с текстом реплики. Тексты ответов — из `agent/replies.py`, как у агента.
+**agent-05:** в `api/chat.py` заменить вызов `handle_without_llm` на
+`process_user_turn(db, user.id, conversation_id, req.text, req.timezone, req.llm_config)`
+(помечено `TODO(agent-05)`), после этого `api/dispatch.py` можно удалить.
+
+### `GET /api/items`
+
+| Параметр | Смысл |
+|---|---|
+| `from`, `to` | период `[from, to)`, ISO 8601 со смещением (`+` в URL кодируется как `%2B`). Без них — 7 дней с начала сегодняшнего дня |
+| `type` | фильтр, можно несколько: `?type=meeting&type=task` |
+| `tz` | IANA-пояс пользователя (по умолчанию Europe/Moscow): даты в ответе — в этом поясе |
+| `include_undated` | `true` — добавить в конец активные записи **без даты** (блок «Без срока», FEATURES P1 №14). По умолчанию `false` — ответ как в контракте. **Не в контракте `api.md`** — добавлен сверх постановки |
+
+Ответ — `list[Record]`, по времени. Записи без даты (с `include_undated=true`) — в конце, у них
+`start` и `deadline` пустые: по этому фронтенд отделяет их в свой блок. Фильтр `type` действует
+и на них; выполненные и отменённые без даты не показываются (`services.list_undated_records`). `to <= from`, дата без пояса или неизвестный `tz` → 422.
+
+### `GET /health`
+
+`SELECT 1` в базе: `{"status": "ok", "db": "connected"}` (200) или
+`{"status": "error", "db": "unavailable"}` (503) — в том числе когда не задан `DATABASE_URL`.
+
+### CORS
+
+Разрешены `https://gorky.bond`, `https://www.gorky.bond`, `http://localhost:3000`,
+`http://localhost:5173` (и те же с `127.0.0.1`). Переопределяется переменной окружения
+`CORS_ORIGINS` (через запятую) без изменения кода.

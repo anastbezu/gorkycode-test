@@ -10,7 +10,7 @@ from .conversation import (
     merge_pending,
     save_conversation_state,
 )
-from .records import create_record, list_records_for_period
+from .records import create_record, list_records_for_period, list_undated_records
 
 __all__ = [
     "ConversationAccessError",
@@ -18,6 +18,7 @@ __all__ = [
     "create_record",
     "get_or_create_conversation_state",
     "list_records_for_period",
+    "list_undated_records",
     "merge_pending",
     "save_conversation_state",
 ]
