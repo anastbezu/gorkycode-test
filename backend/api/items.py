@@ -1,6 +1,7 @@
 """`GET /api/items` — записи для боковой панели «Мои дела» (контракт docs/contracts/api.md)."""
 
 from typing import Annotated
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import AwareDatetime
@@ -15,7 +16,7 @@ from .deps import CurrentUser, bootstrap_if_new, get_current_user_id, parse_time
 router = APIRouter(prefix="/api", tags=["items"])
 
 
-def _to_local(record: Record, tz) -> Record:
+def _to_local(record: Record, tz: ZoneInfo) -> Record:
     """Даты записи — в поясе пользователя (тот же момент времени, другое смещение)."""
     fields = ("start", "end", "deadline", "created_at")
     return record.model_copy(
@@ -69,13 +70,14 @@ def list_items(
     Синхронный маршрут: FastAPI выполняет его в пуле потоков, сервер не блокируется.
     """
     zone = parse_timezone(tz)
-    bootstrap_if_new(db, user, zone.key)
-
     if date_to <= date_from:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="Параметр `to` должен быть позже `from`.",
         )
+    # Импорт — после проверок: при ошибке клиент не получает X-User-Id,
+    # и загруженные новому пользователю записи остались бы ничьими.
+    bootstrap_if_new(db, user, zone.key)
 
     result = list_records_for_period(
         db, user.id, ListRecords(date_from=date_from, date_to=date_to, types=type)

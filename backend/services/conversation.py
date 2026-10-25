@@ -17,6 +17,23 @@ class ConversationAccessError(PermissionError):
     """Разговор с таким id принадлежит другому пользователю."""
 
 
+def get_conversation_state(
+    db: Session, conversation_id: UUID, user_id: UUID
+) -> ConversationState | None:
+    """Состояние существующего разговора; разговора нет — `None`, без создания.
+
+    Чужой разговор (тот же id, другой `user_id`) не отдаём: `ConversationAccessError`.
+    """
+    row = db.get(models.ConversationState, conversation_id)
+    if row is None:
+        return None
+    if row.user_id != user_id:
+        raise ConversationAccessError(
+            f"разговор {conversation_id} принадлежит другому пользователю"
+        )
+    return ConversationState.model_validate(row)
+
+
 def get_or_create_conversation_state(
     db: Session, conversation_id: UUID, user_id: UUID
 ) -> ConversationState:

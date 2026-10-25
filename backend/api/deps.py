@@ -49,10 +49,10 @@ def get_current_user_id(
 
 
 def parse_timezone(name: str | None) -> ZoneInfo:
-    """IANA-пояс из запроса. Неизвестный пояс — 422 с понятным текстом."""
+    """IANA-пояс из запроса: `None` — пояс по умолчанию. Неизвестный или пустой — 422."""
     try:
-        return ZoneInfo(name or DEFAULT_TIMEZONE)
-    except (ZoneInfoNotFoundError, ValueError) as exc:
+        return ZoneInfo(DEFAULT_TIMEZONE if name is None else name)
+    except (ZoneInfoNotFoundError, ValueError, OSError) as exc:  # OSError — слишком длинное имя
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=f"Неизвестный часовой пояс: {name!r}. Ожидается IANA-имя, напр. Europe/Moscow.",
