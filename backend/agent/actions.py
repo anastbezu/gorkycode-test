@@ -1,7 +1,7 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import uuid4
 
-from .models import (
+from schemas import (
     ActionResult,
     CreateRecord,
     ListRecords,
@@ -29,7 +29,7 @@ async def handle_create_record(db, user_id, action: CreateRecord) -> ActionResul
         end=action.end,
         all_day=not action.time_given,
         deadline=action.deadline,
-        created_at=datetime.now(timezone.utc),
+        created_at=datetime.now(UTC),
     )
     return ActionResult(action="create_record", ok=True, records=[record])
 
@@ -42,7 +42,7 @@ async def handle_list_records(db, user_id, action: ListRecords) -> ActionResult:
         type=RecordType.MEETING,
         title="Встреча с командой",
         start=action.date_from,
-        created_at=datetime.now(timezone.utc),
+        created_at=datetime.now(UTC),
     )
     return ActionResult(action="list_records", ok=True, records=[fake])
 
@@ -62,5 +62,7 @@ ACTIONS = {
 async def execute(db, user_id, action) -> ActionResult:
     handler = ACTIONS.get(action.action)
     if handler is None:
-        return ActionResult(action=action.action, ok=False, error=f"неизвестное действие: {action.action}")
+        return ActionResult(
+            action=action.action, ok=False, error=f"неизвестное действие: {action.action}"
+        )
     return await handler(db, user_id, action)

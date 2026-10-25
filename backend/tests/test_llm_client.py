@@ -1,7 +1,7 @@
 import pytest
 
 from agent.llm import make_client
-from agent.models import LLMConfig
+from schemas import LLMConfig
 
 
 def test_model_from_env(monkeypatch):

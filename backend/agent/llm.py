@@ -1,7 +1,8 @@
 import os
+
 from openai import AsyncOpenAI
 
-from .models import LLMConfig
+from schemas import LLMConfig
 
 
 def make_client(config: LLMConfig | None = None) -> tuple[AsyncOpenAI, str]:

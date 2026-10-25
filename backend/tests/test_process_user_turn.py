@@ -6,7 +6,7 @@ import openai
 
 from agent import agent as agent_module
 from agent.agent import ActionParseError, process_user_turn
-from agent.models import CreateRecord
+from schemas import CreateRecord
 
 
 def turn(text="привет"):

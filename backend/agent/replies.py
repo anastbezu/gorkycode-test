@@ -1,6 +1,6 @@
 from zoneinfo import ZoneInfo
 
-from .models import ActionResult, Record
+from schemas import ActionResult, Record
 
 MISSING_QUESTIONS = {
     "start": "На какое время поставить встречу?",
@@ -33,7 +33,9 @@ def reply_for_result(result: ActionResult, timezone_name: str) -> str:
         return f"Готово: «{record.title}» {when_text(record, timezone_name)}".strip() + "."
     # TODO(agent-04): короткие ответы на слух для списка и поиска
     if result.action == "list_records":
-        return f"Нашёл записей: {len(result.records)}." if result.records else "На этот период ничего нет."
+        if not result.records:
+            return "На этот период ничего нет."
+        return f"Нашёл записей: {len(result.records)}."
     if result.action == "search_records":
         return f"Нашёл записей: {len(result.records)}." if result.records else "Ничего не нашлось."
     return "Готово."
