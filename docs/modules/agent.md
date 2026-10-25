@@ -52,6 +52,56 @@ missing и выбор кандидата. Обработчик missing сохр�
 Второй вызов LLM в рамках той же реплики не требуется.
 Вызов SDK, исполнение и хранение состояния реализует владелец каркаса агента.
 
+## Клиент LLM
+
+`agent/llm.py::make_client(llm_config)` создаёт `AsyncOpenAI` и возвращает
+его вместе с именем модели. Каждое поле берётся из `LLMConfig` запроса,
+а если там пусто — из окружения: `base_url` ← `LLM_BASE_URL`,
+`api_key` ← `LLM_API_KEY`, `model` ← `LLM_MODEL`. Условий на конкретного
+провайдера в коде нет. Пустой `LLM_BASE_URL` означает адрес OpenAI
+по умолчанию. Таймаут — 15 секунд, один повтор.
+Нет ключа или модели — `LLMConfigError`.
+
+## Вызов и разбор действия
+
+`get_action(text, now, timezone_name, llm_config)` делает один вызов
+`chat.completions.create`: системный промпт и пользовательская фраза,
+четыре локализованных инструмента, `tool_choice="required"`.
+Из `tool_calls[0]` берутся имя инструмента и JSON-аргументы и проверяются
+через `LLMAction.model_validate({"action": name, **args})`. Нет вызова
+инструмента, битый JSON или поля не проходят схему — `ActionParseError`.
+
+## Реестр действий
+
+`agent/actions.py::ACTIONS` сопоставляет `action` с обработчиком
+`(db, user_id, action) -> ActionResult`; `execute` выбирает обработчик по
+`action.action`, для неизвестного действия возвращает `ok=False` с ошибкой.
+`ask_user` в реестр не входит: `process_user_turn` сразу возвращает
+`AskUser.question` с `awaiting="answer"`.
+
+Пока сервисы записей и поиск не готовы, обработчики — заглушки с `TODO`:
+`create_record` собирает `Record` без сохранения (встреча без времени —
+`missing=["start"]`), `list_records` и `search_records` возвращают пустой
+список.
+
+## Ошибки
+
+`process_user_turn` не пробрасывает ошибки LLM наружу, пользователь
+получает `ChatResponse` с понятным `reply` и `result=None`:
+
+| Ошибка | Ответ |
+|---|---|
+| `LLMConfigError` — нет ключа или модели | ассистент не настроен, задать ключ и модель |
+| `openai.APIError` — таймаут, сеть, лимиты, 5xx | сервис распознавания временно недоступен |
+| `ActionParseError` | не удалось разобрать запрос |
+
+## Шаблоны ответа
+
+`agent/replies.py` строит `reply` из `ActionResult` без второго вызова LLM:
+`missing` → вопрос о недостающем поле (`awaiting="answer"`), ошибка →
+`error`, созданная запись → «Готово: «название» на дд.мм в чч:мм» во времени
+пользователя, список и поиск → число записей или «ничего нет».
+
 ## Проверки
 
 Тесты написаны на pytest. Запуск из `backend/`:
@@ -64,3 +114,7 @@ uv run ruff check
 `backend/tests/test_agent_prompt_tools.py`: календарь двух недель и пояс,
 изоляция локализации, JSON CreateRecord и экспорт четырёх инструментов,
 пример со смещением пользователя во всех полях дат после `localize_tools`.
+`backend/tests/test_llm_client.py`: `LLMConfig` и окружение, нет ключа,
+пустой `LLM_BASE_URL`.
+`backend/tests/test_process_user_turn.py`: таймаут API, неразобранное
+действие, нет ключа или модели, встреча без времени. Сети в тестах нет.
