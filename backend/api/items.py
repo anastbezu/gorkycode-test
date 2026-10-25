@@ -72,7 +72,7 @@ def list_items(
     zone = parse_timezone(tz)
     if date_to <= date_from:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="Параметр `to` должен быть позже `from`.",
         )
     # Импорт — после проверок: при ошибке клиент не получает X-User-Id,

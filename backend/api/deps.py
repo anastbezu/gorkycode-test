@@ -54,7 +54,7 @@ def parse_timezone(name: str | None) -> ZoneInfo:
         return ZoneInfo(DEFAULT_TIMEZONE if name is None else name)
     except (ZoneInfoNotFoundError, ValueError, OSError) as exc:  # OSError — слишком длинное имя
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=f"Неизвестный часовой пояс: {name!r}. Ожидается IANA-имя, напр. Europe/Moscow.",
         ) from exc
 
