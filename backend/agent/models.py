@@ -87,3 +87,9 @@ class ActionResult(BaseModel):
     candidates: list[Record] = []    # несколько подходящих — нужен выбор
     missing: list[str] = []          # чего не хватило
     error: str | None = None
+
+# TODO: replace with backend/schemas
+class LLMConfig(BaseModel):
+    base_url: str | None = None
+    api_key: str | None = None
+    model: str | None = None
