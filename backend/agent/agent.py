@@ -1,38 +1,37 @@
-import os
+import json
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
-from dotenv import load_dotenv
-from google import genai
-from google.genai import types
+from .llm import make_client
+from .models import LLMAction, LLMConfig
+from .tools import TOOLS
 
-from tools import TOOLS_CONFIG
-
-load_dotenv()
-api_key = os.getenv("GEMINI_API_KEY")
-
-if not api_key:
-    raise RuntimeError("GEMINI_API_KEY не найден в .env")
-
-HISTORY_LIMIT = 20
-history: dict[str, list[types.Content]] = {}
-
-client = genai.Client(api_key=api_key)
-MODEL = "gemini-3.5-flash-lite"
-
-
-def handle_message(user_id: str, text: str, session_id: str | None = None) -> str:
-    key = session_id or user_id
-    past = history.get(key, [])
-    user_msg = types.Content(role="user", parts=[types.Part(text=text)])
-
-    response =  client.models.generate_content(
-        model=MODEL,
-        contents=[*past, user_msg]
+def build_system_prompt() -> str:
+    # TODO: заменить на промпт из agent-01 (Давид)
+    now = datetime.now(ZoneInfo("Europe/Moscow"))
+    return (
+        "Ты ассистент для задач и встреч. "
+        f"Сейчас {now.isoformat()} (Europe/Moscow). "
+        "Даты возвращай в ISO 8601 со смещением часового пояса."
     )
 
-    reply = response.text
-    if reply:
-        model_msg = types.Content(role="model", parts=[types.Part(text=reply)])
-        history[key] = [*past, user_msg, model_msg][-HISTORY_LIMIT:]
-    return reply
 
+async def get_action(text: str, llm_config: LLMConfig | None = None):
+    client, model = make_client(llm_config)
+    response = await client.chat.completions.create(
+        model=model,
+        messages=[
+            {"role": "system", "content": build_system_prompt()},
+            {"role": "user", "content": text},
+        ],
+        tools=TOOLS,
+        tool_choice="required",
+    )
+    message = response.choices[0].message
 
+    if not message.tool_calls:
+        raise RuntimeError("Модель не вернула действие")
+
+    call = message.tool_calls[0]
+    args = json.loads(call.function.arguments)
+    return LLMAction.model_validate({"action": call.function.name, **args}).root

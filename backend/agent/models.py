@@ -12,20 +12,22 @@ class RecordType(StrEnum):
     MEETING = "meeting"
     REMINDER = "reminder"
 
+
 class RecordStatus(StrEnum):
     ACTIVE = "active"
     DONE = "done"
     CANCELLED = "cancelled"
+
 
 class Record(BaseModel):
     id: UUID
     user_id: UUID
     type: RecordType
     title: str
-    start: AwareDatetime | None = None      # встреча и напоминание — когда; у задачи может не быть
-    end: AwareDatetime | None = None        # только у встречи
-    all_day: bool = False                   # дата названа, время — нет
-    deadline: AwareDatetime | None = None   # срок («до конца недели»), не начало
+    start: AwareDatetime | None = None  # встреча и напоминание — когда; у задачи может не быть
+    end: AwareDatetime | None = None  # только у встречи
+    all_day: bool = False  # дата названа, время — нет
+    deadline: AwareDatetime | None = None  # срок («до конца недели»), не начало
     status: RecordStatus = RecordStatus.ACTIVE
     created_at: AwareDatetime
 
@@ -44,6 +46,7 @@ class SearchFilters(BaseModel):
     date_to: AwareDatetime | None = None
     status: list[RecordStatus] | None = None
 
+
 class CreateRecord(BaseModel):
     """Создать задачу, встречу или напоминание."""
     action: Literal["create_record"] = "create_record"
@@ -54,6 +57,7 @@ class CreateRecord(BaseModel):
     time_given: bool = Field(description="Пользователь назвал время, а не только дату")
     deadline: AwareDatetime | None = None
 
+
 class ListRecords(BaseModel):
     """Показать записи за период: «что у меня сегодня», «на этой неделе»."""
     action: Literal["list_records"] = "list_records"
@@ -61,17 +65,20 @@ class ListRecords(BaseModel):
     date_to: AwareDatetime
     types: list[RecordType] | None = None
 
+
 class SearchRecords(BaseModel):
     """Найти старые записи по смыслу: «задачу про договор»."""
     action: Literal["search_records"] = "search_records"
     query: str = Field(description="О чём запись, без слов «найди», «когда-то»")
     filters: SearchFilters = SearchFilters()
 
+
 class AskUser(BaseModel):
     """Спросить, если для действия не хватает данных."""
     action: Literal["ask_user"] = "ask_user"
     question: str
     missing: list[str] = Field(description="Каких полей не хватает: start, type …")
+
 
 LLMAction = RootModel[Annotated[
     CreateRecord | ListRecords | SearchRecords | AskUser,
@@ -82,11 +89,12 @@ LLMAction = RootModel[Annotated[
 class ActionResult(BaseModel):
     action: str
     ok: bool
-    records: list[Record] = []       # созданная, найденные, за период
-    conflicts: list[Record] = []     # пересечения по времени при создании встречи
-    candidates: list[Record] = []    # несколько подходящих — нужен выбор
-    missing: list[str] = []          # чего не хватило
+    records: list[Record] = []  # созданная, найденные, за период
+    conflicts: list[Record] = []  # пересечения по времени при создании встречи
+    candidates: list[Record] = []  # несколько подходящих — нужен выбор
+    missing: list[str] = []  # чего не хватило
     error: str | None = None
+
 
 # TODO: replace with backend/schemas
 class LLMConfig(BaseModel):
