@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field
 class LLMConfig(BaseModel):
     base_url: str | None = Field(default=None, description="OpenAI-совместимый base_url")
     api_key: str | None = Field(default=None, description="Ключ API пользователя")
-    model: str | None = Field(default=None, description="Модель, напр. gemini-2.0-flash или gpt-4o-mini")
+    model: str | None = Field(default=None, description="Имя модели у провайдера")
 
 class ChatRequest(BaseModel):
     conversation_id: UUID | None = None  # None — новый разговор
