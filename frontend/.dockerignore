@@ -1,0 +1,6 @@
+# В образ попадает только статика сайта
+Dockerfile
+.dockerignore
+node_modules/
+.env
+.env.*
