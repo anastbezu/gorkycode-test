@@ -22,7 +22,7 @@ async def handle_create_record(db, user_id, action: CreateRecord) -> ActionResul
         )
     record = Record(
         id=uuid4(),
-        user_id=user_id or uuid4(),
+        user_id=user_id,
         type=action.type,
         title=action.title,
         start=action.start,
@@ -36,15 +36,7 @@ async def handle_create_record(db, user_id, action: CreateRecord) -> ActionResul
 
 async def handle_list_records(db, user_id, action: ListRecords) -> ActionResult:
     # TODO: replace with services.records.list_records_for_period(db, user_id, action)
-    fake = Record(
-        id=uuid4(),
-        user_id=user_id or uuid4(),
-        type=RecordType.MEETING,
-        title="Встреча с командой",
-        start=action.date_from,
-        created_at=datetime.now(UTC),
-    )
-    return ActionResult(action="list_records", ok=True, records=[fake])
+    return ActionResult(action="list_records", ok=True, records=[])
 
 
 async def handle_search_records(db, user_id, action: SearchRecords) -> ActionResult:
