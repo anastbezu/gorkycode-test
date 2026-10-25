@@ -6,6 +6,7 @@ from zoneinfo import ZoneInfo
 
 from schemas import ConversationState, CreateRecord, LLMAction, RecordType
 from services import create_record, merge_pending
+from services.records import _is_all_day, validate_create
 
 MSK = ZoneInfo("Europe/Moscow")
 
@@ -56,3 +57,32 @@ def test_create_record_rejects_end_before_start() -> None:
     assert result.action == "create_record"
     assert "окончания" in result.error
     assert result.records == []
+
+
+def test_past_check_has_grace_for_timed_records() -> None:
+    now = datetime(2026, 10, 25, 12, 0, tzinfo=MSK)
+
+    def reminder(start: datetime) -> CreateRecord:
+        return CreateRecord(
+            type=RecordType.REMINDER, title="Позвонить Ивану", start=start, time_given=True
+        )
+
+    # LLM посчитала время до ответа модели — секунды «в прошлом» не ошибка.
+    assert validate_create(reminder(now - timedelta(seconds=30)), now) is None
+    rejected = validate_create(reminder(now - timedelta(minutes=2)), now)
+    assert rejected is not None and rejected.ok is False
+
+
+def test_all_day_only_when_day_named() -> None:
+    now = datetime(2026, 10, 25, 20, 0, tzinfo=MSK)
+    today = datetime(2026, 10, 25, 0, 0, tzinfo=MSK)
+
+    named_day = CreateRecord(
+        type=RecordType.TASK, title="Купить хлеб", start=today, time_given=False
+    )
+    no_date = CreateRecord(type=RecordType.TASK, title="Прочитать книгу", time_given=False)
+
+    # «Сегодня» без времени вечером — не прошлое, запись на весь день.
+    assert validate_create(named_day, now) is None
+    assert _is_all_day(named_day) is True
+    assert _is_all_day(no_date) is False
