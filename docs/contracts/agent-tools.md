@@ -13,7 +13,7 @@ from pydantic import AwareDatetime, BaseModel, Field, RootModel
 class SearchFilters(BaseModel):
     types: list[RecordType] | None = None
     date_from: AwareDatetime | None = Field(default=None, description="Необязательно. Начало периода, ISO 8601 со смещением: {ISO_EXAMPLE}")
-    date_to: AwareDatetime | None = Field(default=None, description="Необязательно. Конец периода, ISO 8601 со смещением: {ISO_EXAMPLE}")
+    date_to: AwareDatetime | None = Field(default=None, description="Необязательно. Конец периода, не включается, ISO 8601 со смещением: {ISO_EXAMPLE}")
     status: list[RecordStatus] | None = None
 
 class CreateRecord(BaseModel):
@@ -30,7 +30,7 @@ class ListRecords(BaseModel):
     """Показать записи за явный календарный интервал: «что у меня сегодня», «планы на неделю». НЕ для поиска по теме."""
     action: Literal["list_records"] = "list_records"
     date_from: AwareDatetime = Field(description="Начало интервала, ISO 8601 со смещением: {ISO_EXAMPLE}")
-    date_to: AwareDatetime = Field(description="Конец интервала, ISO 8601 со смещением: {ISO_EXAMPLE}")
+    date_to: AwareDatetime = Field(description="Конец интервала, не включается: «сегодня» — до 00:00 следующего дня. ISO 8601 со смещением: {ISO_EXAMPLE}")
     types: list[RecordType] | None = None
 
 class SearchRecords(BaseModel):
@@ -53,6 +53,7 @@ LLMAction = RootModel[Annotated[
 
 ## Правила
 - Даты — ISO 8601 со смещением. `{ISO_EXAMPLE}` в описаниях агент заменяет примером в поясе пользователя (`2026-10-25T15:00:00+03:00` для Europe/Moscow).
+- Период — `[date_from, date_to)`: `date_to` не включается. «Сегодня» — с 00:00 сегодня до 00:00 завтра; запись «на весь день» завтра (`start` = 00:00 завтра) в него не попадает.
 - Назван только день (`time_given = False`, `start` — начало дня): задача и напоминание сохраняются с `all_day`, для встречи код возвращает `missing=["start"]` — агент спрашивает время. Дата не названа — `start = None`.
 - Код проверяет: пояс есть, конец позже начала, при создании — не в прошлом (для `all_day` — по дате, запись на сегодня допустима). Ошибку проверки код возвращает LLM текстом.
 - Несколько подходящих записей — код подбирает по точности (дата и время → время → название → нечёткое совпадение) и, если кандидатов несколько, просит выбрать из списка.

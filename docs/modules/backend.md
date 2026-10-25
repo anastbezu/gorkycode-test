@@ -10,6 +10,7 @@ backend/
 ├── db/
 │   ├── models.py     ORM-модели SQLAlchemy 2 (только для сервисов бэкенда, наружу не отдаются)
 │   └── session.py    движок и сессии, адрес из DATABASE_URL
+├── services/         бизнес-логика: записи (records.py) и состояние разговора (conversation.py)
 ├── alembic/          миграции схемы
 └── tests/            pytest
 ```
@@ -66,6 +67,63 @@ backend/
   синхронные эндпоинты в пуле потоков. Psycopg 3 умеет и async, если понадобится.
 - **Векторов в `records` нет.** Модель эмбеддингов ещё не выбрана; колонку и индекс добавит
   модуль поиска отдельной миграцией. Расширение `vector` включает миграция `0001`.
+
+## Сервисы
+
+Чистая бизнес-логика без HTTP: её вызывают агент (tools) и API. Принимают и возвращают только
+Pydantic-модели контрактов. Сессия БД передаётся явным аргументом `db` первым параметром.
+Ошибки бизнес-правил — `ActionResult(ok=False, error=...)`, не исключения: агент передаёт текст
+ошибки LLM, API не отдаёт 500.
+
+### Записи — `services/records.py`
+
+**`create_record(db, user_id, action: CreateRecord) -> ActionResult`**
+
+Проверки по порядку (`validate_create`, до обращения к базе):
+
+| Правило | Результат |
+|---|---|
+| у `start` / `end` / `deadline` нет часового пояса | `ok=False` |
+| встреча без `start` | `ok=False`, `missing=["start"]` |
+| встреча, время не названо (`time_given=False`) | не сохраняется, `ok=False`, `missing=["start"]` — агент переспросит «На какое время?» |
+| `end <= start` | `ok=False` |
+| `start` или `deadline` в прошлом | `ok=False` |
+
+- `all_day=True` — только если назван день, но не время (`start` задан, `time_given=False`):
+  задача и напоминание «на весь день». Задача без даты («прочитать книгу») или только со сроком —
+  `all_day=False`.
+- «В прошлом» для `all_day` сравнивается по дням в поясе самой даты: «сегодня» без времени —
+  не прошлое. Для записей со временем — `start < now − 1 минута` (`PAST_GRACE`): LLM считает
+  время от момента запроса, проверка идёт после ответа модели, и «напомни через минуту»
+  не должно отклоняться из-за этих секунд.
+- При успехе: `ok=True`, `records=[созданная запись]`.
+
+**`list_records_for_period(db, user_id, action: ListRecords) -> ActionResult`**
+
+- Записи пользователя, у которых `start` **или** `deadline` в `[date_from, date_to)` — правая
+  граница не включается (контракт `agent-tools.md`): «сегодня» — до 00:00 завтра, и запись
+  «на весь день» завтра в него не попадает. «Задачи на завтра» находят и задачи только со сроком.
+- Отменённые (`cancelled`) не показываются; остальные статусы — показываются.
+- Фильтр `types`, если передан. Сортировка по `coalesce(start, deadline)`.
+- Ничего нет — `ok=True, records=[]`.
+
+### Состояние разговора — `services/conversation.py`
+
+| Функция | Что делает |
+|---|---|
+| `get_or_create_conversation_state(db, conversation_id, user_id)` | состояние из БД; для нового разговора создаёт пустое. Чужой разговор → `ConversationAccessError` |
+| `save_conversation_state(db, state)` | сохраняет `focus_record_id`, `pending`, `candidates`, `missing`, `awaiting` |
+| `merge_pending(state, incoming)` | дописывает в черновик `pending` непустые поля из `incoming`, уже сохранённое не затирает; заполненные поля убирает из `missing` |
+| `clear_pending(state)` | очищает `pending`, `missing`, `awaiting` после успешного действия |
+
+Сценарий уточнения: «поставь встречу с Иваном завтра» → `create_record` вернул `missing=["start"]` →
+агент кладёт черновик в `pending`, `awaiting="answer"`, сохраняет → «в 14» →
+`merge_pending(state, {"start": ..., "time_given": True})` → `create_record(pending)` →
+`clear_pending` + `focus_record_id` = созданная запись → сохранить.
+
+`merge_pending` — по паттерну livekit-booking-system (`context_manager._save`): берётся весь старый
+черновик и поверх кладутся только непустые новые значения. Очистка вынесена в отдельную
+`clear_pending`: в одном вызове слить и сразу очистить черновик нельзя.
 
 ## Миграции
 
