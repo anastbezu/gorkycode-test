@@ -9,7 +9,7 @@ from pydantic import ValidationError
 from schemas import AskUser, ChatResponse, LLMAction, LLMConfig
 
 from .actions import execute
-from .llm import make_client
+from .llm import LLMConfigError, make_client
 from .replies import question_for_missing, reply_for_result
 from .system_prompt import build_compact_system_prompt
 from .tools import get_agent_tools, localize_tools
@@ -61,6 +61,12 @@ async def process_user_turn(
     now = datetime.now(ZoneInfo(timezone_name))
     try:
         action = await get_action(text, now, timezone_name, llm_config)
+    except LLMConfigError:
+        return ChatResponse(
+            conversation_id=conversation_id,
+            reply="Ассистент не настроен: не указан ключ API или модель LLM. "
+            "Задайте их в настройках.",
+        )
     except openai.APIError:
         # таймаут, сеть, лимиты, 5xx
         return ChatResponse(

@@ -43,3 +43,20 @@ def test_meeting_without_time_asks_question(monkeypatch):
     _, r = turn("поставь встречу с Иваном завтра")
     assert r.awaiting == "answer"
     assert "время" in r.reply
+
+
+def test_missing_llm_config_gives_polite_reply(monkeypatch):
+    # Настоящий get_action и make_client: ключа и модели нет ни в LLMConfig, ни в окружении.
+    monkeypatch.delenv("LLM_API_KEY", raising=False)
+    monkeypatch.delenv("LLM_MODEL", raising=False)
+    cid, r = turn()
+    assert "не настроен" in r.reply
+    assert r.conversation_id == cid
+    assert r.result is None
+
+
+def test_missing_model_gives_polite_reply(monkeypatch):
+    monkeypatch.setenv("LLM_API_KEY", "x")
+    monkeypatch.delenv("LLM_MODEL", raising=False)
+    _, r = turn()
+    assert "не настроен" in r.reply
