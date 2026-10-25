@@ -12,31 +12,31 @@ from pydantic import AwareDatetime, BaseModel, Field, RootModel
 
 class SearchFilters(BaseModel):
     types: list[RecordType] | None = None
-    date_from: AwareDatetime | None = None
-    date_to: AwareDatetime | None = None
+    date_from: AwareDatetime | None = Field(default=None, description="Необязательно. Начало периода, ISO 8601 со смещением: {ISO_EXAMPLE}")
+    date_to: AwareDatetime | None = Field(default=None, description="Необязательно. Конец периода, ISO 8601 со смещением: {ISO_EXAMPLE}")
     status: list[RecordStatus] | None = None
 
 class CreateRecord(BaseModel):
     """Создать задачу, встречу или напоминание."""
     action: Literal["create_record"] = "create_record"
     type: RecordType
-    title: str = Field(description="Суть без даты и времени: «позвонить Ивану»")
-    start: AwareDatetime | None = None
-    end: AwareDatetime | None = None
-    time_given: bool = Field(description="Пользователь назвал время, а не только дату")
-    deadline: AwareDatetime | None = None
+    title: str = Field(description="Суть без командных слов («напомни», «поставь»), даты и времени: «позвонить Ивану»")
+    start: AwareDatetime | None = Field(default=None, description="Начало, ISO 8601 со смещением пояса пользователя на эту дату: {ISO_EXAMPLE}. «Утром» = 09:00, «в N» = N:00. Назван только день — начало этого дня и time_given=false. Дата не названа — null.")
+    end: AwareDatetime | None = Field(default=None, description="Конец, ISO 8601 со смещением пояса пользователя на эту дату: {ISO_EXAMPLE}. Не назван — null, не придумывать.")
+    time_given: bool = Field(description="true, только если время названо явно (в том числе «утром»); false, если назван только день или дата не названа")
+    deadline: AwareDatetime | None = Field(default=None, description="Срок, ISO 8601 со смещением пояса пользователя на эту дату: {ISO_EXAMPLE}. «До конца недели» = воскресенье 23:59:59. Срока нет — null.")
 
 class ListRecords(BaseModel):
-    """Показать записи за период: «что у меня сегодня», «на этой неделе»."""
+    """Показать записи за явный календарный интервал: «что у меня сегодня», «планы на неделю». НЕ для поиска по теме."""
     action: Literal["list_records"] = "list_records"
-    date_from: AwareDatetime
-    date_to: AwareDatetime
+    date_from: AwareDatetime = Field(description="Начало интервала, ISO 8601 со смещением: {ISO_EXAMPLE}")
+    date_to: AwareDatetime = Field(description="Конец интервала, ISO 8601 со смещением: {ISO_EXAMPLE}")
     types: list[RecordType] | None = None
 
 class SearchRecords(BaseModel):
     """Найти старые записи по смыслу: «задачу про договор»."""
     action: Literal["search_records"] = "search_records"
-    query: str = Field(description="О чём запись, без слов «найди», «когда-то»")
+    query: str = Field(description="О чём запись, без слов «найди», «поищи», «задачу про», «когда-то»")
     filters: SearchFilters = SearchFilters()
 
 class AskUser(BaseModel):
@@ -52,8 +52,9 @@ LLMAction = RootModel[Annotated[
 ```
 
 ## Правила
-- Даты — ISO 8601 со смещением. Время не названо (`time_given = False`) — код ставит `all_day` или задаёт вопрос, не полночь.
-- Код проверяет: пояс есть, конец позже начала, при создании — не в прошлом. Ошибку проверки код возвращает LLM текстом.
+- Даты — ISO 8601 со смещением. `{ISO_EXAMPLE}` в описаниях агент заменяет примером в поясе пользователя (`2026-10-25T15:00:00+03:00` для Europe/Moscow).
+- Назван только день (`time_given = False`, `start` — начало дня): задача и напоминание сохраняются с `all_day`, для встречи код возвращает `missing=["start"]` — агент спрашивает время. Дата не названа — `start = None`.
+- Код проверяет: пояс есть, конец позже начала, при создании — не в прошлом (для `all_day` — по дате, запись на сегодня допустима). Ошибку проверки код возвращает LLM текстом.
 - Несколько подходящих записей — код подбирает по точности (дата и время → время → название → нечёткое совпадение) и, если кандидатов несколько, просит выбрать из списка.
 - Изменение, удаление, «выполнено» — бонус, добавляются позже действиями с целью:
 ```python
