@@ -86,34 +86,43 @@ def bootstrap_user_data(
 
     Если у пользователя уже есть записи — ничего не делает и возвращает 0 (идемпотентность).
     Все записи вставляются одним запросом `INSERT ... VALUES (...)`.
-    Неизвестный часовой пояс — `zoneinfo.ZoneInfoNotFoundError` (до обращения к базе).
+    Неизвестный часовой пояс — `zoneinfo.ZoneInfoNotFoundError`, некорректное имя пояса
+    (пустое, с `..`) — `ValueError`; оба до обращения к базе.
+
+    Функция завершает транзакцию сессии: `commit` в обоих исходах (загрузили или пропустили),
+    при ошибке — `rollback` и исключение дальше. Так блокировка по `user_id` всегда снимается,
+    а сессией можно пользоваться дальше. Вызывать первой в запросе, до своих изменений.
     """
     tz = ZoneInfo(timezone_str)
     now = now or datetime.now(tz)
 
-    # Два одновременных первых запроса одного пользователя не должны загрузить датасет дважды:
-    # транзакционная блокировка по user_id, снимается сама при commit/rollback.
-    db_session.execute(select(func.pg_advisory_xact_lock(func.hashtext(str(user_id)))))
-    if _user_has_records(db_session, user_id):
+    try:
+        # Два одновременных первых запроса одного пользователя не должны загрузить датасет
+        # дважды: транзакционная блокировка по user_id, снимается при commit/rollback.
+        db_session.execute(select(func.pg_advisory_xact_lock(func.hashtext(str(user_id)))))
+        if _user_has_records(db_session, user_id):
+            db_session.commit()
+            return 0
+
+        values = []
+        for row in read_dataset(csv_path):
+            start = datetime.combine(row.day, row.at, tzinfo=tz)
+            values.append(
+                {
+                    "id": uuid4(),
+                    "user_id": user_id,
+                    "type": detect_type(row.text),
+                    "title": row.text,
+                    "start": start,
+                    "all_day": False,
+                    "status": RecordStatus.DONE if start < now else RecordStatus.ACTIVE,
+                }
+            )
+
+        if values:
+            db_session.execute(insert(models.Record).values(values))
+        db_session.commit()
+    except BaseException:
         db_session.rollback()
-        return 0
-
-    values = []
-    for row in read_dataset(csv_path):
-        start = datetime.combine(row.day, row.at, tzinfo=tz)
-        values.append(
-            {
-                "id": uuid4(),
-                "user_id": user_id,
-                "type": detect_type(row.text),
-                "title": row.text,
-                "start": start,
-                "all_day": False,
-                "status": RecordStatus.DONE if start < now else RecordStatus.ACTIVE,
-            }
-        )
-
-    if values:
-        db_session.execute(insert(models.Record).values(values))
-    db_session.commit()
+        raise
     return len(values)
