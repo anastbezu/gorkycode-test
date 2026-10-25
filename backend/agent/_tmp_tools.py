@@ -1,8 +1,3 @@
-from datetime import datetime, timezone
-from uuid import uuid4
-
-from .models import ActionResult, ListRecords, Record, RecordType
-
 LIST_RECORDS_TOOL = {
     "type": "function",
     "function": {
@@ -43,20 +38,3 @@ LIST_RECORDS_TOOL = {
 }
 
 TOOLS = [LIST_RECORDS_TOOL]  # TODO: заменить схемами из agent-01 (Давид)
-
-
-def handle_list_records(user_id, action: ListRecords) -> ActionResult:
-    # TODO: replace with call to Denis's service
-    fake = Record(
-        id=uuid4(),
-        user_id=uuid4(),
-        type=RecordType.MEETING,
-        title="Встреча с командой",
-        start=action.date_from,
-        created_at=datetime.now(timezone.utc),
-    )
-    return ActionResult(action="list_records", ok=True, records=[fake])
-
-ACTIONS = {
-    "list_records": (ListRecords, handle_list_records),
-}

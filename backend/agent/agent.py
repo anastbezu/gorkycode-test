@@ -4,7 +4,7 @@ from zoneinfo import ZoneInfo
 
 from .llm import make_client
 from .models import LLMAction, LLMConfig
-from .tools import TOOLS
+from ._tmp_tools import TOOLS
 
 def build_system_prompt() -> str:
     # TODO: заменить на промпт из agent-01 (Давид)
