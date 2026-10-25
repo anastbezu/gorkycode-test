@@ -135,3 +135,25 @@ def list_records_for_period(db: Session, user_id: UUID, action: ListRecords) -> 
     return ActionResult(
         action="list_records", ok=True, records=[Record.model_validate(r) for r in rows]
     )
+
+
+def list_undated_records(
+    db: Session, user_id: UUID, types: list[RecordType] | None = None
+) -> list[Record]:
+    """Активные записи пользователя без даты — нет ни начала, ни срока («прочитать книгу»).
+
+    В список за период они не попадают; панель «Мои дела» показывает их отдельным блоком
+    «Без срока» (FEATURES P1 №14). Выполненные и отменённые не показываются.
+    Сортировка — по времени создания.
+    """
+    m = models.Record
+    query = (
+        select(m)
+        .where(m.user_id == user_id)
+        .where(m.status == RecordStatus.ACTIVE)
+        .where(m.start.is_(None), m.deadline.is_(None))
+        .order_by(m.created_at)
+    )
+    if types:
+        query = query.where(m.type.in_(types))
+    return [Record.model_validate(r) for r in db.scalars(query).all()]
