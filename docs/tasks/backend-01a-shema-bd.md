@@ -30,9 +30,11 @@
     - `conversation_id: UUID` (первичный ключ).
     - `user_id: UUID` (индексированный идентификатор пользователя).
     - `focus_record_id: UUID | None` (идентификатор последней затронутой записи).
-    - `pending_action: JSONB | None` (черновик незавершённого действия при слот-филлинге).
-    - `missing: JSONB | None` (список имён недостающих полей, например `["start"]`).
-    - `awaiting: str | None` (режим ожидания: `'answer'`, `'choice'` или `None`).
+    - `pending` (черновик незавершённого действия при слот-филлинге).
+    - `candidates` (идентификаторы записей, из которых пользователь выбирает).
+    - `missing` (список имён недостающих полей, например `["start"]`).
+    - `awaiting` (режим ожидания: `'answer'`, `'choice'` или пусто).
+    - Имена и смысл полей — строго как `ConversationState` в [`docs/contracts/data-model.md`](../contracts/data-model.md).
     - `updated_at: timestamptz` (время последнего обновления состояния).
 - **Миграции Alembic (`alembic/`):**
   - Настрой окружение Alembic (`env.py`), связав его с `Base.metadata` и URL подключения к базе данных из настроек приложения.
@@ -42,12 +44,12 @@
 
 ### Источники для изучения
 - **Модель напоминаний с временными поясами и флагом `all_day`:** репозиторий [OpenVoiceOS Alerts](https://github.com/OpenVoiceOS/ovos-skill-alerts/blob/29d82d2e02080618aa54b0d58b18e499a531d3a3/util/alert.py) (файл `util/alert.py`, класс `Alert`). Обрати внимание, как модель нормализует смещение пояса и отделяет дела с точным временем от дел на весь день (`all_day`), исключая фиктивное время полуночи (00:00).
-- **Структура контекста диалога отдельными полями состояния:** телефонный ассистент [livekit-booking-system](https://github.com/Basit-Arif/livekit-booking-system/blob/93e6e4cf1d8402bf797ec786a5364f5d8e4aa5b6/src/services/redis_service.py) (файл `src/services/redis_service.py`, модель `BookingContext`). Паттерн показывает хранение состояния разговора в виде структурированных полей (`pending_action`, `missing`), а не простыни сырых текстовых сообщений. У нас этот паттерн хранится в PostgreSQL в таблице `conversation_states`.
+- **Структура контекста диалога отдельными полями состояния:** телефонный ассистент [livekit-booking-system](https://github.com/Basit-Arif/livekit-booking-system/blob/93e6e4cf1d8402bf797ec786a5364f5d8e4aa5b6/src/services/redis_service.py) (файл `src/services/redis_service.py`, модель `BookingContext`). Паттерн показывает хранение состояния разговора в виде структурированных полей (режим разговора, старая и новая дата, предложенные слоты), а не простыни сырых текстовых сообщений. Наши поля — свои, из контракта. У нас этот паттерн хранится в PostgreSQL в таблице `conversation_states`.
 
 ## Критерии готовности
 - [ ] Схема базы данных создаётся повторяемо с нуля командой `alembic upgrade head`.
 - [ ] В таблице `records` отсутствуют поля `embedding` и `EMBEDDING_DIM`.
-- [ ] Таблица `conversation_states` создана и поддерживает сохранение черновиков (`pending_action`, `missing`, `focus_record_id`).
+- [ ] Таблица `conversation_states` создана и хранит все поля `ConversationState` из контракта (`focus_record_id`, `pending`, `candidates`, `missing`, `awaiting`).
 - [ ] Все временные поля имеют тип с часовым поясом (`timestamptz`). Запись без часового пояса отклоняется.
 - [ ] Данные одного `user_id` изолированы от других пользователей.
 - [ ] Написан 1 смоук-тест через `pytest`, проверяющий создание и чтение тестовой записи в БД.

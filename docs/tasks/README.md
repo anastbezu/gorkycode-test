@@ -30,7 +30,7 @@ backend-01-model-dannyh.md
 | [backend-02b](backend-02b-api-routes.md) | `backend` | Денис | Маршруты API FastAPI (`/api/chat`, `/api/items`, `X-User-Id`, Swagger `/docs`) |
 | [agent-01](agent-01-prompty-i-shemy-tools.md) | `agent` | Давид | Компактный системный промпт (361 токен), схемы инструментов и опорные даты |
 | [agent-02](agent-02-klient-llm-i-vyzov-tulov.md) | `agent` | Илья | Клиент OpenAI SDK по LLMConfig, принудительный tool calling и реестр ACTIONS |
-| [agent-03](agent-03-slot-filling-i-kontekst.md) | `agent` | Давид | Слот-филлинг, слияние `pending_action`, 1 строка якоря и прямой путь через UI |
+| [agent-03](agent-03-slot-filling-i-kontekst.md) | `agent` | Давид | Слот-филлинг: черновик `pending` в состоянии разговора, ответ дополняет черновик без истории сообщений |
 | [agent-04](agent-04-scenarii-spiska-i-poiska.md) | `agent` | Илья | Сценарии списков за период (`ListRecords`) и смыслового поиска (`SearchRecords`) |
 | [product-01](product-01-makety-i-dizayn.md) | `product` | Маша | Макеты 3 экранов в Figma и дизайн-система |
 | [product-02](product-02-dokumentatsiya-fich-i-test-kejsov.md) | `product` | Маша | Документация фич (`docs/features.md`) и эталонные тест-кейсы для демо |

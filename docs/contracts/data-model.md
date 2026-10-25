@@ -5,6 +5,7 @@
 ## Запись
 ```python
 from enum import StrEnum
+from typing import Literal
 from uuid import UUID
 from pydantic import AwareDatetime, BaseModel, model_validator
 
@@ -55,4 +56,6 @@ class ConversationState(BaseModel):
     focus_record_id: UUID | None = None   # «её», «эту встречу»
     pending: "LLMAction | None" = None    # действие ждёт недостающих полей (agent-tools.md)
     candidates: list[UUID] = []           # ждём выбора из нескольких записей
+    missing: list[str] = []               # каких полей не хватает для pending
+    awaiting: Literal["answer", "choice"] | None = None  # ассистент ждёт ответа или выбора
 ```
