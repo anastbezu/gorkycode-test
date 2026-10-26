@@ -5,7 +5,7 @@ from uuid import uuid4
 from zoneinfo import ZoneInfo
 
 from agent import actions
-from schemas import ActionResult, ListRecords, Record, SearchHit, SearchRecords
+from schemas import ActionResult, CreateRecord, ListRecords, Record, SearchHit, SearchRecords
 
 MSK = ZoneInfo("Europe/Moscow")
 
@@ -50,3 +50,19 @@ def test_search_handler_calls_stub_in_thread(monkeypatch):
     assert result.records == [record]
     assert seen["args"] == ("db", "user", "договор")
     assert seen["thread"] != threading.get_ident()
+
+
+def test_create_handler_passes_now_to_service(monkeypatch):
+    seen = {}
+
+    def fake_create(db, user_id, action, *, now=None):
+        seen["now"] = now
+        return ActionResult(action="create_record", ok=True, records=[])
+
+    monkeypatch.setattr("agent.actions.create_record", fake_create)
+    now = datetime(2026, 10, 21, 10, 0, tzinfo=MSK)
+    action = CreateRecord(type="task", title="купить хлеб", time_given=False)
+
+    asyncio.run(actions.handle_create_record("db", "user", action, now=now))
+
+    assert seen["now"] == now
