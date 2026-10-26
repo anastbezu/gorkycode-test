@@ -1,3 +1,4 @@
+import asyncio
 from datetime import UTC, datetime
 from uuid import uuid4
 
@@ -9,6 +10,7 @@ from schemas import (
     RecordType,
     SearchRecords,
 )
+from services import list_records_for_period
 
 
 async def handle_create_record(db, user_id, action: CreateRecord) -> ActionResult:
@@ -35,8 +37,7 @@ async def handle_create_record(db, user_id, action: CreateRecord) -> ActionResul
 
 
 async def handle_list_records(db, user_id, action: ListRecords) -> ActionResult:
-    # TODO: replace with services.records.list_records_for_period(db, user_id, action)
-    return ActionResult(action="list_records", ok=True, records=[])
+    return await asyncio.to_thread(list_records_for_period, db, user_id, action)
 
 
 async def handle_search_records(db, user_id, action: SearchRecords) -> ActionResult:
