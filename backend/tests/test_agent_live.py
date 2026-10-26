@@ -28,7 +28,18 @@ def test_live_reference_cases(monkeypatch, capsys):
     if not os.environ.get("LLM_API_KEY") or not os.environ.get("LLM_MODEL"):
         pytest.skip("живой прогон: нет LLM_API_KEY или LLM_MODEL в окружении / .env")
 
+    from agent import agent as agent_module
     from agent.agent import get_action  # настоящая модель, до подмены в Harness
+
+    real_make_client = agent_module.make_client
+    timeout = float(os.environ.get("AGENT_TIMEOUT", "60"))
+
+    def make_client_with_timeout(llm_config):
+        # Только для живого прогона: провайдер бывает медленнее таймаута продукта (15 с).
+        client, model = real_make_client(llm_config)
+        return client.with_options(timeout=timeout), model
+
+    monkeypatch.setattr(agent_module, "make_client", make_client_with_timeout)
 
     harness = Harness(monkeypatch, get_action, pause=float(os.environ.get("AGENT_PAUSE", "4")))
     cases = select_cases(os.environ.get("AGENT_SECTION"))
