@@ -7,8 +7,8 @@
 
 ## Контекст
 - **Стек:** Python 3.13, Pydantic v2 (по техническим решениям в `docs/decisions.md`).
-- **Контрактная основа:** Контракты [`docs/contracts/agent-tools.md`](../contracts/agent-tools.md), [`docs/contracts/search.md`](../contracts/search.md), [`docs/contracts/api.md`](../contracts/api.md).
-- **Зависимости:** Опирается на клиент агента ([agent-02](archive/agent-02-klient-llm-i-vyzov-tulov.md)), сервисы выборки Дениса ([backend-02a](archive/backend-02a-servisy-zapisej.md)) и контракт `search` Родиона.
+- **Контрактная основа:** Контракты [`docs/contracts/agent-tools.md`](../../contracts/agent-tools.md), [`docs/contracts/search.md`](../../contracts/search.md), [`docs/contracts/api.md`](../../contracts/api.md).
+- **Зависимости:** Опирается на клиент агента ([agent-02](agent-02-klient-llm-i-vyzov-tulov.md)), сервисы выборки Дениса ([backend-02a](backend-02a-servisy-zapisej.md)) и контракт `search` Родиона.
 - **Сценарий 3: Календарный список за период (`ListRecords`):**
   - Пользовательские формулировки: *«Что у меня на сегодня?»*, *«Какие планы на завтра?»*, *«Покажи встречи на этой неделе»*.
   - LLM вызывает `ListRecords(date_from=..., date_to=..., types=...)`.
@@ -29,7 +29,7 @@
 
 ### Источники для изучения
 - **Паттерн генерации кратких голосовых реплик по списку событий:** голосовой навык [OpenVoiceOS Alerts](https://github.com/OpenVoiceOS/ovos-skill-alerts/tree/29d82d2e02080618aa54b0d58b18e499a531d3a3/locale/ru-ru) (директория диалогов `locale/ru-ru/`). Посмотри, как фразы ответов адаптируются под количество дел, исключая монотонное зачитывание десятков пунктов.
-- **Интерфейс функции поиска по смыслу:** утверждённый контракт проекта [`docs/contracts/search.md`](../contracts/search.md). Сигнатура функции `search()`, структура `SearchHit` и правила предварительной фильтрации до векторного поиска.
+- **Интерфейс функции поиска по смыслу:** утверждённый контракт проекта [`docs/contracts/search.md`](../../contracts/search.md). Сигнатура функции `search()`, структура `SearchHit` и правила предварительной фильтрации до векторного поиска.
 
 ## Критерии готовности
 - [ ] Отрабатывает Сценарий 3: запрос «что у меня на сегодня» возвращает отсортированный список дел и короткий текст, удобный на слух.
