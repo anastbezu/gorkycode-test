@@ -14,7 +14,7 @@
   --surface: #ffffff;
   --surface-glass: rgba(255, 255, 255, 0.72);
   --border: #e3e0d9;
-  --header-bg: rgba(250, 249, 246, 0.8);
+  --header-bg: rgba(250, 249, 246, 0.86);
 
   --user-bubble: var(--violet);
   --user-text: #ffffff;
@@ -29,6 +29,7 @@
   --banner-bg: #ffede6;
   --banner-border: #f6b9a3;
   --banner-text: #c2410c;
+  --scrollbar: rgba(30, 29, 31, 0.22);
 
   --blob-1: rgba(106, 92, 201, 0.55);
   --blob-2: rgba(220, 255, 0, 0.35);
@@ -49,7 +50,7 @@
     --surface: #232225;
     --surface-glass: rgba(35, 34, 37, 0.8);
     --border: #343238;
-    --header-bg: rgba(30, 29, 31, 0.8);
+    --header-bg: rgba(30, 29, 31, 0.86);
 
     --tag-type-bg: #36325a;
     --tag-type-text: #c9c2ff;
@@ -62,6 +63,7 @@
     --banner-bg: #3a1f17;
     --banner-border: #7a3a24;
     --banner-text: #ffb59a;
+    --scrollbar: rgba(242, 240, 235, 0.22);
 
     --blob-1: rgba(106, 92, 201, 0.5);
     --blob-2: rgba(220, 255, 0, 0.14);
@@ -88,13 +90,96 @@ body {
   line-height: 1.4;
   color: var(--text);
   background-color: var(--bg);
-  /* Размытые пятна фона из макета */
-  background-image:
-    radial-gradient(circle at 8% 12%, var(--blob-1), transparent 38%),
-    radial-gradient(circle at 55% 55%, var(--blob-2), transparent 30%),
-    radial-gradient(circle at 92% 92%, var(--blob-3), transparent 40%);
-  background-attachment: fixed;
   -webkit-font-smoothing: antialiased;
+}
+
+/* ---------- пятна на фоне (components/Background.tsx) ---------- */
+
+.bg {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.bg__layer {
+  position: absolute;
+  inset: 0;
+  will-change: transform;
+}
+
+/* Мягкий край — самим градиентом, без filter: blur (он дорогой при движении) */
+.bg__blob {
+  position: absolute;
+  width: 70vmax;
+  height: 70vmax;
+  border-radius: 50%;
+  will-change: transform;
+}
+
+.bg__blob--1 {
+  left: -30vmax;
+  top: -30vmax;
+  background: radial-gradient(circle, var(--blob-1) 0%, transparent 62%);
+  animation: drift-1 38s ease-in-out infinite;
+}
+
+.bg__blob--2 {
+  left: calc(55% - 25vmax);
+  top: calc(55% - 25vmax);
+  width: 50vmax;
+  height: 50vmax;
+  background: radial-gradient(circle, var(--blob-2) 0%, transparent 62%);
+  animation: drift-2 30s ease-in-out infinite;
+}
+
+.bg__blob--3 {
+  right: -30vmax;
+  bottom: -30vmax;
+  background: radial-gradient(circle, var(--blob-3) 0%, transparent 62%);
+  animation: drift-3 44s ease-in-out infinite;
+}
+
+@keyframes drift-1 {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  33% { transform: translate3d(6vw, 4vh, 0); }
+  66% { transform: translate3d(2vw, 9vh, 0); }
+}
+
+@keyframes drift-2 {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  33% { transform: translate3d(-8vw, 5vh, 0); }
+  66% { transform: translate3d(5vw, -6vh, 0); }
+}
+
+@keyframes drift-3 {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  50% { transform: translate3d(-7vw, -8vh, 0); }
+}
+
+/* ---------- полосы прокрутки ---------- */
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar) transparent;
+}
+
+/* Safari и старые Chrome не знают scrollbar-color — для них то же через -webkit- */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar);
+  border: 2px solid transparent;
+  border-radius: 4px;
+  background-clip: padding-box;
 }
 
 button {
@@ -127,7 +212,6 @@ button:disabled {
   gap: 12px;
   padding: 10px 16px 10px 24px;
   background: var(--header-bg);
-  backdrop-filter: blur(20px);
   border-bottom: 1px solid var(--border);
 }
 
@@ -139,6 +223,17 @@ button:disabled {
 
 .header__title-short {
   display: none;
+}
+
+.header__left,
+.header__actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.header__actions {
+  gap: 8px;
 }
 
 .chat {
@@ -493,7 +588,6 @@ button:disabled {
   align-items: center;
   padding: 14px 32px 18px;
   background: var(--header-bg);
-  backdrop-filter: blur(20px);
   border-top: 1px solid var(--border);
 }
 
@@ -522,6 +616,49 @@ button:disabled {
   display: none;
 }
 
+/* ---------- голос: «Начать говорить» → «Идёт запись звука» (фрейм «Состояния») ---------- */
+
+.mic {
+  width: 48px;
+  height: 48px;
+}
+
+.mic--on {
+  background: var(--orange);
+  border-color: var(--orange);
+  color: #fff;
+  box-shadow: 0 0 0 8px rgba(255, 90, 36, 0.2);
+}
+
+.mic--on:hover {
+  background: var(--orange);
+}
+
+.recording {
+  flex: 1;
+  min-width: 0;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 0 18px;
+  font-weight: 600;
+}
+
+.recording__bars {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 26px;
+}
+
+.recording__bars span {
+  width: 4px;
+  height: 20%;
+  border-radius: 2px;
+  background: var(--orange);
+}
+
 /* ---------- «Мои дела» ---------- */
 
 .panel {
@@ -532,7 +669,6 @@ button:disabled {
   min-height: 0;
   padding: 24px 20px 0;
   background: var(--header-bg);
-  backdrop-filter: blur(20px);
   border-left: 1px solid var(--border);
 }
 
@@ -637,6 +773,108 @@ button:disabled {
 
 .panel__note p {
   margin: 0;
+}
+
+/* ---------- календарь (components/CalendarView.tsx) ---------- */
+
+.calendar {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 380px;
+}
+
+.cal {
+  align-self: start;
+  margin: 32px;
+  padding: 28px 30px 24px;
+  background: var(--surface-glass);
+  border: 1px solid var(--border);
+  border-radius: 24px;
+}
+
+.cal__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+
+.cal__title {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 600;
+}
+
+.cal__nav {
+  display: flex;
+  gap: 8px;
+}
+
+.cal__grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.cal__weekday {
+  padding-bottom: 10px;
+  text-align: center;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.cal__day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: 72px;
+  border: none;
+  border-radius: 14px;
+  background: transparent;
+  font-size: 20px;
+  font-variant-numeric: tabular-nums;
+}
+
+.cal__day:hover {
+  background: var(--surface);
+}
+
+.cal__day--outside {
+  color: var(--muted);
+  opacity: 0.55;
+}
+
+.cal__day--selected,
+.cal__day--selected:hover {
+  background: var(--violet);
+  color: #fff;
+  opacity: 1;
+}
+
+.cal__grid--week,
+.cal__handle {
+  display: none;
+}
+
+.cal-day {
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 28px 20px 24px;
+  background: var(--header-bg);
+  border-left: 1px solid var(--border);
+}
+
+.cal-day__title {
+  margin: 0 0 4px;
+  font-size: 20px;
+  font-weight: 600;
 }
 
 /* ---------- настройки ---------- */
@@ -758,6 +996,12 @@ button:disabled {
     padding: 0;
   }
 
+  /* На телефоне голос — основной способ: кнопка микрофона крупнее */
+  .mic {
+    width: 52px;
+    height: 52px;
+  }
+
   .composer__send-label {
     display: none;
   }
@@ -851,7 +1095,68 @@ button:disabled {
   }
 }
 
+@media (max-width: 899px) {
+  .calendar {
+    grid-column: 1;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  .cal {
+    margin: 0;
+    padding: 16px 16px 8px;
+    border-width: 0 0 1px;
+    border-radius: 0 0 24px 24px;
+    background: var(--bg);
+  }
+
+  .cal__title {
+    font-size: 22px;
+  }
+
+  .cal__day {
+    height: 52px;
+    font-size: 18px;
+  }
+
+  /* Свёрнуто — неделя выбранного дня, как во фрейме «Мобильная · календарь»; стрелки — только у месяца */
+  .calendar:not(.calendar--expanded) .cal__grid--month,
+  .calendar:not(.calendar--expanded) .cal__nav {
+    display: none;
+  }
+
+  .calendar:not(.calendar--expanded) .cal__grid--week {
+    display: grid;
+  }
+
+  /* Полоска 40×5 как в макете, но нажимается вся строка — по маленькой полоске пальцем не попасть */
+  .cal__handle {
+    display: block;
+    width: 100%;
+    height: 28px;
+    margin-top: 4px;
+    padding: 0;
+    border: none;
+    background: linear-gradient(var(--border), var(--border)) center / 40px 5px no-repeat;
+  }
+
+  .cal-day {
+    padding: 16px;
+    background: transparent;
+    border: none;
+  }
+
+  .cal-day__title {
+    text-align: center;
+    font-size: 18px;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .bg__blob {
+    animation: none;
+  }
+
   .panel,
   .side__backdrop {
     transition: none;
