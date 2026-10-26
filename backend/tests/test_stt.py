@@ -1,17 +1,15 @@
 """`POST /api/stt` (voice-01) — без сети: провайдер распознавания подменён.
 
-Записи в `fixtures/audio/` — настоящие файлы: `chrome_2s.webm` и `chrome_2s_opus.mp4` записаны
-MediaRecorder в Chromium, `aac_2s_fragmented.mp4` (AAC во фрагментированном MP4, как у Safari)
-и `opus_2s.ogg` — ffmpeg. MP4 хранятся в base64 (`.mp4.b64`): некоторые инструменты при
-копировании дописывают в MP4 свои метаданные, а текст доходит байт в байт.
-Длинные записи собираются в тестах: так репозиторий не растёт.
+Записи собираются в самих тестах — минимальные контейнеры в том виде, в каком их пишет
+MediaRecorder: WebM без длительности в заголовке (Chrome), фрагментированный MP4 (Safari),
+Ogg Opus (Firefox), WAV. Аудиофайлы в репозиторий не коммитим (docs/dev-guide.md).
+Разбор длительности на настоящих записях Chromium и ffmpeg сверен с `ffprobe` вручную.
 """
 
 import base64
 import json
 import struct
 from collections.abc import AsyncIterator
-from pathlib import Path
 from uuid import uuid4
 
 import httpx
@@ -24,15 +22,7 @@ from stt import STTUnavailableError, duration_seconds
 
 pytestmark = pytest.mark.anyio
 
-AUDIO = Path(__file__).parent / "fixtures" / "audio"
 PHRASE = "Поставь встречу с Иваном завтра в 15:00"
-
-
-def _fixture(name: str) -> bytes:
-    encoded = AUDIO / f"{name}.b64"
-    if encoded.exists():
-        return base64.b64decode(encoded.read_text())
-    return (AUDIO / name).read_bytes()
 
 
 @pytest.fixture
@@ -99,6 +89,65 @@ def _webm(last_block_ms: int) -> bytes:
     )
 
 
+def _ogg(seconds: float) -> bytes:
+    """Ogg Opus: первая страница с OpusHead, последняя — с позицией последнего сэмпла."""
+    pre_skip = 312
+
+    def page(granule: int, header_type: int, payload: bytes) -> bytes:
+        head = b"OggS" + bytes([0, header_type]) + struct.pack("<qIII", granule, 1, 0, 0)
+        return head + bytes([1, len(payload)]) + payload
+
+    opus_head = b"OpusHead" + struct.pack("<BBHIhB", 1, 1, pre_skip, 48000, 0, 0)
+    last = int(seconds * 48000) + pre_skip
+    return page(0, 2, opus_head) + page(-1, 0, b"\x00") + page(last, 4, b"\x00")
+
+
+def _box(box_type: bytes, payload: bytes) -> bytes:
+    return struct.pack(">I", 8 + len(payload)) + box_type + payload
+
+
+def _mp4(seconds: float, *, fragmented: bool = True) -> bytes:
+    """MP4 как у Safari: общий заголовок с нулевой длительностью, звук — фрагментами по 1 с.
+
+    `fragmented=False` — обычный MP4: длительность в заголовке дорожки `mdhd`.
+    """
+    scale = 48000
+    header_duration = 0 if fragmented else int(seconds * scale)
+    time_header = b"\x00" * 4 + struct.pack(">IIII", 0, 0, scale, header_duration)
+    mdhd = _box(b"mdhd", time_header + b"\x00" * 4)
+    trak = _box(b"trak", _box(b"mdia", mdhd))
+    trex = _box(b"trex", b"\x00" * 4 + struct.pack(">IIIII", 1, 1, 0, 0, 0))
+    moov = _box(b"moov", _box(b"mvhd", time_header + b"\x00" * 80) + trak)
+    if fragmented:
+        moov = _box(b"moov", moov[8:] + _box(b"mvex", trex))
+    result = _box(b"ftyp", b"isom\x00\x00\x02\x00isomiso6") + moov
+    if not fragmented:
+        return result + _box(b"mdat", b"\x00" * 16)
+    # Фрагменты: по 50 сэмплов AAC/Opus по 20 мс, длительность каждого — в trun.
+    samples_total = int(seconds * 50)
+    decoded = 0
+    while samples_total > 0:
+        count = min(50, samples_total)
+        tfhd = _box(b"tfhd", b"\x00\x02\x00\x00" + struct.pack(">I", 1))
+        tfdt = _box(b"tfdt", b"\x01\x00\x00\x00" + struct.pack(">Q", decoded))
+        trun = _box(
+            b"trun",
+            b"\x00\x00\x01\x01" + struct.pack(">Ii", count, 0) + struct.pack(">I", 960) * count,
+        )
+        result += _box(b"moof", _box(b"traf", tfhd + tfdt + trun)) + _box(b"mdat", b"\x00" * 8)
+        decoded += count * 960
+        samples_total -= count
+    return result
+
+
+RECORDINGS = {
+    "audio/webm": lambda: _webm(1_980),
+    "audio/mp4": lambda: _mp4(2.0),
+    "audio/ogg": lambda: _ogg(2.0),
+    "audio/wav": lambda: _wav(2.0),
+}
+
+
 async def _post(
     client: httpx.AsyncClient,
     data: bytes,
@@ -116,41 +165,44 @@ async def _post(
 
 
 @pytest.mark.parametrize(
-    ("name", "content_type", "expected"),
+    ("audio", "content_type", "expected"),
     [
-        ("chrome_2s.webm", "audio/webm", 1.92),
-        ("chrome_2s_opus.mp4", "audio/mp4", 1.94),
-        ("aac_2s_fragmented.mp4", "audio/mp4", 2.0),
-        ("opus_2s.ogg", "audio/ogg", 2.0),
+        (_webm(1_980), "audio/webm", 1.98),
+        (_webm(35_000), "audio/webm", 35.0),
+        (_mp4(2.0), "audio/mp4", 2.0),
+        (_mp4(33.0), "audio/mp4", 33.0),
+        (_mp4(2.5, fragmented=False), "audio/mp4", 2.5),
+        (_ogg(2.0), "audio/ogg", 2.0),
+        (_wav(31.5), "audio/wav", 31.5),
     ],
 )
-def test_duration_of_browser_recordings(name: str, content_type: str, expected: float) -> None:
-    seconds = duration_seconds(_fixture(name), content_type)
-    assert seconds == pytest.approx(expected, abs=0.05)
+def test_duration(audio: bytes, content_type: str, expected: float) -> None:
+    assert duration_seconds(audio, content_type) == pytest.approx(expected, abs=0.01)
 
 
-def test_duration_of_generated_files() -> None:
-    assert duration_seconds(_wav(31.5), "audio/wav") == pytest.approx(31.5)
-    assert duration_seconds(_webm(35_000), "audio/webm") == pytest.approx(35.0)
-    assert duration_seconds(b"\x1a\x45\xdf\xa3" + b"\x00" * 50, "audio/webm") is None
+@pytest.mark.parametrize("content_type", ["audio/webm", "audio/mp4", "audio/ogg", "audio/wav"])
+def test_duration_of_broken_file_is_unknown(content_type: str) -> None:
+    broken = RECORDINGS[content_type]()[:12] + b"\xff" * 20
+    assert duration_seconds(broken, content_type) is None
 
 
 # --- Успешный ответ -----------------------------------------------------------------------
 
 
 @pytest.mark.parametrize(
-    ("name", "content_type"),
+    ("make", "content_type"),
     [
-        ("chrome_2s.webm", "audio/webm;codecs=opus"),
-        ("chrome_2s_opus.mp4", "audio/mp4;codecs=opus"),
-        ("aac_2s_fragmented.mp4", "audio/mp4"),
-        ("opus_2s.ogg", "audio/ogg; codecs=opus"),
+        (RECORDINGS["audio/webm"], "audio/webm;codecs=opus"),
+        (RECORDINGS["audio/mp4"], "audio/mp4"),
+        (RECORDINGS["audio/mp4"], "audio/mp4;codecs=opus"),
+        (RECORDINGS["audio/ogg"], "audio/ogg; codecs=opus"),
+        (RECORDINGS["audio/wav"], "audio/wav"),
     ],
 )
 async def test_recognized_text(
-    client: httpx.AsyncClient, calls: list, name: str, content_type: str
+    client: httpx.AsyncClient, calls: list, make, content_type: str
 ) -> None:
-    audio = _fixture(name)
+    audio = make()
     response = await _post(client, audio, content_type)
 
     assert response.status_code == 200
@@ -158,11 +210,6 @@ async def test_recognized_text(
     # Запись уходит провайдеру как есть, без перекодировки; формат — без параметров кодека.
     assert calls == [(audio, content_type.split(";")[0])]
     assert response.headers["X-User-Id"]  # без заголовка — новый пользователь, как в /api/chat
-
-
-async def test_wav_is_accepted(client: httpx.AsyncClient, calls: list) -> None:
-    response = await _post(client, _wav(3), "audio/wav")
-    assert response.status_code == 200
 
 
 # --- Ошибки -------------------------------------------------------------------------------
@@ -176,27 +223,28 @@ def _assert_error(response: httpx.Response, code: int) -> None:
 
 
 async def test_bad_user_id_400(client: httpx.AsyncClient, calls: list) -> None:
-    audio = _fixture("chrome_2s.webm")
+    audio = _webm(1_980)
     response = await _post(client, audio, "audio/webm", user_id="not-a-uuid")
     _assert_error(response, 400)
     assert calls == []
 
 
-@pytest.mark.parametrize("seconds", [31.5, 45])
+@pytest.mark.parametrize("seconds", [30.1, 31.5, 45])
 async def test_too_long_wav_413(client: httpx.AsyncClient, calls: list, seconds: float) -> None:
     _assert_error(await _post(client, _wav(seconds), "audio/wav"), 413)
     assert calls == []
 
 
-async def test_too_long_webm_413(client: httpx.AsyncClient, calls: list) -> None:
+async def test_too_long_webm_and_mp4_413(client: httpx.AsyncClient, calls: list) -> None:
     _assert_error(await _post(client, _webm(35_000), "audio/webm"), 413)
+    _assert_error(await _post(client, _mp4(33.0), "audio/mp4"), 413)
     assert calls == []
 
 
-async def test_slightly_over_30_seconds_is_accepted(client: httpx.AsyncClient, calls: list) -> None:
-    """Интерфейс останавливает запись на 30-й секунде, файл выходит чуть длиннее."""
-    response = await _post(client, _webm(30_400), "audio/webm")
-    assert response.status_code == 200
+async def test_30_seconds_accepted_longer_413(client: httpx.AsyncClient, calls: list) -> None:
+    """Ровно 30 секунд — можно, хоть на долю секунды длиннее — 413, без запаса."""
+    assert (await _post(client, _webm(30_000), "audio/webm")).status_code == 200
+    _assert_error(await _post(client, _webm(30_040), "audio/webm"), 413)
 
 
 async def test_unreadable_duration_falls_back_to_size(
@@ -220,7 +268,7 @@ async def test_file_over_upload_limit_413(client: httpx.AsyncClient, calls: list
 async def test_unsupported_type_415(
     client: httpx.AsyncClient, calls: list, content_type: str
 ) -> None:
-    audio = _fixture("chrome_2s.webm")
+    audio = _webm(1_980)
     _assert_error(await _post(client, audio, content_type), 415)
     assert calls == []
 
@@ -245,7 +293,7 @@ async def test_no_speech_422(client: httpx.AsyncClient, monkeypatch: pytest.Monk
         return ""
 
     monkeypatch.setattr(stt_route, "transcribe", silence)
-    audio = _fixture("chrome_2s.webm")
+    audio = _webm(1_980)
     response = await _post(client, audio, "audio/webm")
     _assert_error(response, 422)
     assert response.json()["detail"] == "Не расслышал, повторите, пожалуйста."
@@ -257,7 +305,7 @@ async def test_too_short_422_without_provider(client: httpx.AsyncClient, calls: 
 
 
 async def test_rate_limit_429_per_user(client: httpx.AsyncClient, calls: list) -> None:
-    audio = _fixture("chrome_2s.webm")
+    audio = _webm(1_980)
     user, other = str(uuid4()), str(uuid4())
     for _ in range(stt_route.RATE_LIMIT_REQUESTS):
         assert (await _post(client, audio, "audio/webm", user_id=user)).status_code == 200
@@ -288,7 +336,7 @@ async def test_provider_unavailable_503(
         raise STTUnavailableError("таймаут")
 
     monkeypatch.setattr(stt_route, "transcribe", down)
-    audio = _fixture("chrome_2s.webm")
+    audio = _webm(1_980)
     _assert_error(await _post(client, audio, "audio/webm"), 503)
 
 
@@ -296,7 +344,7 @@ async def test_no_key_503(client: httpx.AsyncClient, monkeypatch: pytest.MonkeyP
     """Настоящий клиент без ключа: 503 ещё до сети."""
     monkeypatch.delenv("STT_API_KEY", raising=False)
     monkeypatch.setenv("STT_MODEL", "gemini-test")
-    audio = _fixture("chrome_2s.webm")
+    audio = _webm(1_980)
     _assert_error(await _post(client, audio, "audio/webm"), 503)
 
 
@@ -334,7 +382,7 @@ async def test_gemini_request_and_answer(monkeypatch: pytest.MonkeyPatch) -> Non
         return httpx.Response(200, json=_answer(f"  {PHRASE} "))
 
     _gemini(monkeypatch, handler)
-    audio = _fixture("aac_2s_fragmented.mp4")
+    audio = _mp4(2.0)
 
     assert await stt_client.transcribe(audio, "audio/mp4") == PHRASE
 

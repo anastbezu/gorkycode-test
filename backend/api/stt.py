@@ -28,15 +28,13 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api", tags=["voice"])
 
+# Запись длиннее 30 секунд — 413 (контракт api.md), без запаса.
 MAX_SECONDS = 30
-# Запас на округление: интерфейс останавливает запись на 30-й секунде, а файл выходит
-# на доли секунды длиннее (последний фрагмент кодека).
-DURATION_GRACE_SECONDS = 1.0
 # Короче — точно не фраза (случайное нажатие): отвечаем «не расслышал», не тратя лимит.
 MIN_SECONDS = 0.3
-# Если длительность из файла не прочиталась — ограничение по размеру: 31 с при 320 кбит/с.
+# Если длительность из файла не прочиталась — ограничение по размеру: 30 с при 320 кбит/с.
 # Запись Chrome (opus, 128 кбит/с) за 30 с весит около 0,5 МБ.
-MAX_BYTES_WITHOUT_DURATION = int((MAX_SECONDS + DURATION_GRACE_SECONDS) * 320_000 / 8)
+MAX_BYTES_WITHOUT_DURATION = MAX_SECONDS * 320_000 // 8
 # Предел файла вообще: 30 с несжатого WAV (48 кГц, стерео) — около 5,8 МБ.
 MAX_UPLOAD_BYTES = 10 * 1024 * 1024
 # Частота: несколько голосовых реплик в минуту — норма живого разговора.
@@ -115,7 +113,7 @@ async def speech_to_text(
     if seconds is None:
         if len(data) > MAX_BYTES_WITHOUT_DURATION:
             raise too_long
-    elif seconds > MAX_SECONDS + DURATION_GRACE_SECONDS:
+    elif seconds > MAX_SECONDS:
         raise too_long
     elif seconds < MIN_SECONDS:
         raise _error(status.HTTP_422_UNPROCESSABLE_CONTENT, NOT_RECOGNIZED)
