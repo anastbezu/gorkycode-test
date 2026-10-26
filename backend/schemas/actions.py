@@ -91,7 +91,8 @@ class SearchRecords(BaseModel):
 
 
 class TargetRef(BaseModel):
-    """Какую запись менять. Заполняется одно: index, focus или text (+ when)."""
+    """Какую запись менять. Заполняется одно: index, focus или text (+ when, filters);
+    all — для нескольких записей."""
 
     index: int | None = Field(
         default=None,
@@ -109,6 +110,16 @@ class TargetRef(BaseModel):
     when: AwareDatetime | None = Field(
         default=None,
         description="Названная дата или время этой записи, ISO 8601 со смещением: {ISO_EXAMPLE}",
+    )
+    filters: SearchFilters | None = Field(
+        default=None,
+        description="Тип и период для нескольких записей: «все созвоны» — types=[meeting], "
+        "text «созвон»; «всё на завтра» — период завтрашнего дня",
+    )
+    all: bool = Field(
+        default=False,
+        description="true — все подходящие записи: «отмени все созвоны», «отмени всё на завтра»; "
+        "«да» на вопрос «отменить все?» — все из «Показано»",
     )
 
 
