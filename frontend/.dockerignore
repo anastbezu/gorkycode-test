@@ -1,6 +1,7 @@
-# В образ попадает только статика сайта
+# В образ сборки — только исходники; node_modules ставятся заново внутри
 Dockerfile
 .dockerignore
 node_modules/
+dist/
 .env
 .env.*
