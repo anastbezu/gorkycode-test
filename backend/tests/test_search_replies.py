@@ -56,3 +56,13 @@ def test_reply_for_result_uses_search_reply():
     result = ActionResult(action="search_records", ok=True, records=[])
     reply = reply_for_result(result, TZ, action=SearchRecords(query="договор"), now=NOW)
     assert "ничего не нашлось" in reply
+
+
+def test_future_record_is_called_nearest():
+    records = [
+        make("Созвон с юристами", start=datetime(2026, 9, 1, 10, 0, tzinfo=MSK)),
+        make("Созвон с юристами", start=datetime(2026, 11, 20, 11, 0, tzinfo=MSK)),
+        make("Созвон с юристами", start=datetime(2026, 10, 26, 11, 0, tzinfo=MSK)),
+    ]
+    reply = reply_for_search(records, "созвон юристы", TZ, NOW)
+    assert "Ближайшая — завтра, в 11:00" in reply
