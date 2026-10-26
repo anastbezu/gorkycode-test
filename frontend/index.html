@@ -1,20 +1,207 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Голосовой ассистент</title>
-    <style>
-        body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding: 0 16px; box-sizing: border-box; background: #0f172a; color: #e2e8f0; }
-        .card { text-align: center; padding: 2rem; border-radius: 12px; background: #1e293b; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
-        h1 { color: #38bdf8; margin: 0 0 0.5rem; font-size: 1.5rem; }
-        p { margin: 0; }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Голосовой ассистент</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="card">
-        <h1>Голосовой ассистент для задач и встреч</h1>
-        <p>Интерфейс в разработке.</p>
+  <div class="app-layout">
+    <!-- Шапка приложения -->
+    <header class="app-header">
+      <div class="header-left">
+        <h1 class="app-title">Голосовой ассистент</h1>
+      </div>
+      <div class="header-right">
+        <button id="mobile-sidebar-toggle" class="btn-sidebar-toggle" aria-label="Мои дела">
+          Мои дела · <span id="sidebar-badge" class="badge">0</span>
+        </button>
+        <button id="btn-calendar-nav" class="btn-icon" title="Календарь" aria-label="Календарь">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+            <line x1="16" y1="2" x2="16" y2="6"/>
+            <line x1="8" y1="2" x2="8" y2="6"/>
+            <line x1="3" y1="10" x2="21" y2="10"/>
+          </svg>
+        </button>
+        <button id="btn-settings-open" class="btn-icon" title="Настройки LLM" aria-label="Настройки">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="4" y1="21" x2="4" y2="14"/>
+            <line x1="4" y1="10" x2="4" y2="3"/>
+            <line x1="12" y1="21" x2="12" y2="12"/>
+            <line x1="12" y1="8" x2="12" y2="3"/>
+            <line x1="20" y1="21" x2="20" y2="16"/>
+            <line x1="20" y1="12" x2="20" y2="3"/>
+            <line x1="1" y1="14" x2="7" y2="14"/>
+            <line x1="9" y1="8" x2="15" y2="8"/>
+            <line x1="17" y1="16" x2="23" y2="16"/>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <div class="main-content">
+      <!-- Чат -->
+      <main class="chat-section">
+        <!-- Баннер сетевой ошибки -->
+        <div id="error-banner" class="error-banner hidden">
+          <div class="error-content">
+            <span id="error-message">Нет ответа от сервера. Не знаю, выполнено ли — проверьте «Мои дела».</span>
+            <button id="btn-retry-message" class="btn-small btn-retry">Повторить</button>
+          </div>
+        </div>
+
+        <!-- Лента сообщений -->
+        <div id="chat-messages" class="chat-messages">
+          <!-- Пустой чат: приветствие и чипсы-подсказки -->
+          <div id="empty-chat" class="empty-chat">
+            <div class="empty-greeting">
+              <p class="greeting-title">Я помогаю вести задачи, встречи и напоминания.</p>
+              <p class="greeting-subtitle">Напишите запрос естественным языком или выберите подсказку:</p>
+            </div>
+            <div class="prompt-chips">
+              <button class="chip prompt-chip" data-text="Что у меня сегодня?">
+                Что у меня сегодня?
+              </button>
+              <button class="chip prompt-chip" data-text="Напомни завтра в 10 позвонить Ивану">
+                Напомни завтра в 10 позвонить Ивану
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Индикатор статуса («Ассистент думает...») -->
+        <div id="thinking-indicator" class="thinking-indicator hidden">
+          <div class="thinking-dots">
+            <span class="dot dot-1"></span>
+            <span class="dot dot-2"></span>
+            <span class="dot dot-3"></span>
+          </div>
+          <span>Ассистент думает…</span>
+        </div>
+
+        <!-- Поле ввода реплики -->
+        <div class="chat-input-container">
+          <form id="chat-form" class="chat-form">
+            <button type="button" id="btn-mic" class="btn-icon btn-mic" title="Голосовой ввод (frontend-02)" aria-label="Микрофон">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+                <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                <line x1="12" y1="19" x2="12" y2="23"/>
+                <line x1="8" y1="23" x2="16" y2="23"/>
+              </svg>
+            </button>
+            <input
+              type="text"
+              id="chat-input"
+              class="chat-input"
+              placeholder="Напишите или скажите, что нужно сделать"
+              autocomplete="off"
+            />
+            <button type="submit" id="btn-send" class="btn-send" title="Отправить" aria-label="Отправить">
+              <span class="btn-send-label">Отправить</span>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="22" y1="2" x2="11" y2="13"/>
+                <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+              </svg>
+            </button>
+          </form>
+        </div>
+      </main>
+
+      <!-- Правая панель / Мобильная шторка «Мои дела» -->
+      <aside id="sidebar-tasks" class="tasks-sidebar">
+        <div class="sheet-handle"></div>
+        <div class="sidebar-header">
+          <h2 class="sidebar-title">Мои дела</h2>
+          <button id="btn-sidebar-close" class="btn-icon btn-close-sidebar" aria-label="Закрыть">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"/>
+              <line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
+
+        <!-- Полоса дней (7 дней) -->
+        <div class="days-strip-container">
+          <div id="days-strip" class="days-strip">
+            <!-- Генерируется динамически через JS -->
+          </div>
+        </div>
+
+        <!-- Список карточек дел выбранного дня -->
+        <div id="tasks-list" class="tasks-list">
+          <div class="tasks-empty-state">Загрузка дел...</div>
+        </div>
+
+        <!-- Блок «Без срока» -->
+        <div id="undated-section" class="undated-section hidden">
+          <h3 class="undated-title">Без срока</h3>
+          <div id="undated-list" class="tasks-list"></div>
+        </div>
+      </aside>
+
+      <!-- Затемнение фона для мобильной шторки -->
+      <div id="sidebar-backdrop" class="sidebar-backdrop hidden"></div>
     </div>
+  </div>
+
+  <!-- Модальное окно настроек LLM -->
+  <div id="settings-modal" class="modal-backdrop hidden">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 class="modal-title">Настройки LLM</h3>
+        <button id="btn-settings-close" class="btn-icon" aria-label="Закрыть">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"/>
+            <line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>
+
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="input-base-url" class="form-label">API Base URL</label>
+          <input
+            type="text"
+            id="input-base-url"
+            class="form-control"
+            placeholder="https://api.openai.com/v1"
+          />
+          <span class="form-hint">OpenAI, Gemini или OpenRouter</span>
+        </div>
+
+        <div class="form-group">
+          <label for="input-model" class="form-label">Model Name</label>
+          <input
+            type="text"
+            id="input-model"
+            class="form-control"
+            placeholder="gpt-4o-mini"
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="input-api-key" class="form-label">API Key</label>
+          <input
+            type="password"
+            id="input-api-key"
+            class="form-control"
+            placeholder="sk-..."
+            autocomplete="off"
+          />
+          <span class="form-hint">Хранится только в этом браузере</span>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button id="btn-settings-cancel" class="btn btn-glass">Отмена</button>
+        <button id="btn-settings-save" class="btn btn-accent">Сохранить</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="app.js"></script>
 </body>
 </html>

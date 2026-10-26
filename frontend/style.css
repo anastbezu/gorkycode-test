@@ -1,0 +1,1043 @@
+/* style.css — реализация дизайн-системы по макетам Figma (Горький.Code) */
+
+:root {
+  --font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+
+  /* Официальная палитра Figma */
+  --sun-glare: #DCFF00;       /* Акцент */
+  --exuberant-orange: #FF5A24; /* Действия */
+  --blue-violet: #6A5CC9;     /* Сообщения */
+  --cloud-dancer: #F2F0EB;    /* Фон св. / Текст тёмн. */
+  --darkest-hour: #1E1D1F;    /* Текст св. / Фон тёмн. */
+
+  /* Светлая тема (по умолчанию) */
+  --bg-app: #F2F0EB;
+  --bg-surface: #FFFFFF;
+  --bg-surface-secondary: #E8E6E0;
+  --bg-surface-hover: #EAE8E3;
+  --border-color: #E3E1DC;
+  --border-subtle: #ECEAE5;
+  --border-focus: #6A5CC9;
+
+  --text-main: #1E1D1F;
+  --text-muted: #7B7982;
+  --text-subtle: #A3A1AA;
+
+  --color-primary: #FF5A24;
+  --color-primary-text: #1E1D1F;
+  --day-dot-color: #FF5A24;
+
+  --bubble-user-bg: #6A5CC9;
+  --bubble-user-text: #FFFFFF;
+  --bubble-assistant-bg: #FFFFFF;
+  --bubble-assistant-text: #1E1D1F;
+  --bubble-assistant-border: #E5E3DE;
+
+  --tag-type-bg: #ECEAF8;
+  --tag-type-text: #6A5CC9;
+  --tag-success-bg: #DCFF00;
+  --tag-success-text: #1E1D1F;
+  --tag-done-bg: #DCD9D2;
+  --tag-done-text: #7B7982;
+
+  --btn-glass-bg: rgba(255, 255, 255, 0.65);
+  --btn-glass-border: rgba(255, 255, 255, 0.9);
+  --btn-glass-text: #1E1D1F;
+
+  --error-bg: rgba(255, 90, 36, 0.06);
+  --error-border: #FF5A24;
+  --error-text: #C84618;
+
+  --chip-bg: #FFFFFF;
+  --chip-border: #E3E1DC;
+  --chip-text: #1E1D1F;
+
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05);
+  --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.04);
+  --shadow-modal: 0 20px 40px rgba(0, 0, 0, 0.15);
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+}
+
+/* Тёмная тема */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg-app: #121113;
+    --bg-surface: #232225;
+    --bg-surface-secondary: #1A191C;
+    --bg-surface-hover: rgba(255, 255, 255, 0.06);
+    --border-color: rgba(255, 255, 255, 0.08);
+    --border-subtle: rgba(255, 255, 255, 0.05);
+    --border-focus: #DCFF00;
+
+    --text-main: #F2F0EB;
+    --text-muted: #9E9DA5;
+    --text-subtle: #6E6D74;
+
+    --color-primary: #DCFF00;
+    --color-primary-text: #121113;
+    --day-dot-color: #DCFF00;
+
+    --bubble-user-bg: #6A5CC9;
+    --bubble-user-text: #FFFFFF;
+    --bubble-assistant-bg: #232225;
+    --bubble-assistant-text: #F2F0EB;
+    --bubble-assistant-border: rgba(255, 255, 255, 0.08);
+
+    --tag-type-bg: #2D293E;
+    --tag-type-text: #A39AE8;
+    --tag-success-bg: #DCFF00;
+    --tag-success-text: #121113;
+    --tag-done-bg: #2B2A2D;
+    --tag-done-text: #8E8D93;
+
+    --btn-glass-bg: rgba(255, 255, 255, 0.08);
+    --btn-glass-border: rgba(255, 255, 255, 0.15);
+    --btn-glass-text: #F2F0EB;
+
+    --error-bg: rgba(255, 90, 36, 0.08);
+    --error-border: #FF5A24;
+    --error-text: #FF8357;
+
+    --chip-bg: rgba(255, 90, 36, 0.08);
+    --chip-border: #FF5A24;
+    --chip-text: #FF8357;
+
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+    --shadow-card: 0 4px 12px rgba(0, 0, 0, 0.25);
+    --shadow-modal: 0 24px 48px rgba(0, 0, 0, 0.5);
+  }
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html, body {
+  height: 100%;
+  width: 100%;
+  font-family: var(--font-family);
+  background-color: var(--bg-app);
+  color: var(--text-main);
+  overflow: hidden;
+  position: relative;
+}
+
+/* Атмосферный градиентный фон по макету Figma */
+body::before {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.9;
+  background-image:
+    radial-gradient(ellipse 65% 55% at 12% 18%, rgba(106, 92, 201, 0.14), transparent 70%),
+    radial-gradient(ellipse 55% 55% at 50% 50%, rgba(220, 255, 0, 0.08), transparent 70%),
+    radial-gradient(ellipse 65% 65% at 85% 85%, rgba(255, 90, 36, 0.10), transparent 70%);
+}
+
+@media (prefers-color-scheme: dark) {
+  body::before {
+    opacity: 1;
+    background-image:
+      radial-gradient(ellipse 65% 55% at 12% 18%, rgba(106, 92, 201, 0.22), transparent 70%),
+      radial-gradient(ellipse 55% 55% at 50% 65%, rgba(220, 255, 0, 0.04), transparent 70%),
+      radial-gradient(ellipse 65% 65% at 85% 85%, rgba(255, 90, 36, 0.08), transparent 70%);
+  }
+}
+
+.hidden {
+  display: none !important;
+}
+
+/* Основной контейнер приложения */
+.app-layout {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  width: 100vw;
+  overflow: hidden;
+  position: relative;
+  z-index: 1;
+}
+
+/* Шапка приложения */
+.app-header {
+  height: 60px;
+  min-height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  border-bottom: 1px solid var(--border-color);
+  background: transparent;
+  z-index: 10;
+}
+
+.app-title {
+  font-size: 1.05rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--text-main);
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Круглая кнопка со стеклянным стилем (компонент «Кнопка-иконка») */
+.btn-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background-color: var(--btn-glass-bg);
+  border: 1px solid var(--btn-glass-border);
+  color: var(--btn-glass-text);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  transition: all 0.15s ease;
+}
+
+.btn-icon:hover {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
+}
+
+.btn-icon:active {
+  transform: translateY(0);
+}
+
+/* Кнопка открытия мобильной шторки */
+.btn-sidebar-toggle {
+  display: none;
+  background-color: var(--btn-glass-bg);
+  border: 1px solid var(--btn-glass-border);
+  color: var(--text-main);
+  padding: 8px 14px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  align-items: center;
+  gap: 6px;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.badge {
+  font-weight: 600;
+}
+
+/* Основной рабочий контент */
+.main-content {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Секция чата */
+.chat-section {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  background: transparent;
+}
+
+/* Баннер ошибки по Figma */
+.error-banner {
+  background-color: var(--error-bg);
+  border: 1px solid var(--error-border);
+  color: var(--error-text);
+  padding: 12px 18px;
+  margin: 12px 20px 0;
+  border-radius: var(--radius-md);
+  font-size: 0.9rem;
+  z-index: 5;
+}
+
+.error-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.btn-retry {
+  background-color: var(--btn-glass-bg);
+  border: 1px solid var(--btn-glass-border);
+  color: var(--text-main);
+  padding: 6px 14px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+  transition: all 0.15s ease;
+}
+
+.btn-retry:hover {
+  filter: brightness(1.1);
+}
+
+/* Лента сообщений */
+.chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Пустой чат с приветствием и подсказками */
+.empty-chat {
+  margin: auto;
+  max-width: 480px;
+  text-align: center;
+  padding: 24px;
+}
+
+.greeting-title {
+  font-size: 1.15rem;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: var(--text-main);
+}
+
+.greeting-subtitle {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  margin-bottom: 20px;
+  line-height: 1.4;
+}
+
+.prompt-chips {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Компонент «Чипс» по Figma */
+.chip {
+  background-color: var(--chip-bg);
+  border: 1px solid var(--chip-border);
+  color: var(--chip-text);
+  padding: 10px 16px;
+  border-radius: var(--radius-md);
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.15s ease;
+}
+
+.chip:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.05);
+}
+
+/* Пузыри сообщений (компонент «Сообщение» по Figma) */
+.message-row {
+  display: flex;
+  flex-direction: column;
+  max-width: 75%;
+}
+
+.message-row.user {
+  align-self: flex-end;
+}
+
+.message-row.assistant {
+  align-self: flex-start;
+}
+
+.message-bubble {
+  padding: 12px 18px;
+  font-size: 0.95rem;
+  line-height: 1.45;
+  word-break: break-word;
+}
+
+.message-row.user .message-bubble {
+  background-color: var(--bubble-user-bg);
+  color: var(--bubble-user-text);
+  border-radius: 18px 18px 4px 18px;
+  box-shadow: var(--shadow-sm);
+}
+
+.message-row.assistant .message-bubble {
+  background-color: var(--bubble-assistant-bg);
+  color: var(--bubble-assistant-text);
+  border: 1px solid var(--bubble-assistant-border);
+  border-radius: 18px 18px 18px 4px;
+  box-shadow: var(--shadow-card);
+}
+
+.message-reply {
+  white-space: pre-wrap;
+}
+
+/* Результаты действий в ответе ассистента */
+.result-container {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Карточка "Создана встреча / задача" по Figma */
+.result-card {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  box-shadow: var(--shadow-sm);
+}
+
+/* Компонент «Тег» по Figma */
+.tag-success {
+  align-self: flex-start;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--tag-success-text);
+  background-color: var(--tag-success-bg);
+  padding: 3px 8px;
+  border-radius: 6px;
+  letter-spacing: 0.02em;
+}
+
+.card-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.card-time {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+/* Табличный список результатов (result/list по Figma) */
+.result-list {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 8px 16px;
+  margin-top: 8px;
+  max-height: 360px;
+  overflow-y: auto;
+  box-shadow: var(--shadow-sm);
+}
+
+.day-header {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 10px 0 4px;
+  border-bottom: 1px solid var(--border-subtle);
+  margin-bottom: 4px;
+}
+
+.day-header:first-child {
+  padding-top: 4px;
+}
+
+.list-item-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: 0.9rem;
+}
+
+.list-item-row:last-child {
+  border-bottom: none;
+}
+
+.list-item-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
+
+.item-number {
+  font-weight: 600;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  min-width: 18px;
+}
+
+.item-title {
+  font-weight: 500;
+  color: var(--text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.item-title.done {
+  text-decoration: line-through;
+  color: var(--text-subtle);
+}
+
+.item-time {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* Индикатор «Ассистент думает...» с тремя анимированными точками */
+.thinking-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px;
+  margin: 0 20px 8px;
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  width: fit-content;
+  box-shadow: var(--shadow-sm);
+}
+
+.thinking-dots {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.thinking-dots .dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  animation: dotPulse 1.2s infinite ease-in-out;
+}
+
+.thinking-dots .dot-1 {
+  background-color: var(--blue-violet);
+  animation-delay: 0s;
+}
+
+.thinking-dots .dot-2 {
+  background-color: var(--sun-glare);
+  animation-delay: 0.2s;
+}
+
+.thinking-dots .dot-3 {
+  background-color: var(--exuberant-orange);
+  animation-delay: 0.4s;
+}
+
+@keyframes dotPulse {
+  0%, 80%, 100% {
+    transform: scale(0.6);
+    opacity: 0.5;
+  }
+  40% {
+    transform: scale(1.15);
+    opacity: 1;
+  }
+}
+
+/* Нижняя панель ввода реплики */
+.chat-input-container {
+  padding: 14px 20px;
+  border-top: 1px solid var(--border-color);
+  background: transparent;
+}
+
+.chat-form {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.btn-mic {
+  opacity: 0.85;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.btn-mic:hover {
+  opacity: 1;
+  filter: brightness(1.1);
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
+}
+
+.shake {
+  animation: shake 0.3s ease-in-out;
+}
+
+.chat-input {
+  flex: 1;
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  color: var(--text-main);
+  border-radius: var(--radius-md);
+  padding: 12px 16px;
+  font-size: 0.95rem;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.chat-input::placeholder {
+  color: var(--text-subtle);
+}
+
+.chat-input:focus {
+  border-color: var(--border-focus);
+}
+
+/* Основная кнопка «Отправить» по Figma */
+.btn-send {
+  background-color: var(--color-primary);
+  color: var(--color-primary-text);
+  border: none;
+  padding: 10px 18px;
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  font-size: 0.95rem;
+  font-family: inherit;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.btn-send:hover {
+  filter: brightness(1.08);
+  box-shadow: 0 0 14px rgba(220, 255, 0, 0.3);
+}
+
+@media (prefers-color-scheme: light) {
+  .btn-send:hover {
+    box-shadow: 0 0 14px rgba(255, 90, 36, 0.3);
+  }
+}
+
+.btn-send:active {
+  transform: scale(0.98);
+}
+
+.btn-send:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+/* Правая колонка «Мои дела» */
+.tasks-sidebar {
+  width: 350px;
+  border-left: 1px solid var(--border-color);
+  background: transparent;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow-y: auto;
+  transition: transform 0.25s ease;
+  z-index: 20;
+}
+
+.sheet-handle {
+  display: none;
+}
+
+.sidebar-header {
+  padding: 16px 20px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sidebar-title {
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.btn-close-sidebar {
+  display: none;
+}
+
+/* Полоса 7 дней в единой карточке-контейнере по Figma */
+.days-strip-container {
+  padding: 0 16px 12px;
+}
+
+.days-strip {
+  display: flex;
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 6px;
+  gap: 2px;
+}
+
+.day-tab {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 2px;
+  border-radius: var(--radius-sm);
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.day-tab:hover {
+  background-color: var(--bg-surface-hover);
+}
+
+.day-tab.active {
+  background-color: var(--bg-surface-hover);
+}
+
+.day-tab-name {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.day-tab.active .day-tab-name {
+  color: var(--text-main);
+  font-weight: 600;
+}
+
+.day-tab-date {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-main);
+  margin-top: 2px;
+}
+
+.day-tab-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background-color: var(--day-dot-color);
+  margin-top: 4px;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.day-tab-dot.visible {
+  opacity: 1;
+}
+
+/* Карточки дел в панели */
+.tasks-list {
+  padding: 0 16px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.tasks-empty-state {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  padding: 32px 16px;
+}
+
+.task-card {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  box-shadow: var(--shadow-sm);
+  transition: all 0.15s ease;
+}
+
+.task-card.done {
+  background-color: var(--bg-surface-secondary);
+  border-color: var(--border-subtle);
+}
+
+.task-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.task-type-tag {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--tag-type-text);
+  background-color: var(--tag-type-bg);
+  padding: 3px 8px;
+  border-radius: 6px;
+  letter-spacing: 0.02em;
+}
+
+.task-type-tag.done {
+  color: var(--tag-done-text);
+  background-color: var(--tag-done-bg);
+}
+
+.task-title {
+  font-size: 0.98rem;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--text-main);
+}
+
+.task-title.done {
+  text-decoration: line-through;
+  color: var(--text-muted);
+}
+
+.task-time {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+/* Блок «Без срока» */
+.undated-section {
+  padding: 0 16px 16px;
+  border-top: 1px solid var(--border-color);
+  margin-top: auto;
+}
+
+.undated-title {
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding: 14px 0 6px;
+  letter-spacing: 0.03em;
+}
+
+/* Модальное окно настроек LLM по макету Figma */
+.modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(0, 0, 0, 0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 16px;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.modal-dialog {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-xl);
+  width: 100%;
+  max-width: 440px;
+  box-shadow: var(--shadow-modal);
+  overflow: hidden;
+}
+
+.modal-header {
+  padding: 20px 24px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.modal-title {
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.modal-body {
+  padding: 0 24px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-label {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text-main);
+}
+
+.form-control {
+  background-color: var(--bg-app);
+  border: 1px solid var(--border-color);
+  color: var(--text-main);
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  font-size: 0.92rem;
+  outline: none;
+  font-family: inherit;
+  transition: border-color 0.15s ease;
+}
+
+.form-control:focus {
+  border-color: var(--border-focus);
+}
+
+.form-hint {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.modal-footer {
+  padding: 16px 24px 20px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.btn {
+  padding: 10px 18px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  border: none;
+  font-family: inherit;
+  transition: all 0.15s ease;
+}
+
+.btn-glass {
+  background-color: var(--btn-glass-bg);
+  border: 1px solid var(--btn-glass-border);
+  color: var(--btn-glass-text);
+  backdrop-filter: blur(8px);
+}
+
+.btn-glass:hover {
+  filter: brightness(1.1);
+}
+
+.btn-accent {
+  background-color: var(--color-primary);
+  color: var(--color-primary-text);
+  font-weight: 600;
+}
+
+.btn-accent:hover {
+  filter: brightness(1.08);
+}
+
+/* Адаптивный мобильный вид по макету Figma (390x844) */
+@media (max-width: 768px) {
+  .btn-sidebar-toggle {
+    display: inline-flex;
+  }
+
+  .btn-send-label {
+    display: none;
+  }
+
+  .btn-send {
+    padding: 10px;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    justify-content: center;
+  }
+
+  /* Шторка «Мои дела» снизу */
+  .tasks-sidebar {
+    position: fixed;
+    top: auto;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 82vh;
+    border-left: none;
+    border-top: 1px solid var(--border-color);
+    border-radius: 24px 24px 0 0;
+    background-color: var(--bg-surface);
+    box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.4);
+    transform: translateY(100%);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+  }
+
+  .tasks-sidebar.open {
+    transform: translateY(0);
+  }
+
+  .sheet-handle {
+    display: block;
+    width: 36px;
+    height: 4px;
+    background-color: var(--text-subtle);
+    border-radius: 2px;
+    margin: 8px auto 4px;
+  }
+
+  .btn-close-sidebar {
+    display: inline-flex;
+  }
+
+  .sidebar-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 15;
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+  }
+
+  .message-row {
+    max-width: 88%;
+  }
+}
