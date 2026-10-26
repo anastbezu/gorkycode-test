@@ -24,7 +24,7 @@ function fakeServer(delayMs = 5) {
       new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json', ...extra } });
 
     if (userId && !/^[0-9a-f-]{36}$/.test(userId)) return json(400, { detail: 'X-User-Id должен быть UUID' });
-    const issued = userId ? {} : { 'X-User-Id': NEW_ID };
+    const issued: { [k: string]: string } = userId ? {} : { 'X-User-Id': NEW_ID };
     if (url.startsWith('/api/items')) return json(200, [], issued);
     if (body?.conversation_id === 'gone') return json(404, { detail: 'Разговор не найден' });
     return json(200, { conversation_id: 'c1', reply: 'ок', result: null, awaiting: null }, issued);
@@ -33,17 +33,11 @@ function fakeServer(delayMs = 5) {
 
 async function freshClient(storedUserId: string | null = null) {
   vi.resetModules();
+  const data = new Map<string, string>(storedUserId ? [['gorky.userId', JSON.stringify(storedUserId)]] : []);
   vi.stubGlobal('localStorage', {
-    data: new Map<string, string>(storedUserId ? [['gorky.userId', JSON.stringify(storedUserId)]] : []),
-    getItem(k: string) {
-      return this.data.get(k) ?? null;
-    },
-    setItem(k: string, v: string) {
-      this.data.set(k, v);
-    },
-    removeItem(k: string) {
-      this.data.delete(k);
-    },
+    getItem: (k: string) => data.get(k) ?? null,
+    setItem: (k: string, v: string) => void data.set(k, v),
+    removeItem: (k: string) => void data.delete(k),
   });
   return import('./client');
 }
