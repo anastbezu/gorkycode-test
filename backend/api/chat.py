@@ -6,6 +6,7 @@ from uuid import uuid4
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+from agent.agent import process_user_turn
 from db import get_session
 from schemas import ChatRequest, ChatResponse
 from services import (
@@ -15,7 +16,6 @@ from services import (
 )
 
 from .deps import CurrentUser, bootstrap_if_new, get_current_user_id, parse_timezone
-from .dispatch import handle_without_llm
 
 router = APIRouter(prefix="/api", tags=["chat"])
 
@@ -66,7 +66,6 @@ async def chat(
 
     await asyncio.to_thread(bootstrap_if_new, db, user, zone.key)
 
-    # TODO(agent-05): заменить на
-    #   await process_user_turn(db, user.id, conversation_id, req.text, req.timezone,
-    #                           req.llm_config)
-    return await asyncio.to_thread(handle_without_llm, db, user.id, conversation_id, req)
+    return await process_user_turn(
+        db, user.id, conversation_id, req.text, zone.key, req.llm_config
+    )

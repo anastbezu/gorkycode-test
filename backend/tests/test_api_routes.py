@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session
 
 from db import get_engine, get_session, models
 from main import app
-from schemas import CreateRecord, RecordType
+from schemas import CreateRecord, ListRecords, RecordType
 from services import create_record, get_or_create_conversation_state
 
 pytestmark = pytest.mark.anyio
@@ -28,6 +28,18 @@ YEKT = ZoneInfo("Asia/Yekaterinburg")
 @pytest.fixture
 def anyio_backend() -> str:
     return "asyncio"
+@pytest.fixture(autouse=True)
+def fake_llm(monkeypatch: pytest.MonkeyPatch) -> None:
+    """В CI нет ключа LLM: подменяется только выбор действия моделью,
+    маршрут, агент, сервисы и база — настоящие."""
+
+    async def get_action(text, now, timezone_name, llm_config=None, *, context=""):
+        if text.startswith("Что у меня"):
+            day = now.replace(hour=0, minute=0, second=0, microsecond=0)
+            return ListRecords(date_from=day, date_to=day + timedelta(days=7))
+        return CreateRecord(type=RecordType.TASK, title=text, time_given=False)
+
+    monkeypatch.setattr("agent.agent.get_action", get_action)
 
 
 def _client() -> httpx.AsyncClient:
