@@ -228,3 +228,33 @@ export async function fetchItems(query: ItemsQuery): Promise<Record[]> {
     return parse<Record[]>(res);
   }
 }
+
+// --- /api/stt -----------------------------------------------------------------------------
+
+const STT_TIMEOUT_MS = 60_000;
+
+/**
+ * Распознать запись: multipart, одно поле `audio`. 200 — `{text}`; ошибки (413, 415, 422, 429, 503)
+ * приходят с `detail` для пользователя — ApiError 'rejected'. В чат при ошибке ничего не уходит.
+ */
+export async function transcribe(audio: File): Promise<string> {
+  let retriedUser = false;
+  for (;;) {
+    const form = new FormData();
+    form.append('audio', audio);
+    const { res, sentId } = await asUser((id) =>
+      fetchWithTimeout('/api/stt', { method: 'POST', headers: headersFor(id), body: form }, STT_TIMEOUT_MS),
+    );
+    if (!retriedUser && recoverBadUser(res, sentId)) {
+      retriedUser = true;
+      continue;
+    }
+    if (res.status === 503) {
+      // 503 у распознавания — не «результат неизвестен», а «сервис недоступен» с detail (api.md)
+      const body = await res.json().catch(() => null);
+      throw new ApiError('rejected', 503, detailText(body) || 'Сервис распознавания недоступен.');
+    }
+    const { text } = await parse<{ text: string }>(res);
+    return text;
+  }
+}

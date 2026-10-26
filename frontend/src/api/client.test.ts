@@ -118,3 +118,33 @@ describe('ошибки', () => {
     });
   });
 });
+
+describe('распознавание речи', () => {
+  it('запись уходит полем audio с X-User-Id, ответ — текст', async () => {
+    const client = await freshClient(NEW_ID);
+    let sent: FormData | null = null;
+    let userHeader: string | null = null;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (_url: string, init: RequestInit) => {
+        sent = init.body as FormData;
+        userHeader = new Headers(init.headers).get('X-User-Id');
+        return new Response(JSON.stringify({ text: 'Что у меня завтра?' }), { status: 200 });
+      }),
+    );
+    const file = new File(['x'], 'speech.webm', { type: 'audio/webm' });
+    await expect(client.transcribe(file)).resolves.toBe('Что у меня завтра?');
+    expect((sent as FormData | null)?.get('audio')).toBeInstanceOf(File);
+    expect(userHeader).toBe(NEW_ID);
+  });
+
+  it.each([413, 415, 422, 429, 503])('%i — detail для пользователя, вид «не принял»', async (status) => {
+    const client = await freshClient(NEW_ID);
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response(JSON.stringify({ detail: `ошибка ${status}` }), { status })),
+    );
+    const file = new File(['x'], 'speech.webm', { type: 'audio/webm' });
+    await expect(client.transcribe(file)).rejects.toMatchObject({ kind: 'rejected', detail: `ошибка ${status}` });
+  });
+});
