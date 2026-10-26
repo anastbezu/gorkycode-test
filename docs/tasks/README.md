@@ -30,13 +30,13 @@ backend-01-model-dannyh.md
 | [agent-05](agent-05-integratsiya-s-servisami-i-api.md) | `agent` | Илья | Агент на настоящих сервисах и в `/api/chat`: Сценарий 1 до PostgreSQL, проверка живого провайдера (продолжение agent-02) |
 | [product-01](product-01-makety-i-dizayn.md) | `product` | Маша | Макеты 3 экранов в Figma и дизайн-система |
 | [product-02](product-02-dokumentatsiya-fich-i-test-kejsov.md) | `product` | Маша | Документация фич (`docs/features.md`) и эталонные тест-кейсы для демо |
-| [devops-01](devops-01-nastroyka-servera.md) | `devops` | Настя | Сервер `gorky.bond`: HTTPS, защита, Docker |
-| [devops-02](devops-02-deploy-prilozheniya-i-ci-cd.md) | `devops` | Настя | Автоматический деплой приложения при пуше в `develop` и CI/CD в GitHub Actions |
 
 ## Архив — выполненные задачи
 
 | Задача | Модуль | Исполнитель | Описание |
 |---|---|---|---|
+| [devops-01](archive/devops-01-nastroyka-servera.md) | `devops` | Настя | Сервер `gorky.bond`: HTTPS, защита, Docker |
+| [devops-02](archive/devops-02-deploy-prilozheniya-i-ci-cd.md) | `devops` | Настя | Автоматический деплой приложения при пуше в `develop` и CI/CD в GitHub Actions |
 | [backend-01a](archive/backend-01a-shema-bd.md) | `backend` | Денис | Схема базы данных, модели records / conversation_states и миграции Alembic |
 | [backend-01b](archive/backend-01b-import-dataset.md) | `backend` | Денис | Импорт и инициализация стартового датасета (1000 строк CSV) для нового пользователя |
 | [backend-02a](archive/backend-02a-servisy-zapisej.md) | `backend` | Денис | Сервисный слой записей (`create_record`, `list_records_for_period`) и состояния |
