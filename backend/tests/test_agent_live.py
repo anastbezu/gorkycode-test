@@ -32,7 +32,17 @@ def test_live_reference_cases(monkeypatch, capsys):
 
     harness = Harness(monkeypatch, get_action, pause=float(os.environ.get("AGENT_PAUSE", "4")))
     cases = select_cases(os.environ.get("AGENT_SECTION"))
-    reports = [harness.run_case(c) for c in cases if c.skip is None]
+    todo = [c for c in cases if c.skip is None]
+    reports = []
+    for number, case in enumerate(todo, 1):
+        report = harness.run_case(case)
+        reports.append(report)
+        with capsys.disabled():
+            mark = "ок" if report.passed else "УПАЛ"
+            print(f"[{number}/{len(todo)}] {case.id}: {mark}", flush=True)
+        if harness.provider_failures >= 3:
+            pytest.skip("живой прогон прерван: модель не ответила три кейса подряд "
+                        "(таймаут или ошибка провайдера) — повторите позже")
     text = render(reports, skipped=[c for c in cases if c.skip is not None])
     with capsys.disabled():
         print("\n" + text)

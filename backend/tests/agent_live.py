@@ -61,6 +61,7 @@ class Harness:
         self.raw: Any = None
         self.executed: Any = None
         self.result: ActionResult | None = None
+        self.provider_failures = 0
         monkeypatch.setattr(agent_module, "get_or_create_conversation_state", self._load)
         monkeypatch.setattr(agent_module, "save_conversation_state", self._save)
         monkeypatch.setattr(agent_module, "get_record", lambda *args: None)
@@ -85,9 +86,11 @@ class Harness:
                 await asyncio.sleep(self.pause)
             try:
                 self.raw = await self.model(*args, **kwargs)
+                self.provider_failures = 0
                 return self.raw
             except openai.APIError:
                 if attempt == self.retries:
+                    self.provider_failures += 1
                     raise
                 await asyncio.sleep(max(self.pause, 1.0) * 3)
 
