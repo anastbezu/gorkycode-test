@@ -4,11 +4,12 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { ApiError, fetchItems, onProfileReset, sendChat, transcribe } from './api/client';
 import type { LLMConfig } from './api/types';
 import { Background } from './components/Background';
+import { CalendarView } from './components/CalendarView';
 import { ResultView } from './components/ResultView';
 import { SettingsModal } from './components/SettingsModal';
 import { activeTodayCount, panelDayKeys, PANEL_DAYS, TasksPanel, type PanelState } from './components/TasksPanel';
 import { RecordingIndicator } from './components/RecordingIndicator';
-import { MicIcon, SendIcon, SettingsIcon } from './components/icons';
+import { BackIcon, CalendarIcon, MicIcon, SendIcon, SettingsIcon } from './components/icons';
 import { addDaysToKey, browserTimeZone, localMidnightIso } from './lib/dates';
 import { canRecord, microphoneErrorText, startRecording, type Recording } from './lib/recorder';
 import { speak, stopSpeaking } from './lib/speech';
@@ -32,6 +33,22 @@ const NEW_PROFILE_TEXT =
 /** Плашка над полем ввода: ошибка с «Повторить» или сообщение без действия. */
 type Banner = { text: string; retryText?: string } | null;
 
+/** Экран — в адресе (`#calendar`): «Назад» браузера и телефона переключает экраны, ссылку можно открыть сразу. */
+function useScreen(): ['chat' | 'calendar', (screen: 'chat' | 'calendar') => void] {
+  const read = () => (window.location.hash === '#calendar' ? 'calendar' : 'chat');
+  const [screen, setScreen] = useState<'chat' | 'calendar'>(read);
+  useEffect(() => {
+    const onPop = () => setScreen(read());
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
+  const go = (next: 'chat' | 'calendar') => {
+    window.history.pushState(null, '', next === 'calendar' ? '#calendar' : window.location.pathname);
+    setScreen(next);
+  };
+  return [screen, go];
+}
+
 function newId(): string {
   return typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : String(Date.now() + Math.random());
 }
@@ -51,6 +68,7 @@ function usePanel(tz: string) {
         from: localMidnightIso(first),
         to: localMidnightIso(addDaysToKey(first, PANEL_DAYS)),
         tz,
+        includeUndated: true,
       });
       if (request === latest.current) setState({ status: 'ready', records });
     } catch (err) {
@@ -74,6 +92,7 @@ export function App() {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [selectedDay, setSelectedDay] = useState(0);
   const panel = usePanel(tz);
+  const [screen, goTo] = useScreen();
   const feedEnd = useRef<HTMLDivElement>(null);
   // Отправка идёт — вторая не начинается, даже если состояние ещё не перерисовалось
   const sending = useRef(false);
@@ -209,15 +228,35 @@ export function App() {
     <div className="app">
       <Background />
       <header className="header">
-        <h1 className="header__title">
-          <span className="header__title-full">Голосовой ассистент</span>
-          <span className="header__title-short">Ассистент</span>
-        </h1>
-        <button type="button" className="icon-btn" onClick={() => setSettingsOpen(true)} aria-label="Настройки LLM">
-          <SettingsIcon />
-        </button>
+        {screen === 'calendar' ? (
+          <div className="header__left">
+            <button type="button" className="icon-btn" onClick={() => goTo('chat')} aria-label="Назад в чат">
+              <BackIcon />
+            </button>
+            <h1 className="header__title">Календарь</h1>
+          </div>
+        ) : (
+          <h1 className="header__title">
+            <span className="header__title-full">Голосовой ассистент</span>
+            <span className="header__title-short">Ассистент</span>
+          </h1>
+        )}
+        <div className="header__actions">
+          {screen === 'chat' && (
+            <button type="button" className="icon-btn" onClick={() => goTo('calendar')} aria-label="Календарь">
+              <CalendarIcon />
+            </button>
+          )}
+          <button type="button" className="icon-btn" onClick={() => setSettingsOpen(true)} aria-label="Настройки LLM">
+            <SettingsIcon />
+          </button>
+        </div>
       </header>
 
+      {screen === 'calendar' ? (
+        <CalendarView tz={tz} />
+      ) : (
+      <>
       <main className="chat">
         <div className="feed" aria-live="polite">
           {chat.messages.length === 0 && (
@@ -327,6 +366,8 @@ export function App() {
           onClose={() => setSheetOpen(false)}
         />
       </div>
+      </>
+      )}
 
       {settingsOpen && (
         <SettingsModal initial={llmConfig} onSave={saveSettings} onClose={() => setSettingsOpen(false)} />

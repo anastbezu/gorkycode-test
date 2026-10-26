@@ -127,7 +127,8 @@ export function TasksPanel({ state, tz, selectedDay, onSelectDay, onRetry, onClo
   );
 }
 
-function TaskCard({ record, tz, now }: { record: Record; tz: string; now: Date }) {
+/** Компонент «Карточка дела». `when` — своя подпись времени (в календаре — без даты: она в заголовке дня). */
+export function TaskCard({ record, tz, now, when }: { record: Record; tz: string; now: Date; when?: string }) {
   const done = record.status === 'done';
   return (
     <div className={`card${done ? ' card--done' : ''}`}>
@@ -136,7 +137,7 @@ function TaskCard({ record, tz, now }: { record: Record; tz: string; now: Date }
         {done ? ' · выполнено' : ''}
       </span>
       <div className="card__title">{record.title}</div>
-      <div className="card__when">{recordWhen(record, tz, now)}</div>
+      <div className="card__when">{when ?? recordWhen(record, tz, now)}</div>
     </div>
   );
 }

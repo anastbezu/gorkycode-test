@@ -207,6 +207,8 @@ export interface ItemsQuery {
   from: string; // ISO 8601 со смещением
   to: string;
   tz: string;
+  /** Добавить в конец записи без даты — для блока «Без срока» в «Мои дела». */
+  includeUndated: boolean;
 }
 
 export async function fetchItems(query: ItemsQuery): Promise<Record[]> {
@@ -214,7 +216,7 @@ export async function fetchItems(query: ItemsQuery): Promise<Record[]> {
     from: query.from,
     to: query.to,
     tz: query.tz,
-    include_undated: 'true',
+    include_undated: String(query.includeUndated),
   });
   let retriedUser = false;
   for (;;) {

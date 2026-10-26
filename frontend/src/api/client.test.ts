@@ -42,7 +42,12 @@ async function freshClient(storedUserId: string | null = null) {
   return import('./client');
 }
 
-const items = { from: '2026-10-26T00:00:00+03:00', to: '2026-11-02T00:00:00+03:00', tz: 'Europe/Moscow' };
+const items = {
+  from: '2026-10-26T00:00:00+03:00',
+  to: '2026-11-02T00:00:00+03:00',
+  tz: 'Europe/Moscow',
+  includeUndated: true,
+};
 const noLlm = { base_url: null, model: null, api_key: null };
 
 beforeEach(() => {

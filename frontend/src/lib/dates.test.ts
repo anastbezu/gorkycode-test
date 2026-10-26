@@ -116,3 +116,33 @@ describe('ключи дней', () => {
     expect(addDaysToKey('2026-12-28', 7)).toBe('2027-01-04');
   });
 });
+
+describe('календарь', () => {
+  it('сетка октября 2026 — 5 недель с понедельника 28 сентября по воскресенье 1 ноября', async () => {
+    const { monthGrid } = await import('./dates');
+    const grid = monthGrid(2026, 10);
+    expect(grid).toHaveLength(35);
+    expect(grid[0]).toBe('2026-09-28');
+    expect(grid[34]).toBe('2026-11-01');
+  });
+  it('месяц, начинающийся в понедельник и кончающийся в воскресенье, — без чужих дней', async () => {
+    const { monthGrid } = await import('./dates');
+    // Февраль 2027: 1-е — понедельник, 28-е — воскресенье
+    const grid = monthGrid(2027, 2);
+    expect(grid).toHaveLength(28);
+    expect(grid[0]).toBe('2027-02-01');
+  });
+  it('декабрь переходит в январь следующего года', async () => {
+    const { monthGrid } = await import('./dates');
+    expect(monthGrid(2026, 12).at(-1)).toBe('2027-01-03');
+  });
+  it('заголовки: месяц и день словами', async () => {
+    const { monthTitle, dayTitle, weekOf } = await import('./dates');
+    expect(monthTitle(2026, 10)).toBe('Октябрь 2026');
+    expect(dayTitle('2026-10-25', '2026-10-26')).toBe('Воскресенье, 25 октября');
+    expect(dayTitle('2027-01-04', '2026-10-26')).toBe('Понедельник, 4 января 2027');
+    expect(weekOf('2026-10-25')).toEqual([
+      '2026-10-19', '2026-10-20', '2026-10-21', '2026-10-22', '2026-10-23', '2026-10-24', '2026-10-25',
+    ]);
+  });
+});
