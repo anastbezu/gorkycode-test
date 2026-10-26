@@ -14,7 +14,7 @@
   --surface: #ffffff;
   --surface-glass: rgba(255, 255, 255, 0.72);
   --border: #e3e0d9;
-  --header-bg: rgba(250, 249, 246, 0.8);
+  --header-bg: rgba(250, 249, 246, 0.86);
 
   --user-bubble: var(--violet);
   --user-text: #ffffff;
@@ -29,6 +29,7 @@
   --banner-bg: #ffede6;
   --banner-border: #f6b9a3;
   --banner-text: #c2410c;
+  --scrollbar: rgba(30, 29, 31, 0.22);
 
   --blob-1: rgba(106, 92, 201, 0.55);
   --blob-2: rgba(220, 255, 0, 0.35);
@@ -49,7 +50,7 @@
     --surface: #232225;
     --surface-glass: rgba(35, 34, 37, 0.8);
     --border: #343238;
-    --header-bg: rgba(30, 29, 31, 0.8);
+    --header-bg: rgba(30, 29, 31, 0.86);
 
     --tag-type-bg: #36325a;
     --tag-type-text: #c9c2ff;
@@ -62,6 +63,7 @@
     --banner-bg: #3a1f17;
     --banner-border: #7a3a24;
     --banner-text: #ffb59a;
+    --scrollbar: rgba(242, 240, 235, 0.22);
 
     --blob-1: rgba(106, 92, 201, 0.5);
     --blob-2: rgba(220, 255, 0, 0.14);
@@ -88,13 +90,96 @@ body {
   line-height: 1.4;
   color: var(--text);
   background-color: var(--bg);
-  /* Размытые пятна фона из макета */
-  background-image:
-    radial-gradient(circle at 8% 12%, var(--blob-1), transparent 38%),
-    radial-gradient(circle at 55% 55%, var(--blob-2), transparent 30%),
-    radial-gradient(circle at 92% 92%, var(--blob-3), transparent 40%);
-  background-attachment: fixed;
   -webkit-font-smoothing: antialiased;
+}
+
+/* ---------- пятна на фоне (components/Background.tsx) ---------- */
+
+.bg {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.bg__layer {
+  position: absolute;
+  inset: 0;
+  will-change: transform;
+}
+
+/* Мягкий край — самим градиентом, без filter: blur (он дорогой при движении) */
+.bg__blob {
+  position: absolute;
+  width: 70vmax;
+  height: 70vmax;
+  border-radius: 50%;
+  will-change: transform;
+}
+
+.bg__blob--1 {
+  left: -30vmax;
+  top: -30vmax;
+  background: radial-gradient(circle, var(--blob-1) 0%, transparent 62%);
+  animation: drift-1 38s ease-in-out infinite;
+}
+
+.bg__blob--2 {
+  left: calc(55% - 25vmax);
+  top: calc(55% - 25vmax);
+  width: 50vmax;
+  height: 50vmax;
+  background: radial-gradient(circle, var(--blob-2) 0%, transparent 62%);
+  animation: drift-2 30s ease-in-out infinite;
+}
+
+.bg__blob--3 {
+  right: -30vmax;
+  bottom: -30vmax;
+  background: radial-gradient(circle, var(--blob-3) 0%, transparent 62%);
+  animation: drift-3 44s ease-in-out infinite;
+}
+
+@keyframes drift-1 {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  33% { transform: translate3d(6vw, 4vh, 0); }
+  66% { transform: translate3d(2vw, 9vh, 0); }
+}
+
+@keyframes drift-2 {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  33% { transform: translate3d(-8vw, 5vh, 0); }
+  66% { transform: translate3d(5vw, -6vh, 0); }
+}
+
+@keyframes drift-3 {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  50% { transform: translate3d(-7vw, -8vh, 0); }
+}
+
+/* ---------- полосы прокрутки ---------- */
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar) transparent;
+}
+
+/* Safari и старые Chrome не знают scrollbar-color — для них то же через -webkit- */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar);
+  border: 2px solid transparent;
+  border-radius: 4px;
+  background-clip: padding-box;
 }
 
 button {
@@ -127,7 +212,6 @@ button:disabled {
   gap: 12px;
   padding: 10px 16px 10px 24px;
   background: var(--header-bg);
-  backdrop-filter: blur(20px);
   border-bottom: 1px solid var(--border);
 }
 
@@ -493,7 +577,6 @@ button:disabled {
   align-items: center;
   padding: 14px 32px 18px;
   background: var(--header-bg);
-  backdrop-filter: blur(20px);
   border-top: 1px solid var(--border);
 }
 
@@ -575,7 +658,6 @@ button:disabled {
   min-height: 0;
   padding: 24px 20px 0;
   background: var(--header-bg);
-  backdrop-filter: blur(20px);
   border-left: 1px solid var(--border);
 }
 
@@ -901,6 +983,10 @@ button:disabled {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .bg__blob {
+    animation: none;
+  }
+
   .panel,
   .side__backdrop {
     transition: none;
