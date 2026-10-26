@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ApiError, fetchItems, onProfileReset, sendChat, transcribe } from './api/client';
 import type { LLMConfig } from './api/types';
+import { Background } from './components/Background';
 import { ResultView } from './components/ResultView';
 import { SettingsModal } from './components/SettingsModal';
 import { activeTodayCount, panelDayKeys, PANEL_DAYS, TasksPanel, type PanelState } from './components/TasksPanel';
@@ -206,6 +207,7 @@ export function App() {
 
   return (
     <div className="app">
+      <Background />
       <header className="header">
         <h1 className="header__title">
           <span className="header__title-full">Голосовой ассистент</span>
