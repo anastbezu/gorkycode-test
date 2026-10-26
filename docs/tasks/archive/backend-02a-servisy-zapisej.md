@@ -8,7 +8,7 @@
 ## Контекст
 - **Стек:** Python 3.13, Pydantic v2, SQLAlchemy 2 (по техническим решениям в `docs/decisions.md`).
 - **Зависимость:** Выполняется после [backend-01a](backend-01a-shema-bd.md) (таблицы в базе данных уже созданы).
-- **Контрактная изоляция:** Сервисный слой принимает и возвращает **исключительно Pydantic-модели** контрактов: `Record`, `ActionResult`, `ConversationState` ([`docs/contracts/agent-tools.md`](../contracts/agent-tools.md), [`docs/contracts/data-model.md`](../contracts/data-model.md)). Внутренние ORM-объекты SQLAlchemy (`backend/db/models.py`) остаются внутри сервисов и наружу не передаются.
+- **Контрактная изоляция:** Сервисный слой принимает и возвращает **исключительно Pydantic-модели** контрактов: `Record`, `ActionResult`, `ConversationState` ([`docs/contracts/agent-tools.md`](../../contracts/agent-tools.md), [`docs/contracts/data-model.md`](../../contracts/data-model.md)). Внутренние ORM-объекты SQLAlchemy (`backend/db/models.py`) остаются внутри сервисов и наружу не передаются.
 - **Сервисы работы с записями (`backend/services/records.py`):**
   1. `create_record(db, user_id: UUID, action: CreateRecord) -> ActionResult`:
      - **Валидация бизнес-правил:**

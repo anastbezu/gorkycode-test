@@ -7,7 +7,7 @@
 
 ## Контекст
 - **Стек:** Python 3.13, Pydantic v2 (по техническим решениям в `docs/decisions.md`).
-- **Контрактная основа:** Контракт [`docs/contracts/agent-tools.md`](../contracts/agent-tools.md) и принятое решение об одном вызове LLM на реплику пользователя (`docs/decisions.md`).
+- **Контрактная основа:** Контракт [`docs/contracts/agent-tools.md`](../../contracts/agent-tools.md) и принятое решение об одном вызове LLM на реплику пользователя (`docs/decisions.md`).
 - **Анализ текущей ветки `feature/agent_david-01-system-prompt`:**
   - В файле `backend/agent/system_prompt.py` системный промпт раздут до 126 строк.
   - Избыточные фрагменты, подлежащие удалению:
@@ -39,7 +39,7 @@
       4. Если для встречи или задачи критически не хватает обязательных данных (нет времени встречи), вызывай инструмент ask_user. Не угадывай скрытые параметры.
       ```
 - **Схемы 4 инструментов (`backend/agent/tools.py`):**
-  - Классы действий — из `backend/schemas` (контракт [`docs/contracts/agent-tools.md`](../contracts/agent-tools.md); у Дениса они уже в ветке `feature/backend-02-pydantic-schemas`, файл `backend/schemas/actions.py`). В агента их не копировать — описания полей дописываются в сами схемы:
+  - Классы действий — из `backend/schemas` (контракт [`docs/contracts/agent-tools.md`](../../contracts/agent-tools.md); у Дениса они уже в ветке `feature/backend-02-pydantic-schemas`, файл `backend/schemas/actions.py`). В агента их не копировать — описания полей дописываются в сами схемы:
     - `CreateRecord`: поля `action`, `type`, `title`, `start`, `end`, `time_given`, `deadline`. В `description` полей `start`, `end`, `deadline` — строковый пример формата со смещением пользователя, правила нормализации («утром» = 09:00, «в N» = N:00, «до конца недели» = воскресенье 23:59:59) и требование ставить `null`, если время не названо (НЕ 00:00!).
     - `ListRecords`: поля `action`, `date_from`, `date_to`, `types`. Чёткое описание в `description` класса: *«Показать список записей за явный календарный интервал ('что у меня сегодня', 'планы на неделю'). НЕ использовать для поиска по теме»*.
     - `SearchRecords`: поля `action`, `query`, `filters`. В `description` поля `query`: очистка от слов «найди», «поищи», «задачу про».
