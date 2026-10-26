@@ -32,7 +32,7 @@ def when_text(record: Record, timezone_name: str) -> str:
 def reply_for_result(
         result: ActionResult,
         timezone_name: str,
-        action: ListRecords | None = None,
+        action: ListRecords | SearchRecords | None = None,
         now: datetime | None = None,
 ) -> str:
     if not result.ok:
