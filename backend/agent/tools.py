@@ -3,15 +3,15 @@
 from copy import deepcopy
 from datetime import datetime
 
-from schemas import AskUser, CreateRecord, ListRecords, SearchRecords
+from schemas import AskUser, CreateRecord, Help, ListRecords, SearchRecords
 
 from .system_prompt import format_iso_example
 
 
 def get_agent_tools() -> list[dict]:
-    """Экспортировать четыре действия в формат OpenAI Tools без подстановки {ISO_EXAMPLE}."""
+    """Экспортировать доступные действия без подстановки {ISO_EXAMPLE}."""
     tools = []
-    for model in (CreateRecord, ListRecords, SearchRecords, AskUser):
+    for model in (CreateRecord, ListRecords, SearchRecords, AskUser, Help):
         parameters = model.model_json_schema()
         description = parameters.pop("description", model.__name__)
         tools.append(

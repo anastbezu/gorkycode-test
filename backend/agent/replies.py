@@ -1,7 +1,7 @@
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-from schemas import ActionResult, ListRecords, Record, SearchRecords
+from schemas import ActionResult, CreateRecord, Help, ListRecords, Record, SearchRecords
 
 from .list_replies import reply_for_list
 from .search_replies import reply_for_search
@@ -32,11 +32,16 @@ def when_text(record: Record, timezone_name: str) -> str:
 def reply_for_result(
         result: ActionResult,
         timezone_name: str,
-        action: ListRecords | SearchRecords | None = None,
+        action: CreateRecord | ListRecords | SearchRecords | Help | None = None,
         now: datetime | None = None,
 ) -> str:
     if not result.ok:
         return result.error or "Не получилось выполнить запрос."
+    if result.action == "help":
+        return (
+            "Я помогаю с задачами, встречами и напоминаниями: могу создать запись, "
+            "показать планы или найти дело. Например: «Что у меня завтра?»"
+        )
     if result.action == "create_record":
         record = result.records[0]
         return f"Готово: «{record.title}» {when_text(record, timezone_name)}".strip() + "."

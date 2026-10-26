@@ -53,6 +53,8 @@ def day_words(day: date, today: date, weekday: bool = True) -> str:
 def period_phrase(action: ListRecords, tz: ZoneInfo, today: date) -> tuple[str, bool]:
     """Возвращает (фраза периода, период длиннее одного дня)."""
     first = action.date_from.astimezone(tz).date()
+    if action.date_to is None:
+        return "Начиная с " + date_text(first, today), True
     last = (action.date_to.astimezone(tz) - timedelta(seconds=1)).date()
     if last <= first:
         return "На " + day_words(first, today, weekday=False), False
@@ -63,7 +65,7 @@ def item_phrase(record: Record, tz: ZoneInfo, today: date, with_day: bool) -> st
     title = spoken_title(record.title)
     moment = record.start or record.deadline
     if moment is None:
-        return title
+        return f"{title} (без срока)"
     local = moment.astimezone(tz)
     has_time = record.start is not None and not record.all_day
     day = day_words(local.date(), today)

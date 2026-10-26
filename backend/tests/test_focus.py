@@ -32,9 +32,9 @@ def test_nothing_found_gives_no_focus():
     assert focus_record_id(result) is None
 
 
-def test_list_with_one_record_gives_no_focus():
+def test_list_with_one_record_becomes_focus():
     result = ActionResult(action="list_records", ok=True, records=[make("Купить хлеб")])
-    assert focus_record_id(result) is None
+    assert focus_record_id(result) == result.records[0].id
 
 
 def test_remember_focus_saves_single_hit_in_thread(monkeypatch):

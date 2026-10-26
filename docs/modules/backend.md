@@ -106,6 +106,8 @@ Pydantic-модели контрактов. Сессия БД передаётс
 - Отменённые (`cancelled`) не показываются; остальные статусы — показываются.
 - Фильтр `types`, если передан. Сортировка по `coalesce(start, deadline)`.
 - Ничего нет — `ok=True, records=[]`.
+- `date_to=None` — без верхней границы; в конец добавляются активные записи без начала
+  и срока через `list_undated_records`, с тем же фильтром пользователя и типов.
 
 ### Состояние разговора — `services/conversation.py`
 
@@ -116,6 +118,9 @@ Pydantic-модели контрактов. Сессия БД передаётс
 | `save_conversation_state(db, state)` | сохраняет `focus_record_id`, `pending`, `candidates`, `missing`, `awaiting` |
 | `merge_pending(state, incoming)` | дописывает в черновик `pending` непустые поля из `incoming`, уже сохранённое не затирает; заполненные поля убирает из `missing` |
 | `clear_pending(state)` | очищает `pending`, `missing`, `awaiting` после успешного действия |
+
+Для загрузки фокуса агент использует `services.records.get_record(db, user_id, record_id)`:
+возвращает `Record` либо `None`, фильтруя по ID записи и владельцу в SQL. ORM наружу не передаётся.
 
 Сценарий уточнения: «поставь встречу с Иваном завтра» → `create_record` вернул `missing=["start"]` →
 агент кладёт черновик в `pending`, `awaiting="answer"`, сохраняет → «в 14» →
