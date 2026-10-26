@@ -522,6 +522,49 @@ button:disabled {
   display: none;
 }
 
+/* ---------- голос: «Начать говорить» → «Идёт запись звука» (фрейм «Состояния») ---------- */
+
+.mic {
+  width: 48px;
+  height: 48px;
+}
+
+.mic--on {
+  background: var(--orange);
+  border-color: var(--orange);
+  color: #fff;
+  box-shadow: 0 0 0 8px rgba(255, 90, 36, 0.2);
+}
+
+.mic--on:hover {
+  background: var(--orange);
+}
+
+.recording {
+  flex: 1;
+  min-width: 0;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 0 18px;
+  font-weight: 600;
+}
+
+.recording__bars {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 26px;
+}
+
+.recording__bars span {
+  width: 4px;
+  height: 20%;
+  border-radius: 2px;
+  background: var(--orange);
+}
+
 /* ---------- «Мои дела» ---------- */
 
 .panel {
@@ -756,6 +799,12 @@ button:disabled {
   .composer__send {
     width: 48px;
     padding: 0;
+  }
+
+  /* На телефоне голос — основной способ: кнопка микрофона крупнее */
+  .mic {
+    width: 52px;
+    height: 52px;
   }
 
   .composer__send-label {
