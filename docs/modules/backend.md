@@ -44,7 +44,10 @@ backend/
 | `conversation_id` | uuid | PK |
 | `user_id` | uuid | индекс |
 | `focus_record_id` | uuid | FK → `records.id`, `ON DELETE SET NULL`; «её», «эту встречу» |
+| `shown` | uuid[] | записи, показанные пользователю под номерами: номер N — `shown[N - 1]` (с `0003`) |
+| `last_action` | jsonb | последнее изменение (`LastAction`): для поправки, «верни» и «не эту, а ту» (с `0003`) |
 | `pending` | jsonb | черновик действия агента (`LLMAction`) при уточнении |
+| `pending_skipped` | boolean | прошлая реплика была не про черновик; default `false` (с `0003`) |
 | `candidates` | uuid[] | записи, из которых пользователь выбирает |
 | `missing` | text[] | каких полей не хватает, напр. `{start}` |
 | `awaiting` | varchar(16) | `answer` / `choice` / NULL |
@@ -75,6 +78,21 @@ Pydantic-модели контрактов. Сессия БД передаётс
 Ошибки бизнес-правил — `ActionResult(ok=False, error=...)`, не исключения: агент передаёт текст
 ошибки LLM, API не отдаёт 500.
 
+### Транзакции: один коммит на реплику
+
+Сервисы записей и состояния **не делают `commit`** — только `add` / `flush` в переданную сессию.
+Коммитит маршрут `POST /api/chat` один раз, после того как агент обработал реплику; любое
+исключение — `rollback` всего, что сделала реплика, и 500 (`docs/decisions.md`, «Доступ к БД»).
+Так изменение записи и состояние разговора с прежними значениями для «верни» сохраняются вместе:
+не бывает переноса, который нечем откатить.
+
+- Сохранение записи идёт в точке сохранения (`begin_nested`): ошибка базы откатывает только эту
+  запись (`ok=False`), остальное в транзакции реплики остаётся.
+- Импорт датасета новому пользователю (`bootstrap_if_new`) коммитит сам: он выполняется до реплики
+  и не должен пропасть, если реплика упала.
+- `GET /api/items` только читает — коммит не нужен.
+- Агент сам не коммитит.
+
 ### Записи — `services/records.py`
 
 **`create_record(db, user_id, action: CreateRecord) -> ActionResult`**
@@ -96,7 +114,45 @@ Pydantic-модели контрактов. Сессия БД передаётс
   не прошлое. Для записей со временем — `start < now − 1 минута` (`PAST_GRACE`): LLM считает
   время от момента запроса, проверка идёт после ответа модели, и «напомни через минуту»
   не должно отклоняться из-за этих секунд.
-- При успехе: `ok=True`, `records=[созданная запись]`.
+- **Точный дубль** — активная запись пользователя с тем же названием (без учёта регистра) и тем
+  же `start` — не создаётся: `ok=False`, `error`, существующая запись в `records` (`find_duplicate`).
+- **Конфликт** — у встречи со временем: другие активные встречи пользователя, пересекающиеся по
+  времени (`find_conflicts`). Встрече без `end` для проверки даётся 60 минут от `start` (и новой,
+  и найденным); в запись это не пишется. Встречи «на весь день» не участвуют. Запись сохраняется,
+  пересечения — в `ActionResult.conflicts`.
+- При успехе: `ok=True`, `records=[созданная запись]`, `conflicts` — пересечения или пусто.
+
+**`update_record(db, user_id, record_id, action: UpdateRecord, *, now, allow_past=False) -> RecordChange`**
+
+Запись уже найдена агентом по `TargetRef` (`record_id`); из `UpdateRecord` берутся только
+меняемые поля, не равные `None`: `title`, `start`, `end`, `time_given`, `deadline`.
+
+- Остальные поля не трогаются. `time_given=False` при новом `start` — «весь день», как при
+  создании; `time_given` не передан — «весь день» остаётся прежним.
+- У встречи с концом перенос начала без нового конца **сдвигает конец** на ту же величину —
+  длительность сохраняется (иначе конец оказался бы раньше начала, и перенос не прошёл бы).
+- Проверки — как при создании: пояс, конец позже начала, новая дата не в прошлом. Встреча без
+  времени — `missing=["start"]`. `allow_past=True` — для отката: прежнее время могло уже пройти.
+- Чужая или несуществующая запись — `ok=False`, «Запись не найдена.»
+- У переносимой встречи — пересечения в `conflicts` (без неё самой).
+
+**`set_status(db, user_id, record_id, status) -> RecordChange`** — `done` / `cancelled` / `active`.
+Отменённая запись не удаляется, а пропадает из списков; `active` её возвращает.
+
+**`RecordChange`** — `result: ActionResult` и `before: dict` — прежние значения изменённых полей
+в JSON-виде, даты — в поясе пользователя (`{"start": "2026-10-22T15:00:00+03:00"}`).
+«Весь день» в `before` записывается как `time_given`, статус — `{"status": "active"}`.
+Агент кладёт `before` в `last_action.before`. При ошибке `before` пустой.
+
+**Откат («верни»)** — теми же сервисами, отдельного сервиса нет:
+
+| Что откатываем | Чем |
+|---|---|
+| изменение | `update_record(..., UpdateRecord(target=TargetRef(), **before), allow_past=True)` |
+| смену статуса | `set_status(..., RecordStatus(before["status"]))` |
+| создание | `set_status(..., RecordStatus.CANCELLED)` |
+
+Каждый вариант проверен тестом (`tests/test_backend03.py`).
 
 **`list_records_for_period(db, user_id, action: ListRecords) -> ActionResult`**
 
@@ -114,8 +170,8 @@ Pydantic-модели контрактов. Сессия БД передаётс
 | Функция | Что делает |
 |---|---|
 | `get_conversation_state(db, conversation_id, user_id)` | состояние существующего разговора, без создания: нет разговора → `None`. Чужой разговор → `ConversationAccessError` |
-| `get_or_create_conversation_state(db, conversation_id, user_id)` | состояние из БД; для нового разговора создаёт пустое. Чужой разговор → `ConversationAccessError` |
-| `save_conversation_state(db, state)` | сохраняет `focus_record_id`, `pending`, `candidates`, `missing`, `awaiting` |
+| `get_or_create_conversation_state(db, conversation_id, user_id)` | состояние из БД; для нового разговора создаёт пустое (`flush`, коммит — в маршруте). Чужой разговор → `ConversationAccessError` |
+| `save_conversation_state(db, state)` | записывает в сессию (`flush`) `focus_record_id`, `shown`, `last_action`, `pending`, `pending_skipped`, `candidates`, `missing`, `awaiting`; коммит — в маршруте |
 | `merge_pending(state, incoming)` | дописывает в черновик `pending` непустые поля из `incoming`, уже сохранённое не затирает; заполненные поля убирает из `missing` |
 | `clear_pending(state)` | очищает `pending`, `missing`, `awaiting` после успешного действия |
 
@@ -145,6 +201,7 @@ uv run alembic revision --autogenerate -m "что изменилось"   # но
 |---|---|
 | `0001` | `CREATE EXTENSION IF NOT EXISTS vector` |
 | `0002` | таблицы `records`, `conversation_states`, индексы и ограничения |
+| `0003` | `conversation_states`: `shown`, `last_action`, `pending_skipped` — у существующих строк значения по умолчанию |
 
 Автогенерированную миграцию нужно вычитать: в ней не должно быть ссылок на код приложения
 (`db.models...`), имена ограничений оборачиваются в `op.f(...)`.
@@ -220,7 +277,6 @@ uv run python -m scripts.load_dataset --user-id <UUID> --timezone Asia/Yekaterin
 | `api/chat.py` | `POST /api/chat` |
 | `api/items.py` | `GET /api/items` |
 | `api/health.py` | `GET /health` |
-| `api/dispatch.py` | временный диспетчер чата без LLM — до agent-05 |
 
 ### Пользователь — заголовок `X-User-Id`
 
@@ -247,13 +303,15 @@ uv run python -m scripts.load_dataset --user-id <UUID> --timezone Asia/Yekaterin
 - `llm_config` принимается и нигде не сохраняется и не логируется.
 - Сервисы синхронные — вызываются через `asyncio.to_thread` (`docs/decisions.md`).
 
-**Временный диспетчер (`api/dispatch.py`)** — пока агент не подключён (agent-05), реплика
-разбирается простыми правилами и сразу идёт в настоящие сервисы:
-«что у меня…», «покажи…», «какие…», «план…» → список за сегодня / завтра / неделю; остальное →
-задача без даты с текстом реплики. Тексты ответов — из `agent/replies.py`, как у агента.
-**agent-05:** в `api/chat.py` заменить вызов `handle_without_llm` на
-`process_user_turn(db, user.id, conversation_id, req.text, req.timezone, req.llm_config)`
-(помечено `TODO(agent-05)`), после этого `api/dispatch.py` можно удалить.
+Реплику обрабатывает агент: `process_user_turn(db, user.id, conversation_id, req.text, zone,
+req.llm_config)`.
+
+**Порядок транзакции** (один коммит на реплику):
+
+1. Проверки запроса: пояс, разговор.
+2. Новому пользователю — импорт датасета (коммитит сам, до реплики).
+3. Агент обрабатывает реплику: изменения записей и состояние разговора — в одной транзакции.
+4. Успех → `commit`. Любое исключение → `rollback` всего, что сделала реплика, и 500.
 
 ### `GET /api/items`
 
