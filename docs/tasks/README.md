@@ -41,5 +41,8 @@ backend-01-model-dannyh.md
 | [backend-02b](archive/backend-02b-api-routes.md) | `backend` | Денис | Маршруты API FastAPI (`/api/chat`, `/api/items`, `X-User-Id`, Swagger `/docs`) |
 | [agent-01](archive/agent-01-prompty-i-shemy-tools.md) | `agent` | Давид | Компактный системный промпт (361 токен), схемы инструментов и опорные даты |
 | [agent-02](archive/agent-02-klient-llm-i-vyzov-tulov.md) | `agent` | Илья | Клиент OpenAI SDK по LLMConfig, принудительный tool calling и реестр ACTIONS; оставшиеся критерии перешли в agent-05 |
+| [backend-03](backend-03-izmenenie-status-konflikty.md) | `backend` | Денис | Изменение и статус записей, конфликты, список без конца периода, новые поля состояния, один коммит на реплику |
+| [agent-06](agent-06-sostoyanie-v-prompte.md) | `agent` | Давид | Состояние разговора в промпте, смена темы, отказ без LLM, правила дат (после agent-03) |
+| [agent-07](agent-07-izmenenie-status-otkat.md) | `agent` | Илья | Изменить, выполнить, отменить, вернуть, «не эту, а ту», несколько команд, справка |
 
 Новая задача создаётся по шаблону [`_template.md`](_template.md).
