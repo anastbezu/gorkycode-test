@@ -1,9 +1,10 @@
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-from schemas import ActionResult, ListRecords, Record
+from schemas import ActionResult, ListRecords, Record, SearchRecords
 
 from .list_replies import reply_for_list
+from .search_replies import reply_for_search
 
 MISSING_QUESTIONS = {
     "start": "На какое время поставить встречу?",
@@ -45,7 +46,8 @@ def reply_for_result(
         if not result.records:
             return "На этот период ничего нет."
         return f"Нашёл записей: {len(result.records)}."
-    # TODO(agent-04): короткий ответ на слух для поиска
     if result.action == "search_records":
+        if isinstance(action, SearchRecords) and now is not None:
+            return reply_for_search(result.records, action.query, timezone_name, now)
         return f"Нашёл записей: {len(result.records)}." if result.records else "Ничего не нашлось."
     return "Готово."

@@ -37,6 +37,8 @@ def date_text(day: date, today: date) -> str:
 
 def day_words(day: date, today: date, weekday: bool = True) -> str:
     diff = (day - today).days
+    if diff == -1:
+        return "вчера"
     if diff == 0:
         return "сегодня"
     if diff == 1:
