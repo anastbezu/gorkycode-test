@@ -13,13 +13,13 @@ from services.search_stub import search_by_substring  # TODO: заменить �
 
 
 async def handle_create_record(
-        db, user_id, action: CreateRecord, now: datetime | None = None
+    db, user_id, action: CreateRecord, now: datetime | None = None
 ) -> ActionResult:
     return await asyncio.to_thread(create_record, db, user_id, action, now=now)
 
 
 async def handle_list_records(
-        db, user_id, action: ListRecords, now: datetime | None = None
+    db, user_id, action: ListRecords, now: datetime | None = None
 ) -> ActionResult:
     return await asyncio.to_thread(list_records_for_period, db, user_id, action)
 

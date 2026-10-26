@@ -30,12 +30,12 @@ class ActionParseError(Exception):
 
 
 async def get_action(
-        text: str,
-        now: datetime,
-        timezone_name: str,
-        llm_config: LLMConfig | None = None,
-        *,
-        context: str = "",
+    text: str,
+    now: datetime,
+    timezone_name: str,
+    llm_config: LLMConfig | None = None,
+    *,
+    context: str = "",
 ):
     """Один вызов LLM: модель выбирает один из опубликованных инструментов."""
     client, model = make_client(llm_config)
@@ -70,15 +70,17 @@ async def get_action(
 
 
 async def process_user_turn(
-        db,
-        user_id: UUID,
-        conversation_id: UUID,
-        text: str,
-        timezone_name: str,
-        llm_config: LLMConfig | None = None,
-        *,
-        now: datetime | None = None,
+    db,
+    user_id: UUID,
+    conversation_id: UUID,
+    text: str,
+    timezone_name: str,
+    llm_config: LLMConfig | None = None,
+    *,
+    now: datetime | None = None,
 ) -> ChatResponse:
+    # Один снимок времени на запрос: общий для промпта, описаний инструментов и сервисов.
+    # Готовый now подставляют автотесты (agent-08).
     zone = ZoneInfo(timezone_name)
     now = now.astimezone(zone) if now is not None else datetime.now(zone)
     state = await to_thread(get_or_create_conversation_state, db, conversation_id, user_id)
@@ -97,10 +99,11 @@ async def process_user_turn(
         return ChatResponse(
             conversation_id=conversation_id,
             reply="Ассистент не настроен: не указан ключ API или модель LLM. "
-                  "Задайте их в настройках.",
+            "Задайте их в настройках.",
             awaiting=state.awaiting,
         )
     except openai.APIError:
+        # таймаут, сеть, лимиты, 5xx
         return ChatResponse(
             conversation_id=conversation_id,
             reply="Сервис распознавания временно недоступен. Попробуйте ещё раз чуть позже.",
@@ -114,6 +117,7 @@ async def process_user_turn(
         )
 
     if isinstance(action, AskUser):
+        # Вопрос не заменяет действие: иначе теряются type/title первого шага.
         if state.pending is None:
             state.missing = action.missing
         state.awaiting = "answer"
@@ -124,29 +128,34 @@ async def process_user_turn(
         )
 
     continuing = (
-            state.awaiting == "answer"
-            and state.pending is not None
-            and isinstance(state.pending.root, CreateRecord)
-            and isinstance(action, CreateRecord)
-            and state.pending.root.type == action.type
+        state.awaiting == "answer"
+        and state.pending is not None
+        and isinstance(state.pending.root, CreateRecord)
+        and isinstance(action, CreateRecord)
+        and state.pending.root.type == action.type
     )
     if (
-            isinstance(action, CreateRecord)
-            and state.pending is not None
-            and isinstance(state.pending.root, CreateRecord)
-            and state.pending.root.type != action.type
+        isinstance(action, CreateRecord)
+        and state.pending is not None
+        and isinstance(state.pending.root, CreateRecord)
+        and state.pending.root.type != action.type
     ):
         state = clear_pending(state)
         state.candidates = []
     if continuing:
+        # LLM возвращает полное действие, но дописываем только ожидаемые слоты.
+        # type/title и неназванные end/deadline из черновика остаются неизменными.
         fields = set(state.missing) & {"start", "end", "deadline"}
         if "start" in fields:
             fields.add("time_given")
         incoming = action.model_dump(include=fields, exclude_none=True)
         if "start" not in incoming:
+            # Один флаг без нового времени не превращает дату черновика в полночь встречи.
             incoming.pop("time_given", None)
         merged = merge_pending(state, incoming)
         state.pending = merged.pending
+        # missing из merge_pending проверяет лишь None, а не бизнес-правила.
+        # Сохраняем ожидание до ответа сервиса (включая ошибки и дату без времени).
         action = state.pending.root
 
     result = await execute(db, user_id, action, now=now)
@@ -168,6 +177,7 @@ async def process_user_turn(
         )
 
     if result.ok:
+        # Список/поиск во время уточнения не уничтожает незавершённое создание.
         if continuing or state.pending is None:
             state = clear_pending(state)
             state.candidates = []

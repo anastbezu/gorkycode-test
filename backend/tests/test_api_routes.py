@@ -101,7 +101,7 @@ async def test_user_id_not_uuid_400(client: httpx.AsyncClient) -> None:
 
 
 async def test_chat_saves_and_lists_in_one_conversation(
-        client: httpx.AsyncClient, db: Session
+    client: httpx.AsyncClient, db: Session
 ) -> None:
     user_id = uuid4()  # заголовок есть — датасет не грузится, в базе только записи теста
     headers = {"X-User-Id": str(user_id)}
@@ -136,7 +136,7 @@ async def test_chat_saves_and_lists_in_one_conversation(
 
 
 async def test_chat_unknown_or_foreign_conversation_404(
-        client: httpx.AsyncClient, db: Session
+    client: httpx.AsyncClient, db: Session
 ) -> None:
     owner, stranger = uuid4(), uuid4()
     foreign = uuid4()
@@ -169,7 +169,7 @@ async def test_chat_unknown_timezone_422(client: httpx.AsyncClient, timezone: st
 
 
 async def test_rejected_request_of_new_user_loads_no_dataset(
-        client: httpx.AsyncClient, db: Session
+    client: httpx.AsyncClient, db: Session
 ) -> None:
     before = _count(db)
 
@@ -258,7 +258,7 @@ async def test_health_503_when_db_unavailable(monkeypatch: pytest.MonkeyPatch) -
 
 
 async def test_chat_meeting_saved_with_time_and_zone(
-        client: httpx.AsyncClient, db: Session
+    client: httpx.AsyncClient, db: Session
 ) -> None:
     user_id = uuid4()
     response = await client.post(
