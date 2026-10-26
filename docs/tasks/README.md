@@ -28,8 +28,6 @@ backend-01-model-dannyh.md
 | [agent-03](agent-03-slot-filling-i-kontekst.md) | `agent` | Давид | Слот-филлинг: черновик `pending` в состоянии разговора, ответ дополняет черновик без истории сообщений |
 | [agent-04](agent-04-scenarii-spiska-i-poiska.md) | `agent` | Илья | Сценарии списков за период (`ListRecords`) и смыслового поиска (`SearchRecords`) |
 | [agent-05](agent-05-integratsiya-s-servisami-i-api.md) | `agent` | Илья | Агент на настоящих сервисах и в `/api/chat`: Сценарий 1 до PostgreSQL, проверка живого провайдера (продолжение agent-02) |
-| [product-01](product-01-makety-i-dizayn.md) | `product` | Маша | Макеты 3 экранов в Figma и дизайн-система |
-| [product-02](product-02-dokumentatsiya-fich-i-test-kejsov.md) | `product` | Маша | Документация фич (`docs/features.md`) и эталонные тест-кейсы для демо |
 
 ## Архив — выполненные задачи
 
