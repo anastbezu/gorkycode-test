@@ -28,9 +28,16 @@ def database_url() -> str:
     return url
 
 
+# Без таймаута подключение к недоступной базе висит до таймаута TCP (~2 минуты):
+# `/health` и запросы пользователя ждали бы его вместо быстрого 503 / ошибки.
+CONNECT_TIMEOUT_S = 5
+
+
 @lru_cache
 def get_engine() -> Engine:
-    return create_engine(database_url(), pool_pre_ping=True)
+    return create_engine(
+        database_url(), pool_pre_ping=True, connect_args={"connect_timeout": CONNECT_TIMEOUT_S}
+    )
 
 
 @lru_cache
