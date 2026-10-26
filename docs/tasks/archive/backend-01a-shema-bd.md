@@ -7,7 +7,7 @@
 
 ## Контекст
 - **Стек:** Python 3.13, Pydantic v2, SQLAlchemy 2, Alembic, psycopg 3, PostgreSQL + pgvector (по техническим решениям в `docs/decisions.md`). Контейнер базы данных описан в `docker-compose.yaml`.
-- **Контрактная изоляция:** Внешний мир (агент, API) общается с хранилищем **исключительно через Pydantic-схемы** из `backend/schemas/` ([`docs/contracts/data-model.md`](../contracts/data-model.md)). Внутренние ORM-модели SQLAlchemy (`backend/db/models.py`) наружу не экспортируются и не импортируются другими модулями.
+- **Контрактная изоляция:** Внешний мир (агент, API) общается с хранилищем **исключительно через Pydantic-схемы** из `backend/schemas/` ([`docs/contracts/data-model.md`](../../contracts/data-model.md)). Внутренние ORM-модели SQLAlchemy (`backend/db/models.py`) наружу не экспортируются и не импортируются другими модулями.
 - **Работа с существующими ветками:**
   - Возьми наработки из своих веток `feature/backend-01-shema-bd` и `feature/backend-02-pydantic-schemas`.
   - В модели `backend/db/models.py::Record` **удали** поле `embedding: Mapped[list[float] | None] = mapped_column(Vector(1536))` и константу `EMBEDDING_DIM = 1536`. Модель векторных представлений выбирается отдельно; векторную колонку и расширение для смыслового поиска Родион добавит в модуле поиска.
@@ -34,7 +34,7 @@
     - `candidates` (идентификаторы записей, из которых пользователь выбирает).
     - `missing` (список имён недостающих полей, например `["start"]`).
     - `awaiting` (режим ожидания: `'answer'`, `'choice'` или пусто).
-    - Имена и смысл полей — строго как `ConversationState` в [`docs/contracts/data-model.md`](../contracts/data-model.md).
+    - Имена и смысл полей — строго как `ConversationState` в [`docs/contracts/data-model.md`](../../contracts/data-model.md).
     - `updated_at: timestamptz` (время последнего обновления состояния).
 - **Миграции Alembic (`alembic/`):**
   - Настрой окружение Alembic (`env.py`), связав его с `Base.metadata` и URL подключения к базе данных из настроек приложения.

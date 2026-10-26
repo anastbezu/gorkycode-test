@@ -18,7 +18,7 @@
     1. Считывает заголовок `X-User-Id`.
     2. Если заголовок отсутствует или пуст — генерирует новый `uuid4()` и отдаёт его клиенту так, чтобы фронтенд мог его прочитать и сохранить.
     3. При первом визите нового пользователя инициирует загрузку стартового датасета через `bootstrap_user_data(user_id)`.
-- **Эндпоинты API ([`docs/contracts/api.md`](../contracts/api.md)):**
+- **Эндпоинты API ([`docs/contracts/api.md`](../../contracts/api.md)):**
   1. `POST /api/chat`:
      - Принимает тело `ChatRequest`:
        - `conversation_id: UUID | None` (если `None` — создаётся новый разговор).
@@ -34,7 +34,7 @@
   2. `GET /api/items`:
      - Эндпоинт для боковой панели фронтенда «Мои дела».
      - Принимает параметры фильтрации:
-       - `from`, `to`, `type`, `tz` — строго как в [`docs/contracts/api.md`](../contracts/api.md).
+       - `from`, `to`, `type`, `tz` — строго как в [`docs/contracts/api.md`](../../contracts/api.md).
      - Возвращает список объектов записей `list[Record]` в формате JSON.
   3. `GET /health`:
      - Проверяет подключение к базе данных (`SELECT 1`).

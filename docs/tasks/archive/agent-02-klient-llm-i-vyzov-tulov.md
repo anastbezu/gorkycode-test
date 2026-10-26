@@ -3,17 +3,17 @@
 **Исполнитель:** Илья
 
 ## Цель
-Реализовать асинхронный клиент агента на базе официального SDK `openai` с поддержкой передачи пользовательских настроек через `LLMConfig` ([`docs/contracts/api.md`](../contracts/api.md)), принудительным вызовом инструментов (`tool_choice="required"`), парсингом ответа в строгие модели Pydantic и диспетчеризацией в реестр действий `ACTIONS`.
+Реализовать асинхронный клиент агента на базе официального SDK `openai` с поддержкой передачи пользовательских настроек через `LLMConfig` ([`docs/contracts/api.md`](../../contracts/api.md)), принудительным вызовом инструментов (`tool_choice="required"`), парсингом ответа в строгие модели Pydantic и диспетчеризацией в реестр действий `ACTIONS`.
 
 ## Контекст
 - **Стек:** Python 3.13, `openai>=1.60.0`, Pydantic v2 (по техническим решениям в `docs/decisions.md`).
-- **Контрактная основа:** Контракты [`docs/contracts/agent-tools.md`](../contracts/agent-tools.md), [`docs/contracts/api.md`](../contracts/api.md) и принятое техническое решение об одном вызове LLM на реплику (`docs/decisions.md`).
+- **Контрактная основа:** Контракты [`docs/contracts/agent-tools.md`](../../contracts/agent-tools.md), [`docs/contracts/api.md`](../../contracts/api.md) и принятое техническое решение об одном вызове LLM на реплику (`docs/decisions.md`).
 - **Анализ твоей ветки `feature/ilya-agent-skeleton`:**
   - Ветка содержит отличный каркас реестра `ACTIONS` и обработчиков, но требует двух обязательных изменений:
     1. **Универсальный клиент:** Перейди с библиотеки `google-genai` на официальный `openai.AsyncOpenAI`. Все современные провайдеры (Google Gemini, OpenAI, локальные серверы Ollama/vLLM) поддерживают единый OpenAI-совместимый интерфейс.
     2. **Удаление in-memory истории:** Удали локальный словарь `history: dict`. По принятым техническим решениям состояние разговора сохраняется в PostgreSQL через сервисы Дениса ([backend-02a](backend-02a-servisy-zapisej.md)).
 - **Универсальная инициализация клиента (`LLMConfig`):**
-  - Модель настроек определена в контракте [`docs/contracts/api.md`](../contracts/api.md):
+  - Модель настроек определена в контракте [`docs/contracts/api.md`](../../contracts/api.md):
     ```python
     class LLMConfig(BaseModel):
         base_url: str | None = None
@@ -27,7 +27,7 @@
     - Никаких захардкоженных условий `if provider == "..."` в коде быть не должно — SDK универсально принимает любой совместимый URL.
 - **Вызов модели с принудительными инструментами:**
   - Системный промпт и описания инструментов — результат [agent-01](agent-01-prompty-i-shemy-tools.md) (Давид). Где лежит их код, договариваетесь с Давидом.
-  - Классы действий — из `backend/schemas` (контракт [`docs/contracts/agent-tools.md`](../contracts/agent-tools.md)); в агента их не копировать.
+  - Классы действий — из `backend/schemas` (контракт [`docs/contracts/agent-tools.md`](../../contracts/agent-tools.md)); в агента их не копировать.
   - Параметр вызова `tool_choice="required"` — гарантирует, что LLM вернёт вызов одного из 4 инструментов и не уйдёт в неструктурированный свободный текст.
 - **Строгий парсинг ответа:**
   - Из ответа `response.choices[0].message.tool_calls[0]` извлекается имя инструмента и аргументы в JSON.
