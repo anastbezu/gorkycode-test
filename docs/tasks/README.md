@@ -25,27 +25,31 @@ backend-01-model-dannyh.md
 
 | Задача | Модуль | Исполнитель | Описание |
 |---|---|---|---|
-| [frontend-01](frontend-01-stranitsa-chata.md) | `frontend` | Настя | Страница чата и панель «Мои дела» на стенде: ответ и результат, пронумерованный список, перезагрузка, ошибки, настройки LLM, телефон |
+| [frontend-01](frontend-01-stranitsa-chata.md) | `frontend` | Ася | Страница чата и панель «Мои дела» на стенде: ответ и результат, пронумерованный список, перезагрузка, ошибки, настройки LLM, телефон |
 | [agent-03](agent-03-slot-filling-i-kontekst.md) | `agent` | Давид | Слот-филлинг: черновик `pending` в состоянии разговора, ответ дополняет черновик без истории сообщений |
-| [agent-04](agent-04-scenarii-spiska-i-poiska.md) | `agent` | Илья | Сценарии списков за период (`ListRecords`) и смыслового поиска (`SearchRecords`) |
 | [agent-05](agent-05-integratsiya-s-servisami-i-api.md) | `agent` | Илья | Агент на настоящих сервисах и в `/api/chat`: Сценарий 1 до PostgreSQL, проверка живого провайдера (продолжение agent-02) |
 | [product-03](product-03-teksty-assistenta.md) | `product` | Маша | Тексты ассистента: один текст для чата и голоса, приведённый к принятым решениям, — `docs/assistant-texts.md` |
 | [product-04](product-04-dorabotka-maketa.md) | `product` | Маша | Доработка макета: номера в списках и чипах, все виды результата, пустые состояния и ошибки, «Без срока», календарь, голос |
+| [backend-03](backend-03-izmenenie-status-konflikty.md) | `backend` | Денис | Изменение и статус записей, конфликты, список без конца периода, новые поля состояния, один коммит на реплику |
+| [agent-06](agent-06-sostoyanie-v-prompte.md) | `agent` | Давид | Состояние разговора в промпте, смена темы, отказ без LLM, правила дат (после agent-03) |
+| [agent-07](agent-07-izmenenie-status-otkat.md) | `agent` | Илья | Изменить, выполнить, отменить, вернуть, «не эту, а ту», несколько команд, справка |
+| [voice-01](voice-01-raspoznavanie-rechi.md) | `voice` | Денис | Распознавание речи на сервере: `POST /api/stt`, сначала Gemini, запись до 30 секунд, ошибки по кодам |
+| [frontend-02](frontend-02-golos-na-stranitse.md) | `frontend` | Ася | Голос на странице: микрофон, запись, «распознаю», распознанный текст в ленте, озвучка ответа и выключение звука |
+| [devops-03](devops-03-limit-zaprosa-nginx.md) | `devops` | Ася | Nginx на сервере пропускает голосовые записи: явный лимит размера запроса для `/api/stt` |
+| [agent-08](agent-08-avtotest-agenta.md) | `agent` | Илья | Автотест агента по эталонным кейсам: в CI без модели, живой прогон через модель перед изменением промпта |
 
 ## Архив — выполненные задачи
 
 | Задача | Модуль | Исполнитель | Описание |
 |---|---|---|---|
-| [devops-01](archive/devops-01-nastroyka-servera.md) | `devops` | Настя | Сервер `gorky.bond`: HTTPS, защита, Docker |
-| [devops-02](archive/devops-02-deploy-prilozheniya-i-ci-cd.md) | `devops` | Настя | Автоматический деплой приложения при пуше в `develop` и CI/CD в GitHub Actions |
+| [devops-01](archive/devops-01-nastroyka-servera.md) | `devops` | Ася | Сервер `gorky.bond`: HTTPS, защита, Docker |
+| [devops-02](archive/devops-02-deploy-prilozheniya-i-ci-cd.md) | `devops` | Ася | Автоматический деплой приложения при пуше в `develop` и CI/CD в GitHub Actions |
 | [backend-01a](archive/backend-01a-shema-bd.md) | `backend` | Денис | Схема базы данных, модели records / conversation_states и миграции Alembic |
 | [backend-01b](archive/backend-01b-import-dataset.md) | `backend` | Денис | Импорт и инициализация стартового датасета (1000 строк CSV) для нового пользователя |
 | [backend-02a](archive/backend-02a-servisy-zapisej.md) | `backend` | Денис | Сервисный слой записей (`create_record`, `list_records_for_period`) и состояния |
 | [backend-02b](archive/backend-02b-api-routes.md) | `backend` | Денис | Маршруты API FastAPI (`/api/chat`, `/api/items`, `X-User-Id`, Swagger `/docs`) |
 | [agent-01](archive/agent-01-prompty-i-shemy-tools.md) | `agent` | Давид | Компактный системный промпт (361 токен), схемы инструментов и опорные даты |
 | [agent-02](archive/agent-02-klient-llm-i-vyzov-tulov.md) | `agent` | Илья | Клиент OpenAI SDK по LLMConfig, принудительный tool calling и реестр ACTIONS; оставшиеся критерии перешли в agent-05 |
-| [backend-03](backend-03-izmenenie-status-konflikty.md) | `backend` | Денис | Изменение и статус записей, конфликты, список без конца периода, новые поля состояния, один коммит на реплику |
-| [agent-06](agent-06-sostoyanie-v-prompte.md) | `agent` | Давид | Состояние разговора в промпте, смена темы, отказ без LLM, правила дат (после agent-03) |
-| [agent-07](agent-07-izmenenie-status-otkat.md) | `agent` | Илья | Изменить, выполнить, отменить, вернуть, «не эту, а ту», несколько команд, справка |
+| [agent-04](archive/agent-04-scenarii-spiska-i-poiska.md) | `agent` | Илья | Сценарии списков за период (`ListRecords`) и смыслового поиска (`SearchRecords`) |
 
 Новая задача создаётся по шаблону [`_template.md`](_template.md).
