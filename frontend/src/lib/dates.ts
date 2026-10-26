@@ -170,3 +170,45 @@ export function localMidnightIso(key: string): string {
   const mm = pad(midnight.getMinutes());
   return `${key}T${hh}:${mm}:00${sign}${pad(Math.floor(abs / 60))}:${pad(abs % 60)}`;
 }
+
+const MONTHS_NOMINATIVE = [
+  'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
+  'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь',
+];
+const WEEKDAYS_FULL = ['Воскресенье', 'Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота'];
+
+/** «Октябрь 2026» — заголовок месяца в календаре. */
+export function monthTitle(year: number, month: number): string {
+  return `${MONTHS_NOMINATIVE[month - 1]} ${year}`;
+}
+
+/** «Воскресенье, 25 октября», другой год — с годом. Заголовок дня в календаре. */
+export function dayTitle(key: string, todayKey: string): string {
+  return `${WEEKDAYS_FULL[weekdayOfKey(key)]}, ${dateText(key, todayKey)}`;
+}
+
+/** Номер дня недели с понедельника: 0 — Пн, 6 — Вс. */
+export function mondayIndex(key: string): number {
+  return (weekdayOfKey(key) + 6) % 7;
+}
+
+/**
+ * Дни сетки месяца — целые недели с понедельника по воскресенье, от недели с 1-м числом
+ * до недели с последним. Дни соседних месяцев входят, чтобы строки были полными.
+ */
+export function monthGrid(year: number, month: number): string[] {
+  const first = `${year}-${pad(month)}-01`;
+  const start = addDaysToKey(first, -mondayIndex(first));
+  const nextMonthFirst = month === 12 ? `${year + 1}-01-01` : `${year}-${pad(month + 1)}-01`;
+  const days: string[] = [];
+  for (let key = start; key < nextMonthFirst || days.length % 7 !== 0; key = addDaysToKey(key, 1)) {
+    days.push(key);
+  }
+  return days;
+}
+
+/** Неделя (Пн–Вс), в которой лежит день. */
+export function weekOf(key: string): string[] {
+  const start = addDaysToKey(key, -mondayIndex(key));
+  return Array.from({ length: 7 }, (_, i) => addDaysToKey(start, i));
+}
