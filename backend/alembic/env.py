@@ -11,7 +11,9 @@ from db.session import database_url
 config = context.config
 
 if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+    # disable_existing_loggers=False: иначе fileConfig отключает уже созданные логгеры приложения
+    # (агент и др.) — тесты, которые проверяют логи после миграций в conftest, молча падают.
+    fileConfig(config.config_file_name, disable_existing_loggers=False)
 
 target_metadata = Base.metadata
 
