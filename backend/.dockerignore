@@ -1,0 +1,19 @@
+# Окружения и кэши
+.venv/
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Тесты и служебное — в образ не нужно
+tests/
+Dockerfile
+.dockerignore
+
+# Секреты никогда не попадают в образ
+.env
+.env.*
