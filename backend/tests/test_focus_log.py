@@ -4,12 +4,20 @@ from datetime import datetime
 from uuid import uuid4
 from zoneinfo import ZoneInfo
 
+import pytest
 from sqlalchemy.exc import SQLAlchemyError
 
 from agent import focus
 from schemas import ActionResult, Record
 
 NOW = datetime(2026, 10, 25, 12, 0, tzinfo=ZoneInfo("Europe/Moscow"))
+
+
+@pytest.fixture(autouse=True)
+def enable_focus_logger(monkeypatch):
+    # Настройка логирования (alembic fileConfig, dictConfig) по умолчанию отключает
+    # логгеры, созданные до неё. В CI её вызывают тесты с базой, поэтому включаем явно.
+    monkeypatch.setattr(focus.log, "disabled", False)
 
 
 class FakeDb:
