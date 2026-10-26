@@ -10,7 +10,7 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from api import chat, health, items
+from api import chat, health, items, stt
 from api.deps import USER_ID_HEADER
 
 # Фронтенд на стенде и при локальной разработке. Можно переопределить через CORS_ORIGINS
@@ -35,8 +35,8 @@ app = FastAPI(
     title="Голосовой ассистент для задач и встреч",
     version="0.1.0",
     description=(
-        "API чата и панели «Мои дела». Пользователь — анонимный UUID браузера в заголовке "
-        "`X-User-Id`: без заголовка сервер выдаёт новый в заголовке ответа."
+        "API чата, распознавания речи и панели «Мои дела». Пользователь — анонимный UUID "
+        "браузера в заголовке `X-User-Id`: без заголовка сервер выдаёт новый в заголовке ответа."
     ),
 )
 
@@ -52,3 +52,4 @@ app.add_middleware(
 app.include_router(health.router)
 app.include_router(chat.router)
 app.include_router(items.router)
+app.include_router(stt.router)
