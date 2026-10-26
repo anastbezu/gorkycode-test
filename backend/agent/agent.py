@@ -96,6 +96,6 @@ async def process_user_turn(
 
     return ChatResponse(
         conversation_id=conversation_id,
-        reply=reply_for_result(result, timezone_name),
+        reply=reply_for_result(result, timezone_name, action=action, now=now),
         result=result,
     )

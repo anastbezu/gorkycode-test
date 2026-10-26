@@ -3,7 +3,8 @@ from uuid import uuid4
 from zoneinfo import ZoneInfo
 
 from agent.list_replies import reply_for_list
-from schemas import ListRecords, Record
+from agent.replies import reply_for_result
+from schemas import ActionResult, ListRecords, Record
 
 TZ = "Europe/Moscow"
 MSK = ZoneInfo(TZ)
@@ -62,3 +63,10 @@ def test_multi_day_period_names_days():
     reply = reply_for_list(records, WEEK, TZ, NOW)
     assert reply.startswith("С 26 октября по 1 ноября")
     assert "в пятницу в 10:00" in reply
+
+
+def test_reply_for_result_uses_list_reply():
+    records = [make("meeting", "Планёрка", start=datetime(2026, 10, 26, 10, 0, tzinfo=MSK))]
+    result = ActionResult(action="list_records", ok=True, records=records)
+    reply = reply_for_result(result, TZ, action=TOMORROW, now=NOW)
+    assert reply == "На завтра одно дело: 10:00 — планёрка."
