@@ -1,3 +1,4 @@
+import asyncio
 from datetime import UTC, datetime
 from uuid import uuid4
 
@@ -9,6 +10,8 @@ from schemas import (
     RecordType,
     SearchRecords,
 )
+from services import list_records_for_period
+from services.search_stub import search_by_substring  # TODO: заменить на search() из модуля Родиона
 
 
 async def handle_create_record(db, user_id, action: CreateRecord) -> ActionResult:
@@ -35,13 +38,15 @@ async def handle_create_record(db, user_id, action: CreateRecord) -> ActionResul
 
 
 async def handle_list_records(db, user_id, action: ListRecords) -> ActionResult:
-    # TODO: replace with services.records.list_records_for_period(db, user_id, action)
-    return ActionResult(action="list_records", ok=True, records=[])
+    return await asyncio.to_thread(list_records_for_period, db, user_id, action)
 
 
 async def handle_search_records(db, user_id, action: SearchRecords) -> ActionResult:
-    # TODO: replace with search() from Rodion's module (agent-04)
-    return ActionResult(action="search_records", ok=True, records=[])
+    # TODO: заменить на search(user_id, action.query, action.filters) из модуля Родиона
+    hits = await asyncio.to_thread(
+        search_by_substring, db, user_id, action.query, action.filters
+    )
+    return ActionResult(action="search_records", ok=True, records=[hit.record for hit in hits])
 
 
 ACTIONS = {

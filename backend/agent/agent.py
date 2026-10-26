@@ -9,6 +9,7 @@ from pydantic import ValidationError
 from schemas import AskUser, ChatResponse, LLMAction, LLMConfig
 
 from .actions import execute
+from .focus import remember_focus
 from .llm import LLMConfigError, make_client
 from .replies import question_for_missing, reply_for_result
 from .system_prompt import build_compact_system_prompt
@@ -94,8 +95,10 @@ async def process_user_turn(
             awaiting="answer",
         )
 
+    await remember_focus(db, user_id, conversation_id, result)
+
     return ChatResponse(
         conversation_id=conversation_id,
-        reply=reply_for_result(result, timezone_name),
+        reply=reply_for_result(result, timezone_name, action=action, now=now),
         result=result,
     )
