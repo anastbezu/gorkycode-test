@@ -77,6 +77,7 @@ def test_shared_create_record_json_and_tool_export():
         "list_records",
         "search_records",
         "ask_user",
+        "help",
     }
 
 

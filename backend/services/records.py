@@ -112,12 +112,15 @@ def list_records_for_period(db: Session, user_id: UUID, action: ListRecords) -> 
 
     Правая граница не включается (контракт agent-tools): «сегодня» — до 00:00 завтра,
     и запись «на весь день» завтра (start = 00:00) в него не попадает.
+    Без date_to верхней границы нет; активные записи без даты добавляются в конец.
     «Какие задачи на завтра» находит и задачи, у которых есть только срок.
     Отменённые (`cancelled`) не показываются. Сортировка — по началу, а если его нет — по сроку.
     """
     m = models.Record
 
     def in_period(column):
+        if action.date_to is None:
+            return column >= action.date_from
         return and_(column >= action.date_from, column < action.date_to)
 
     when = func.coalesce(m.start, m.deadline)
@@ -132,8 +135,11 @@ def list_records_for_period(db: Session, user_id: UUID, action: ListRecords) -> 
         query = query.where(m.type.in_(action.types))
 
     rows = db.scalars(query).all()
+    records = [Record.model_validate(r) for r in rows]
+    if action.date_to is None:
+        records.extend(list_undated_records(db, user_id, action.types))
     return ActionResult(
-        action="list_records", ok=True, records=[Record.model_validate(r) for r in rows]
+        action="list_records", ok=True, records=records
     )
 
 
@@ -157,3 +163,13 @@ def list_undated_records(
     if types:
         query = query.where(m.type.in_(types))
     return [Record.model_validate(r) for r in db.scalars(query).all()]
+
+
+def get_record(db: Session, user_id: UUID, record_id: UUID) -> Record | None:
+    """Запись в фокусе: чужие и удалённые записи не возвращаются агенту."""
+    row = db.scalar(
+        select(models.Record).where(
+            models.Record.id == record_id, models.Record.user_id == user_id
+        )
+    )
+    return Record.model_validate(row) if row is not None else None

@@ -70,3 +70,10 @@ def test_reply_for_result_uses_list_reply():
     result = ActionResult(action="list_records", ok=True, records=records)
     reply = reply_for_result(result, TZ, action=TOMORROW, now=NOW)
     assert reply == "На завтра одно дело: 10:00 — планёрка."
+
+
+def test_open_ended_period_names_undated_records():
+    action = ListRecords(date_from=TOMORROW.date_from)
+    reply = reply_for_list([make("task", "Купить хлеб")], action, TZ, NOW)
+    assert "Начиная с 26 октября" in reply
+    assert "купить хлеб (без срока)" in reply

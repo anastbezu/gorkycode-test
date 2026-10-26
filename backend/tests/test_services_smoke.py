@@ -1,11 +1,13 @@
 """Смоук-тесты сервисного слоя (backend-02a) — чистые функции, база не нужна."""
 
 from datetime import datetime, timedelta
+from types import SimpleNamespace
 from uuid import uuid4
 from zoneinfo import ZoneInfo
 
-from schemas import ConversationState, CreateRecord, LLMAction, RecordType
+from schemas import ConversationState, CreateRecord, ListRecords, LLMAction, Record, RecordType
 from services import create_record, merge_pending
+from services import records as records_service
 from services.records import _is_all_day, validate_create
 
 MSK = ZoneInfo("Europe/Moscow")
@@ -86,3 +88,22 @@ def test_all_day_only_when_day_named() -> None:
     assert validate_create(named_day, now) is None
     assert _is_all_day(named_day) is True
     assert _is_all_day(no_date) is False
+
+
+def test_list_without_end_accepts_none_and_appends_undated(monkeypatch):
+    user_id = uuid4()
+    now = datetime(2030, 1, 1, tzinfo=MSK)
+    record = Record(id=uuid4(), user_id=user_id, type="task", title="Без срока", created_at=now)
+    db = SimpleNamespace(scalars=lambda query: SimpleNamespace(all=lambda: []))
+    calls = []
+
+    def undated(session, owner, types):
+        calls.append((session, owner, types))
+        return [record]
+
+    monkeypatch.setattr(records_service, "list_undated_records", undated)
+    result = records_service.list_records_for_period(
+        db, user_id, ListRecords(date_from=now, types=[RecordType.TASK]),
+    )
+    assert result.records == [record]
+    assert calls == [(db, user_id, [RecordType.TASK])]
