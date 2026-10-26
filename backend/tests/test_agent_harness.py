@@ -32,16 +32,35 @@ def test_single_turn_passes_and_fails(monkeypatch):
     assert "start" in failed.turns[0].problems[0]
 
 
-def test_dialog_fills_draft_and_creates(monkeypatch):
+def _meeting_dialog():
     first = CreateRecord(type="meeting", title="встреча с Иваном",
                          start=datetime(2026, 10, 22, tzinfo=TZ), time_given=False)
-    second = first.model_copy(update={
-        "start": datetime(2026, 10, 22, 15, tzinfo=TZ), "time_given": True,
-    })
-    report = Harness(monkeypatch, scripted(first, second)).run_case(case("1.15"))
+    # Во второй реплике модель возвращает чужое название: верное придёт только из черновика.
+    second = CreateRecord(type="meeting", title="не то название",
+                          start=datetime(2026, 10, 22, 15, tzinfo=TZ), time_given=True)
+    return first, second
+
+
+def test_dialog_fills_draft_and_creates(monkeypatch):
+    report = Harness(monkeypatch, scripted(*_meeting_dialog())).run_case(case("1.15"))
     assert report.passed, [t.problems for t in report.turns]
     assert report.turns[0].observed.awaiting == "answer"
     assert report.turns[1].observed.ok is True
+    assert report.turns[1].observed.action.title == "встреча с Иваном"
+
+
+def test_dialog_fails_without_saved_draft(monkeypatch):
+    harness = Harness(monkeypatch, scripted(*_meeting_dialog()))
+    monkeypatch.setattr("agent.agent.save_conversation_state", lambda *args: None)
+    assert not harness.run_case(case("1.15")).passed
+
+
+def test_creation_that_asks_back_does_not_pass(monkeypatch):
+    # 1.4 — время названо; если модель потеряла его, агент переспрашивает — кейс не пройден.
+    lost_time = CreateRecord(type="meeting", title="встреча с командой",
+                             start=datetime(2026, 10, 22, tzinfo=TZ), time_given=False)
+    report = Harness(monkeypatch, scripted(lost_time)).run_case(case("1.4"))
+    assert not report.passed
 
 
 def test_date_in_past_is_rejected_by_business_rules(monkeypatch):

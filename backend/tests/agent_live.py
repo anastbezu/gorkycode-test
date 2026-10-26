@@ -1,10 +1,12 @@
 """Прогон эталонных кейсов через агента (agent-08).
 
 Реплики идут через настоящий `process_user_turn` с фиксированным «сейчас» (21.10.2026 10:00).
-Подменяется только окружение агента:
-- состояние разговора хранится в памяти (по одному разговору на кейс);
-- создание записи проверяется настоящими бизнес-правилами `validate_create`, но в базу
-  не пишется; список, поиск и справка возвращают пустой успешный результат.
+Два режима окружения:
+- с базой (`db=` — сессия тестовой PostgreSQL): настоящие сервисы записей и состояния
+  разговора, ничего не подменяется, кроме модели. Так проверяется быстрый слой в CI;
+- без базы (живой прогон на машине разработчика): состояние разговора — в памяти, создание
+  проверяется настоящими бизнес-правилами `validate_create`, но в базу не пишется; список,
+  поиск и справка возвращают пустой успешный результат.
 Модель — какая передана: настоящий `get_action` в живом слое или сценарий в тестах.
 """
 
@@ -51,21 +53,35 @@ class CaseReport:
 
 
 class Harness:
-    """Окружение агента для прогона кейсов: состояние в памяти, сервисы без базы."""
+    """Окружение агента для прогона кейсов."""
 
-    def __init__(self, monkeypatch, model: Model, *, pause: float = 0.0, retries: int = 2):
+    def __init__(self, monkeypatch, model: Model, *, db=None, pause: float = 0.0,
+                 retries: int = 2):
         self.model = model
+        self.db = db
         self.pause = pause
         self.retries = retries
         self.states: dict = {}
         self.raw: Any = None
         self.executed: Any = None
         self.result: ActionResult | None = None
-        self.provider_failures = 0
-        monkeypatch.setattr(agent_module, "get_or_create_conversation_state", self._load)
-        monkeypatch.setattr(agent_module, "save_conversation_state", self._save)
-        monkeypatch.setattr(agent_module, "get_record", lambda *args: None)
-        monkeypatch.setattr(agent_module, "execute", self._execute)
+        self.provider_failures = 0  # кейсы подряд, где модель не ответила
+
+        if db is None:
+            monkeypatch.setattr(agent_module, "get_or_create_conversation_state", self._load)
+            monkeypatch.setattr(agent_module, "save_conversation_state", self._save)
+            monkeypatch.setattr(agent_module, "get_record", lambda *args: None)
+            execute = self._fake_execute
+        else:
+            execute = agent_module.execute  # настоящие сервисы на тестовой базе
+
+        async def tracked_execute(db_, user_id, action, *, now=None) -> ActionResult:
+            # Запоминаем, что дошло до исполнения и чем закончилось.
+            self.executed = action
+            self.result = await execute(db_, user_id, action, now=now)
+            return self.result
+
+        monkeypatch.setattr(agent_module, "execute", tracked_execute)
         monkeypatch.setattr(agent_module, "get_action", self._get_action)
 
     def _load(self, db, conversation_id, user_id) -> ConversationState:
@@ -79,6 +95,9 @@ class Harness:
         self.states[state.conversation_id] = ConversationState.model_validate_json(
             state.model_dump_json()
         )
+
+    async def _fake_execute(self, db, user_id, action, *, now=None) -> ActionResult:
+        return _fake_execute(user_id, action, now or FIXED_NOW)
 
     async def _get_action(self, *args, **kwargs):
         for attempt in range(self.retries + 1):
@@ -94,30 +113,29 @@ class Harness:
                     raise
                 await asyncio.sleep(max(self.pause, 1.0) * 3)
 
-    async def _execute(self, db, user_id, action, *, now=None) -> ActionResult:
-        self.executed = action
-        self.result = _fake_execute(user_id, action, now or FIXED_NOW)
-        return self.result
+    def run_turn(self, text: str, user_id, conversation_id) -> tuple[Observed, str]:
+        """Одна реплика в разговоре: что дошло до исполнения и текст ответа."""
+        self.raw = self.executed = self.result = None
+        response = asyncio.run(agent_module.process_user_turn(
+            self.db, user_id, conversation_id, text, TIMEZONE, now=FIXED_NOW,
+        ))
+        # До исполнения доходит действие с дописанным черновиком — его и сверяем;
+        # если исполнения не было (вопрос, ошибка) — то, что вернула модель.
+        observed = Observed(
+            action=self.executed if self.executed is not None else self.raw,
+            ok=self.result.ok if self.result is not None else None,
+            awaiting=response.awaiting,
+        )
+        return observed, response.reply
 
     def run_case(self, case: Case) -> CaseReport:
         report = CaseReport(case)
         user_id, conversation_id = uuid4(), uuid4()
         for number, turn in enumerate(case.turns, 1):
-            self.raw = self.executed = self.result = None
-            response = asyncio.run(agent_module.process_user_turn(
-                None, user_id, conversation_id, turn.text, TIMEZONE, now=FIXED_NOW,
-            ))
-            # До исполнения доходит действие с дописанным черновиком — его и сверяем;
-            # если исполнения не было (вопрос, ошибка) — то, что вернула модель.
-            observed = Observed(
-                action=self.executed if self.executed is not None else self.raw,
-                ok=self.result.ok if self.result is not None else None,
-                awaiting=response.awaiting,
-            )
+            observed, reply = self.run_turn(turn.text, user_id, conversation_id)
             problems = compare(turn.expect, observed, TZ)
-            report.turns.append(TurnReport(
-                number, turn.text, turn.expect, observed, response.reply, problems,
-            ))
+            report.turns.append(TurnReport(number, turn.text, turn.expect, observed, reply,
+                                           problems))
             if problems:
                 break  # дальше по диалогу проверять бессмысленно
         return report
