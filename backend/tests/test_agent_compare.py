@@ -105,3 +105,22 @@ def test_describe_shows_local_time():
     action = CreateRecord(type="task", title="x", start=datetime(2026, 10, 22, 7, tzinfo=UTC),
                           time_given=True)
     assert "start=2026-10-22 10:00" in describe(action, MSK)
+
+
+def test_explicit_time_requires_time_given():
+    expect = Expect(action="create_record", start="2026-10-22 10:00")
+    timed = CreateRecord(type="reminder", title="x", start=at(2026, 10, 22, 10), time_given=True)
+    flagless = timed.model_copy(update={"time_given": False})
+    assert check(expect, timed) == []
+    assert any("time_given" in p for p in check(expect, flagless))
+
+
+def test_positive_creation_requires_success_and_no_pending_question():
+    from tests.agent_cases import CASES
+
+    expect = next(c for c in CASES if c.id == "1.1").turns[0].expect
+    action = CreateRecord(type="reminder", title="позвонить Ивану",
+                          start=at(2026, 10, 22, 10), time_given=True)
+    assert check(expect, action, ok=True, awaiting=None) == []
+    assert check(expect, action, ok=False, awaiting=None) != []
+    assert check(expect, action, ok=True, awaiting="answer") != []

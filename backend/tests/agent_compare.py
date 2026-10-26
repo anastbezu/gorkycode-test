@@ -88,10 +88,13 @@ def compare(expect: Expect, observed: Observed, tz: ZoneInfo) -> list[str]:
         expected = getattr(expect, field)
         if expected is not None:
             problems += _check_moment(field, expected, getattr(action, field, _MISSING), tz)
-    if expect.start not in (None, NONE) and " " not in expect.start:
-        # Дата без времени: модель должна сказать, что время не названо.
-        if getattr(action, "time_given", None) is not False:
-            problems.append("time_given: ожидалось false — время не названо")
+    if expect.start not in (None, NONE):
+        # Названо ли время: от флага зависит, станет ли запись «на весь день».
+        timed = " " in expect.start
+        flag = getattr(action, "time_given", _MISSING)
+        if flag is not _MISSING and flag is not timed:
+            reason = "время названо" if timed else "время не названо"
+            problems.append(f"time_given: ожидалось {str(timed).lower()} — {reason}")
     if expect.types is not None:
         problems += _check_types(expect.types, getattr(action, "types", None))
     if expect.query:

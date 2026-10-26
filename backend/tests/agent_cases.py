@@ -18,7 +18,11 @@
 - `types` — типы списка (tuple), ALL — все типы (None или все три);
 - `kind` — у help: help / offtopic;
 - `ok` — успешно ли исполнено действие; `awaiting` — ждёт ли ассистент ответа после реплики
-  ("answer" или NONE).
+  ("answer" или NONE). У `create(...)` по умолчанию ok=True и awaiting=NONE: положительный
+  сценарий создания проходит, только если запись создана и уточнение завершено.
+
+У `start` со временем модель обязана поставить time_given=true, у даты без времени —
+false (иначе запись станет «на весь день» или получит полночь).
 
 Кейс пропускается с причиной (`skip`), если для него ещё нет действия или состояния
 разговора. Такие кейсы не удаляются и не переписываются под текущее поведение.
@@ -77,8 +81,12 @@ class Case:
         return self.id.split(".")[0].split(":")[0]
 
 
-def create(type_: str, title: tuple[str, ...] = (), **fields) -> Expect:
-    return Expect(action="create_record", type=type_, title=title, **fields)
+def create(type_: str, title: tuple[str, ...] = (), *, ok: bool | None = True,
+           awaiting: str | None = NONE, **fields) -> Expect:
+    """Создание. По умолчанию — успешное и без незавершённого уточнения: запись создана.
+    Отрицательный сценарий задаёт это явно: ok=False (и awaiting=None, если не важно)."""
+    return Expect(action="create_record", type=type_, title=title, ok=ok, awaiting=awaiting,
+                  **fields)
 
 
 def listing(date_from: str, date_to: str, types=ALL) -> Expect:
@@ -247,7 +255,8 @@ CASES: tuple[Case, ...] = (
            note="ответ чипом приходит тем же текстом, что и голосом"),
     dialog("3.10",
            ("Поставь встречу с Ольгой сегодня", ASK),
-           ("В 9 утра", create("meeting", ("Ольг",), start="2026-10-21 09:00", ok=False))),
+           ("В 9 утра", create("meeting", ("Ольг",), start="2026-10-21 09:00",
+                               ok=False, awaiting=None))),
     dialog("3.11",
            ("Поставь встречу с Иваном завтра", ASK),
            ("Не надо", Expect(action="none", awaiting=NONE)),
