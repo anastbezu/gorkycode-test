@@ -20,7 +20,7 @@ from .actions import (
 from .api import ChatRequest, ChatResponse, LLMConfig
 from .conversation import ConversationState, LastAction
 from .record import Record, RecordStatus, RecordType
-from .search import SearchHit
+from .search import SearchHit, TargetMatch
 
 __all__ = [
     "UpdateRecord",
@@ -43,5 +43,6 @@ __all__ = [
     "SearchFilters",
     "SearchHit",
     "SearchRecords",
+    "TargetMatch",
     "TargetRef",
 ]
