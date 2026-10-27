@@ -1,5 +1,7 @@
 import json
+import re
 from asyncio import to_thread
+from contextvars import ContextVar
 from datetime import datetime
 from uuid import UUID
 from zoneinfo import ZoneInfo
@@ -38,6 +40,24 @@ class ActionParseError(Exception):
     """Модель вернула действие, которое не удалось разобрать."""
 
 
+# Несколько команд в одной фразе (agent-07). Проверка живым запросом (docs/modules/agent.md,
+# «Несколько команд»): Gemini при любых параметрах отдаёт один вызов. Поэтому исполняется
+# первое действие, а ответ просит сказать остальное отдельно — если модель всё же вернула
+# несколько вызовов или во фразе две команды подряд («запиши … и поставь …»).
+EXTRA_CALLS: ContextVar[int] = ContextVar("extra_calls", default=0)
+COMMAND = re.compile(
+    r"\b(?:запиши|запишите|поставь|поставьте|напомни|напомните|добавь|добавьте|создай|"
+    r"создайте|запланируй|отмени|отмените|перенеси|перенесите|сдвинь|отметь|удали)\b",
+    re.IGNORECASE,
+)
+SAY_REST = "Остальное скажите отдельно."
+
+
+def several_commands(text: str) -> bool:
+    """Во фразе не меньше двух глаголов-команд: «запиши задачу … и поставь встречу …»."""
+    return len(COMMAND.findall(text)) >= 2
+
+
 async def get_action(
     text: str,
     now: datetime,
@@ -65,8 +85,10 @@ async def get_action(
         raise ActionParseError("модель вернула пустой ответ")
     message = response.choices[0].message
 
-    if not message.tool_calls or len(message.tool_calls) != 1:
-        raise ActionParseError("модель должна вернуть ровно одно действие")
+    if not message.tool_calls:
+        raise ActionParseError("модель не вернула действие")
+    # Несколько вызовов — исполняем первый, ответ попросит остальное отдельно.
+    EXTRA_CALLS.set(len(message.tool_calls) - 1)
 
     call = message.tool_calls[0]
     if call.function.name not in {tool["function"]["name"] for tool in tools}:
@@ -92,6 +114,7 @@ async def process_user_turn(
     # Готовый now подставляют автотесты (agent-08).
     zone = ZoneInfo(timezone_name)
     now = now.astimezone(zone) if now is not None else datetime.now(zone)
+    EXTRA_CALLS.set(0)
     state = await to_thread(get_or_create_conversation_state, db, conversation_id, user_id)
     if is_refusal(text, state):
         creating = state.pending is not None and isinstance(state.pending.root, CreateRecord)
@@ -200,6 +223,9 @@ async def process_user_turn(
         title = getattr(pending, "title", None)
         reminder = f"Запись «{title}» ещё не создана." if title else "Действие ещё не завершено."
         reply += " " + reminder + " " + question_for_missing(state.missing)
+
+    if EXTRA_CALLS.get() or several_commands(text):
+        reply += " " + SAY_REST
 
     return ChatResponse(
         conversation_id=conversation_id,

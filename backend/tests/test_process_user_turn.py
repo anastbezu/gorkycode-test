@@ -565,3 +565,46 @@ def test_now_is_shared_by_llm_and_service(monkeypatch):
 
     assert seen["llm"] == seen["service"] == fixed
     assert str(seen["llm"].tzinfo) == "Europe/Moscow"
+
+
+def test_several_tool_calls_execute_first_and_ask_rest_separately(monkeypatch):
+    """agent-07: несколько вызовов — исполняется первый, ответ просит остальное отдельно."""
+    first = CreateRecord(type="task", title="подготовить акт", time_given=False)
+    second = CreateRecord(type="meeting", title="встреча с Максимом",
+                          start=datetime(2030, 1, 2, 16, tzinfo=UTC), time_given=True)
+    calls = [SimpleNamespace(function=SimpleNamespace(
+        name=a.action, arguments=a.model_dump_json())) for a in (first, second)]
+    create = AsyncMock(return_value=SimpleNamespace(choices=[
+        SimpleNamespace(message=SimpleNamespace(tool_calls=calls)),
+    ]))
+    client = SimpleNamespace(chat=SimpleNamespace(completions=SimpleNamespace(create=create)))
+    monkeypatch.setattr(agent_module, "make_client", lambda _: (client, "test-model"))
+    created = []
+
+    def service(db, user_id, action, *, now=None):
+        created.append(action)
+        from schemas import Record
+        record = Record(id=uuid4(), user_id=user_id, type=action.type, title=action.title,
+                        created_at=datetime(2030, 1, 1, tzinfo=UTC))
+        return ActionResult(action="create_record", ok=True, records=[record])
+
+    monkeypatch.setattr(actions_module, "create_record", service)
+    _, response = turn("Подготовить акт, встреча с Максимом")
+    assert created == [first]
+    assert response.reply.endswith("Остальное скажите отдельно.")
+
+
+@pytest.mark.parametrize("text, several", [
+    ("запиши задачу подготовить акт и ещё поставь встречу с Максимом завтра в 16", True),
+    ("Напомни мне завтра в 10 утра позвонить Ивану", False),
+    ("напомни завтра в десять утра... нет, в одиннадцать... позвонить в банк", False),
+    ("Отмени встречу с дизайнером и перенеси созвон на пятницу", True),
+])
+def test_several_commands_in_one_phrase(monkeypatch, text, several):
+    from agent.agent import several_commands
+
+    assert several_commands(text) is several
+    monkeypatch.setattr(agent_module, "get_action",
+                        AsyncMock(return_value=Help(kind="help")))
+    _, response = turn(text)
+    assert response.reply.endswith("Остальное скажите отдельно.") is several
