@@ -1,4 +1,4 @@
-"""Формат запроса и ответа чата.
+"""Формат запросов и ответов API: чат и распознавание речи.
 
 Контракт: docs/contracts/api.md. Менять только через техлида.
 """
@@ -31,3 +31,7 @@ class ChatResponse(BaseModel):
     reply: str                          # текст ответа пользователю
     result: ActionResult | None = None  # что сделано — для показа в интерфейсе
     awaiting: Literal["answer", "choice"] | None = None  # ассистент ждёт ответа или выбора
+
+
+class STTResponse(BaseModel):
+    text: str  # распознанная реплика как есть: не пустая, без правок и сокращений

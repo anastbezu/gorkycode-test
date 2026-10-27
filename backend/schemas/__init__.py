@@ -17,7 +17,7 @@ from .actions import (
     UndoLast,
     UpdateRecord,
 )
-from .api import ChatRequest, ChatResponse, LLMConfig
+from .api import ChatRequest, ChatResponse, LLMConfig, STTResponse
 from .conversation import ConversationState, LastAction
 from .record import Record, RecordStatus, RecordType
 from .search import SearchHit, TargetMatch
@@ -26,6 +26,7 @@ __all__ = [
     "UpdateRecord",
     "UndoLast",
     "SetStatus",
+    "STTResponse",
     "LastAction",
     "Help",
     "ActionResult",
