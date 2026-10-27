@@ -44,6 +44,11 @@ async def chat(
 
     Сервисы синхронные — вызываются через `asyncio.to_thread`, чтобы не блокировать сервер
     (`docs/decisions.md`, «Доступ к БД»).
+
+    Один коммит на реплику: сервисы и агент только пишут в сессию, коммитит маршрут — после
+    того как реплика обработана. Любое исключение — откат всего, что сделала реплика
+    (записи и состояние разговора), и 500. Импорт датасета новому пользователю коммитит сам:
+    он не должен пропасть, если реплика упала.
     """
     zone = parse_timezone(req.timezone)
 
@@ -66,6 +71,12 @@ async def chat(
 
     await asyncio.to_thread(bootstrap_if_new, db, user, zone.key)
 
-    return await process_user_turn(
-        db, user.id, conversation_id, req.text, zone.key, req.llm_config
-    )
+    try:
+        response = await process_user_turn(
+            db, user.id, conversation_id, req.text, zone.key, req.llm_config
+        )
+        await asyncio.to_thread(db.commit)
+    except BaseException:
+        await asyncio.to_thread(db.rollback)
+        raise
+    return response
