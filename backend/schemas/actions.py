@@ -172,12 +172,37 @@ class UndoLast(BaseModel):
     action: Literal["undo_last"] = "undo_last"
 
 
+class AskDraft(BaseModel):
+    """Что уже известно для создания записи, пока не хватает других данных."""
+
+    type: RecordType | None = None
+    title: str | None = Field(default=None, description="Суть, если названа: «позвонить маме»")
+    start: AwareDatetime | None = Field(
+        default=None,
+        description="Названные дата и время начала, ISO 8601 со смещением: {ISO_EXAMPLE}. "
+        "Только дата — начало дня и time_given=false.",
+    )
+    end: AwareDatetime | None = None
+    deadline: AwareDatetime | None = None
+    time_given: bool | None = None
+    time: str | None = Field(
+        default=None,
+        pattern=r"^([01]\d|2[0-3]):[0-5]\d$",
+        description="Время без даты, ЧЧ:ММ: «встреча с Сергеем в 14:45» — 14:45, день спросить.",
+    )
+
+
 class AskUser(BaseModel):
     """Спросить, если для действия не хватает данных."""
 
     action: Literal["ask_user"] = "ask_user"
     question: str
-    missing: list[str] = Field(description="Каких полей не хватает: start, type …")
+    missing: list[str] = Field(description="Каких полей не хватает: start, type, title …")
+    draft: AskDraft | None = Field(
+        default=None,
+        description="Для создания: что пользователь уже назвал (тип, суть, дата, время), "
+        "чтобы следующий ответ дополнил, а не заменил. Не для изменения записей.",
+    )
 
 
 class Help(BaseModel):

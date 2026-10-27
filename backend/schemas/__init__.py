@@ -5,6 +5,7 @@ from schemas import Record, ChatRequest, ActionResult
 
 from .actions import (
     ActionResult,
+    AskDraft,
     AskUser,
     CreateRecord,
     Help,
@@ -30,6 +31,7 @@ __all__ = [
     "LastAction",
     "Help",
     "ActionResult",
+    "AskDraft",
     "AskUser",
     "ChatRequest",
     "ChatResponse",

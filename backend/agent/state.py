@@ -4,6 +4,7 @@ import unicodedata
 from copy import deepcopy
 from typing import Any
 from uuid import UUID
+from zoneinfo import ZoneInfo
 
 from pydantic import BaseModel
 
@@ -34,12 +35,51 @@ def reset_pending(state: ConversationState) -> ConversationState:
     return new
 
 
+def pending_draft(state: ConversationState) -> AskUser | None:
+    """Вопрос с частичным черновиком создания (AskUser.draft), если ассистент его ждёт."""
+    if state.pending is not None and isinstance(state.pending.root, AskUser):
+        return state.pending.root if state.pending.root.draft is not None else None
+    return None
+
+
+def complete_from_draft(
+    ask: AskUser, action: CreateRecord, timezone_name: str = "UTC"
+) -> CreateRecord:
+    """Дополнить ответ уже названным: недостающие поля — из ответа, остальное — из draft.
+
+    «Напомни завтра в 10» → «Позвонить маме»: тип и время из draft, суть из ответа.
+    «Встреча с Сергеем в 14:45» → «Завтра»: день из ответа, время draft.time.
+    """
+    draft = ask.draft
+    missing = set(ask.missing)
+    data = action.model_dump()
+    known = draft.model_dump(exclude_none=True)
+    time = known.pop("time", None)
+    start_missing = "start" in missing
+    for field, value in known.items():
+        answered = data.get(field) is not None
+        if field in ("start", "time_given") and start_missing and data.get("start") is not None:
+            continue  # день и время ответа важнее
+        if field in missing and answered:
+            continue
+        data[field] = value
+    start = data.get("start")
+    if time is not None and start is not None and not data.get("time_given"):
+        hour, minute = map(int, time.split(":"))
+        day = start.astimezone(ZoneInfo(timezone_name))  # день ответа в поясе пользователя
+        data["start"] = day.replace(hour=hour, minute=minute, second=0, microsecond=0)
+        data["time_given"] = True
+    return CreateRecord.model_validate(data)
+
+
 def continues_pending(state: ConversationState, action: BaseModel) -> bool:
     if state.pending is None:
         return False
     if isinstance(action, AskUser):
         return True
     pending = state.pending.root
+    if isinstance(pending, AskUser):
+        return isinstance(action, CreateRecord)
     if isinstance(pending, CreateRecord):
         return isinstance(action, CreateRecord) and pending.type == action.type
     return pending.action == action.action
@@ -85,7 +125,17 @@ def update_state(
             new.pending_skipped = True
 
     if isinstance(action, AskUser):
-        if new.pending is None:
+        asking = new.pending is None or isinstance(new.pending.root, AskUser)
+        if asking and action.draft is not None and action.draft.model_dump(exclude_none=True):
+            # Черновик создания хранится в pending как сам вопрос; повторный вопрос дополняет его.
+            previous = pending_draft(new)
+            draft = action.draft
+            if previous is not None:
+                draft = previous.draft.model_copy(
+                    update=action.draft.model_dump(exclude_none=True)
+                )
+            new.pending = LLMAction(action.model_copy(update={"draft": draft}, deep=True))
+        if asking:
             new.missing = list(action.missing)
         if new.awaiting != "choice":
             new.awaiting = "answer"

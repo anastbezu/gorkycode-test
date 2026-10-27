@@ -2,6 +2,7 @@
 
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
+from zoneinfo import ZoneInfo
 
 import pytest
 
@@ -231,3 +232,82 @@ def test_missing_stores_action_and_empty_results_clear_focus(state):
     action = SearchRecords(query="нет")
     empty = update_state(waiting, action, ActionResult(action=action.action, ok=True))
     assert empty.focus_record_id is None and empty.shown == [] and empty.pending_skipped
+
+
+# --- AskUser.draft: уточнение при создании не теряет уже названное (кейсы 3.5, 3.8) ---
+
+def _ask_with_draft(**draft):
+    from schemas import AskDraft
+
+    return AskUser(question="?", missing=draft.pop("missing"), draft=AskDraft(**draft))
+
+
+def test_ask_with_draft_is_kept_as_pending_and_merged_on_repeat():
+    from agent.state import pending_draft
+
+    state = ConversationState(conversation_id=uuid4(), user_id=uuid4())
+    first = _ask_with_draft(type="meeting", title="встреча с Сергеем", time="14:45",
+                            missing=["start"])
+    state = update_state(state, first, None)
+    assert pending_draft(state).draft.time == "14:45"
+    assert state.missing == ["start"] and state.awaiting == "answer"
+
+    again = _ask_with_draft(title="встреча с Сергеем Петровым", missing=["start"])
+    state = update_state(state, again, None)
+    draft = pending_draft(state).draft
+    assert (draft.type, draft.title, draft.time) == ("meeting", "встреча с Сергеем Петровым",
+                                                     "14:45")
+
+
+def test_ask_without_draft_keeps_old_behaviour():
+    from agent.state import pending_draft
+
+    state = ConversationState(conversation_id=uuid4(), user_id=uuid4())
+    state = update_state(state, AskUser(question="?", missing=["start"]), None)
+    assert state.pending is None and pending_draft(state) is None
+    assert state.missing == ["start"] and state.awaiting == "answer"
+
+
+def test_draft_type_and_time_win_answer_gives_title():
+    """3.5: «Напомни завтра в 10» → «Позвонить маме»."""
+    from agent.state import complete_from_draft, continues_pending
+
+    tz = ZoneInfo("Europe/Moscow")
+    ask = _ask_with_draft(type="reminder", start=datetime(2026, 10, 22, 10, tzinfo=tz),
+                          time_given=True, missing=["title"])
+    state = update_state(ConversationState(conversation_id=uuid4(), user_id=uuid4()), ask, None)
+    answer = CreateRecord(type="task", title="позвонить маме", time_given=False)
+    assert continues_pending(state, answer)
+    action = complete_from_draft(ask, answer, "Europe/Moscow")
+    assert action.type == "reminder"
+    assert action.title == "позвонить маме"
+    assert action.start == datetime(2026, 10, 22, 10, tzinfo=tz)
+    assert action.time_given is True
+
+
+def test_draft_time_goes_onto_answered_day():
+    """3.8: «Встреча с Сергеем в 14:45» → «Завтра»."""
+    from agent.state import complete_from_draft
+
+    tz = ZoneInfo("Europe/Moscow")
+    ask = _ask_with_draft(type="meeting", title="встреча с Сергеем", time="14:45",
+                          missing=["start"])
+    # День ответа пришёл в UTC: время ставится на день в поясе пользователя.
+    answer = CreateRecord(type="meeting", title="встреча",
+                          start=datetime(2026, 10, 21, 21, tzinfo=ZoneInfo("UTC")),
+                          time_given=False)
+    action = complete_from_draft(ask, answer, "Europe/Moscow")
+    assert action.title == "встреча с Сергеем"
+    assert action.start == datetime(2026, 10, 22, 14, 45, tzinfo=tz)
+    assert action.time_given is True
+
+
+def test_named_time_in_answer_is_not_overwritten_by_draft_time():
+    from agent.state import complete_from_draft
+
+    tz = ZoneInfo("Europe/Moscow")
+    ask = _ask_with_draft(type="meeting", title="встреча с Сергеем", time="14:45",
+                          missing=["start"])
+    answer = CreateRecord(type="meeting", title="встреча с Сергеем",
+                          start=datetime(2026, 10, 22, 16, tzinfo=tz), time_given=True)
+    assert complete_from_draft(ask, answer, "Europe/Moscow").start.hour == 16

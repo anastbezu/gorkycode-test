@@ -84,3 +84,42 @@ def test_date_in_past_creates_nothing(db: Session, monkeypatch) -> None:
     observed, _ = harness.run_turn("Напомни вчера позвонить Ивану", user_id, uuid4())
     assert compare(expect("8.3"), observed, TZ) == []
     assert records(db, user_id) == []
+
+
+def test_ask_with_draft_keeps_reminder_time_3_5(db: Session, monkeypatch) -> None:
+    from schemas import AskDraft, AskUser
+
+    ask = AskUser(question="О чём напомнить?", missing=["title"], draft=AskDraft(
+        type="reminder", start=datetime(2026, 10, 22, 10, tzinfo=TZ), time_given=True))
+    # Модель на ответе забыла тип и время: они есть только в draft.
+    answer = CreateRecord(type="task", title="позвонить маме", time_given=False)
+    harness = Harness(monkeypatch, scripted(ask, answer), db=db)
+    user_id, conversation_id = uuid4(), uuid4()
+
+    observed, _ = harness.run_turn("Напомни завтра в 10", user_id, conversation_id)
+    assert compare(expect("3.5", 0), observed, TZ) == []
+    observed, _ = harness.run_turn("Позвонить маме", user_id, conversation_id)
+    assert compare(expect("3.5", 1), observed, TZ) == []
+    [row] = records(db, user_id)
+    assert (row.type, row.start, row.all_day) == ("reminder", datetime(2026, 10, 22, 10,
+                                                                        tzinfo=TZ), False)
+    assert get_conversation_state(db, conversation_id, user_id).pending is None
+
+
+def test_meeting_time_without_day_asks_day_3_8(db: Session, monkeypatch) -> None:
+    from schemas import AskDraft, AskUser
+
+    ask = AskUser(question="На какой день?", missing=["start"], draft=AskDraft(
+        type="meeting", title="встреча с Сергеем", time="14:45"))
+    answer = CreateRecord(type="meeting", title="встреча с Сергеем",
+                          start=datetime(2026, 10, 22, tzinfo=TZ), time_given=False)
+    harness = Harness(monkeypatch, scripted(ask, answer), db=db)
+    user_id, conversation_id = uuid4(), uuid4()
+
+    observed, _ = harness.run_turn("Встреча с Сергеем в 14:45", user_id, conversation_id)
+    assert compare(expect("3.8", 0), observed, TZ) == []
+    observed, _ = harness.run_turn("Завтра", user_id, conversation_id)
+    assert compare(expect("3.8", 1), observed, TZ) == []
+    [row] = records(db, user_id)
+    assert row.start == datetime(2026, 10, 22, 14, 45, tzinfo=TZ)
+    assert row.all_day is False

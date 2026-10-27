@@ -20,7 +20,14 @@ from .context import build_state_context, record_summary
 from .llm import LLMConfigError, make_client
 from .presentation import MAX_SHOWN
 from .replies import question_for_missing, reply_for_result
-from .state import continues_pending, is_refusal, reset_pending, update_state
+from .state import (
+    complete_from_draft,
+    continues_pending,
+    is_refusal,
+    pending_draft,
+    reset_pending,
+    update_state,
+)
 from .system_prompt import build_compact_system_prompt
 from .tools import get_agent_tools, localize_tools
 
@@ -143,7 +150,11 @@ async def process_user_turn(
         continues_pending(state, action)
         and isinstance(action, CreateRecord)
     )
-    if continuing:
+    ask = pending_draft(state)
+    if continuing and ask is not None:
+        # Ответ на вопрос с частичным черновиком (AskUser.draft): дополнить уже названное.
+        action = complete_from_draft(ask, action, timezone_name)
+    elif continuing:
         # LLM возвращает полное действие, но дописываем только ожидаемые слоты.
         # type/title и неназванные end/deadline из черновика остаются неизменными.
         fields = set(state.missing) & {"start", "end", "deadline"}
