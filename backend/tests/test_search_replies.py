@@ -28,7 +28,7 @@ def test_single_record_names_date_and_time():
     assert reply == "«Подписать договор» — 22 августа, в 20:30."
 
 
-def test_several_records_name_latest_regardless_of_order():
+def test_several_records_keep_numbered_result_order():
     records = [
         make("Старый договор", start=datetime(2025, 3, 1, 10, 0, tzinfo=MSK)),
         make("Свежий договор", start=datetime(2026, 10, 20, 9, 0, tzinfo=MSK)),
@@ -38,6 +38,7 @@ def test_several_records_name_latest_regardless_of_order():
     assert reply.startswith("Нашёл 3 записи.")
     assert "Свежий договор" in reply
     assert "20 октября, в 09:00" in reply
+    assert reply.index("1) «Старый") < reply.index("2) «Свежий") < reply.index("3) «Средний")
 
 
 def test_all_day_record_has_no_time():
@@ -58,11 +59,11 @@ def test_reply_for_result_uses_search_reply():
     assert "ничего не нашлось" in reply
 
 
-def test_future_record_is_called_nearest():
+def test_repeated_title_is_grouped_with_latest_representative():
     records = [
         make("Созвон с юристами", start=datetime(2026, 9, 1, 10, 0, tzinfo=MSK)),
         make("Созвон с юристами", start=datetime(2026, 11, 20, 11, 0, tzinfo=MSK)),
         make("Созвон с юристами", start=datetime(2026, 10, 26, 11, 0, tzinfo=MSK)),
     ]
     reply = reply_for_search(records, "созвон юристы", TZ, NOW)
-    assert "Ближайшая — завтра, в 11:00" in reply
+    assert "Созвон с юристами — 3 раза, последний 20.11.2026" in reply

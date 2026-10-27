@@ -132,6 +132,13 @@ class ConversationState(Base):
         UUID(as_uuid=True), ForeignKey("records.id", ondelete="SET NULL")
     )
     pending: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    shown: Mapped[list[uuid.UUID]] = mapped_column(
+        ARRAY(UUID(as_uuid=True)), nullable=False, default=list, server_default=text("'{}'")
+    )
+    last_action: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    pending_skipped: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=text("false")
+    )
     candidates: Mapped[list[uuid.UUID]] = mapped_column(
         ARRAY(UUID(as_uuid=True)), nullable=False, default=list, server_default=text("'{}'")
     )

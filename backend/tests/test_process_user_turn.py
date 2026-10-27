@@ -388,3 +388,153 @@ def test_creation_of_another_type_does_not_reuse_meeting_title(monkeypatch, conv
     assert response.result.records[0].title == "Купить хлеб"
     assert response.awaiting is None
     assert conversation_store[cid].pending is None
+
+
+@pytest.mark.parametrize("awaiting", ["answer", "choice"])
+def test_refusal_clears_waiting_before_llm_or_record_reads(
+    monkeypatch, conversation_store, awaiting,
+):
+    from schemas import LastAction, LLMAction
+
+    uid, cid, rid = uuid4(), uuid4(), uuid4()
+    state = ConversationState(
+        conversation_id=cid, user_id=uid, awaiting=awaiting, missing=["start"],
+        pending=LLMAction(CreateRecord(type="meeting", title="Команда", time_given=False)),
+        pending_skipped=True, candidates=[rid], shown=[rid], focus_record_id=rid,
+        last_action=LastAction(action="create_record", record_ids=[rid]),
+    )
+    conversation_store[cid] = state
+    model = AsyncMock(side_effect=AssertionError("отказ не должен вызывать модель"))
+    monkeypatch.setattr(agent_module, "get_action", model)
+    monkeypatch.setattr(agent_module, "get_record", lambda *args: pytest.fail("лишнее чтение"))
+    response = asyncio.run(process_user_turn(None, uid, cid, "  НЕ   НАДО!!! ", "UTC"))
+    model.assert_not_awaited()
+    assert response.awaiting is None and response.result is None
+    assert response.reply == "Хорошо, не ставлю."
+    saved = conversation_store[cid]
+    assert saved.pending is None and not saved.pending_skipped
+    assert saved.candidates == saved.missing == []
+    assert saved.last_action == state.last_action and saved.focus_record_id == rid
+    assert saved.shown == [rid]
+
+
+def test_cancel_command_is_sent_to_model(monkeypatch, conversation_store):
+    from schemas import LLMAction
+
+    uid, cid = uuid4(), uuid4()
+    conversation_store[cid] = ConversationState(
+        conversation_id=cid, user_id=uid, awaiting="answer", missing=["start"],
+        pending=LLMAction(CreateRecord(type="meeting", title="Команда", time_given=False)),
+    )
+    model = AsyncMock(return_value=AskUser(question="Какую встречу?", missing=[]))
+    monkeypatch.setattr(agent_module, "get_action", model)
+    response = asyncio.run(process_user_turn(None, uid, cid, "Отмени встречу с Иваном", "UTC"))
+    model.assert_awaited_once()
+    assert response.reply == "Какую встречу?"
+    assert conversation_store[cid].pending is not None
+
+
+@pytest.mark.parametrize("second_detour", [False, True])
+def test_interrupted_creation_resumes_once_then_expires(
+    monkeypatch, conversation_store, second_detour,
+):
+    from schemas import ListRecords, Record
+
+    uid, cid = uuid4(), uuid4()
+    start = datetime(2035, 1, 10, 16, tzinfo=UTC)
+    meeting = CreateRecord(type="meeting", title="Встреча с Иваном",
+                           start=start.replace(hour=0), time_given=False)
+    actions = [meeting, ListRecords(date_from=start.replace(hour=0))]
+    if second_detour:
+        actions.extend([
+            Help(kind="offtopic"), AskUser(question="Что поставить в 16?", missing=["title"]),
+        ])
+    else:
+        actions.append(meeting.model_copy(update={"title": "не заменять", "start": start,
+                                                 "time_given": True}))
+    incoming, contexts = iter(actions), []
+
+    async def get_action(*args, context="", **kwargs):
+        contexts.append(context)
+        return next(incoming)
+
+    def create(db, owner, action):
+        error = validate_create(action, datetime(2030, 1, 1, tzinfo=UTC))
+        if error:
+            return error
+        return ActionResult(action=action.action, ok=True, records=[Record(
+            id=uuid4(), user_id=owner, type=action.type, title=action.title,
+            start=action.start, created_at=datetime(2030, 1, 1, tzinfo=UTC),
+        )])
+
+    monkeypatch.setattr(agent_module, "get_action", get_action)
+    monkeypatch.setattr(actions_module, "create_record", create)
+    monkeypatch.setattr(actions_module, "list_records_for_period", lambda *args: ActionResult(
+        action="list_records", ok=True,
+    ))
+
+    def send(text):
+        return asyncio.run(process_user_turn(None, uid, cid, text, "UTC"))
+
+    assert send("Поставь встречу с Иваном завтра").awaiting == "answer"
+    detour = send("А что у меня завтра?")
+    assert "ещё не создана" in detour.reply and "Встреча с Иваном" in detour.reply
+    assert conversation_store[cid].pending_skipped
+    if second_detour:
+        second = send("Какая погода?")
+        assert second.awaiting is None and "ещё не создана" not in second.reply
+        assert conversation_store[cid].pending is None
+    final = send("В 16")
+    if second_detour:
+        assert "Черновик" not in contexts[-1]
+        assert final.result is None and final.reply == "Что поставить в 16?"
+    else:
+        assert "Черновик" in contexts[-1]
+        assert final.result.ok and final.awaiting is None
+        assert final.result.records[0].start == start
+        assert final.result.records[0].title == meeting.title
+        saved = conversation_store[cid]
+        assert saved.last_action.record_ids == [final.result.records[0].id]
+        assert saved.pending is None and not saved.pending_skipped
+
+
+def test_loads_owned_shown_focus_last_action_once_and_keeps_number_gaps(
+    monkeypatch, conversation_store,
+):
+    from schemas import LastAction, Record
+
+    uid, cid, deleted = uuid4(), uuid4(), uuid4()
+    item = Record(id=uuid4(), user_id=uid, type="task", title="Договор",
+                  created_at=datetime(2030, 1, 1, tzinfo=UTC))
+    conversation_store[cid] = ConversationState(
+        conversation_id=cid, user_id=uid, shown=[deleted, item.id], focus_record_id=item.id,
+        last_action=LastAction(action="create_record", record_ids=[item.id]),
+    )
+    reads = []
+
+    def load(db, owner, rid):
+        assert owner == uid
+        reads.append(rid)
+        return item if rid == item.id else None
+
+    async def get_action(*args, context="", **kwargs):
+        assert "2) task" in context and "1)" not in context
+        assert "В фокусе" in context and "Последнее действие" in context
+        assert str(item.id) not in context
+        return Help(kind="help")
+
+    monkeypatch.setattr(agent_module, "get_record", load)
+    monkeypatch.setattr(agent_module, "get_action", get_action)
+    asyncio.run(process_user_turn(None, uid, cid, "Что ты умеешь?", "UTC"))
+    assert reads == [deleted, item.id]
+
+
+def test_state_save_failure_propagates_instead_of_confirming(monkeypatch):
+    monkeypatch.setattr(agent_module, "get_action", AsyncMock(return_value=Help(kind="help")))
+
+    def broken(*args):
+        raise RuntimeError("storage unavailable")
+
+    monkeypatch.setattr(agent_module, "save_conversation_state", broken)
+    with pytest.raises(RuntimeError, match="storage unavailable"):
+        turn()

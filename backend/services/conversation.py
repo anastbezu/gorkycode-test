@@ -57,7 +57,7 @@ def get_or_create_conversation_state(
 def save_conversation_state(db: Session, state: ConversationState) -> None:
     """Сохранить поля состояния из контракта.
 
-    `focus_record_id`, `pending`, `candidates`, `missing`, `awaiting`.
+    Включая `shown`, `last_action`, `pending_skipped` для agent-06/07.
     """
     row = db.get(models.ConversationState, state.conversation_id)
     if row is None:
@@ -69,6 +69,11 @@ def save_conversation_state(db: Session, state: ConversationState) -> None:
         )
 
     row.focus_record_id = state.focus_record_id
+    row.shown = list(state.shown)
+    row.last_action = (
+        state.last_action.model_dump(mode="json") if state.last_action is not None else None
+    )
+    row.pending_skipped = state.pending_skipped
     row.pending = state.pending.model_dump(mode="json") if state.pending is not None else None
     row.candidates = list(state.candidates)
     row.missing = list(state.missing)
@@ -94,5 +99,8 @@ def merge_pending(state: ConversationState, incoming: dict[str, Any]) -> Convers
 
 
 def clear_pending(state: ConversationState) -> ConversationState:
-    """Очистить черновик после успешного завершения действия: `pending`, `missing`, `awaiting`."""
-    return state.model_copy(update={"pending": None, "missing": [], "awaiting": None})
+    """Очистить черновик, признак пропуска, кандидатов и ожидание."""
+    return state.model_copy(update={
+        "pending": None, "missing": [], "awaiting": None,
+        "pending_skipped": False, "candidates": [],
+    })

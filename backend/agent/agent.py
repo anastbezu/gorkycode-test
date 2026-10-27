@@ -9,7 +9,6 @@ from pydantic import ValidationError
 
 from schemas import AskUser, ChatResponse, CreateRecord, LLMAction, LLMConfig
 from services.conversation import (
-    clear_pending,
     get_or_create_conversation_state,
     merge_pending,
     save_conversation_state,
@@ -17,10 +16,11 @@ from services.conversation import (
 from services.records import get_record
 
 from .actions import execute
-from .context import build_draft_context, build_focus_context
-from .focus import focus_record_id
+from .context import build_state_context, record_summary
 from .llm import LLMConfigError, make_client
+from .presentation import MAX_SHOWN
 from .replies import question_for_missing, reply_for_result
+from .state import continues_pending, is_refusal, reset_pending, update_state
 from .system_prompt import build_compact_system_prompt
 from .tools import get_agent_tools, localize_tools
 
@@ -80,16 +80,32 @@ async def process_user_turn(
     # Один снимок времени на запрос: общий для промпта и описаний инструментов.
     now = datetime.now(ZoneInfo(timezone_name))
     state = await to_thread(get_or_create_conversation_state, db, conversation_id, user_id)
-    context = [build_draft_context(state)]
+    if is_refusal(text, state):
+        creating = state.pending is not None and isinstance(state.pending.root, CreateRecord)
+        state = reset_pending(state)
+        await to_thread(save_conversation_state, db, state)
+        return ChatResponse(
+            conversation_id=conversation_id,
+            reply="Хорошо, не ставлю." if creating else "Хорошо, ничего не меняю.",
+        )
+
+    # Один Session: чтения последовательные, все записи проверяются по user_id.
+    ids = list(state.shown[:MAX_SHOWN])
     if state.focus_record_id is not None:
-        record = await to_thread(get_record, db, user_id, state.focus_record_id)
-        if record is not None:
-            context.append(build_focus_context(record, timezone_name))
-        else:
-            state.focus_record_id = None
+        ids.append(state.focus_record_id)
+    if state.last_action is not None:
+        ids.extend(state.last_action.record_ids[:3])
+    records = {}
+    for rid in dict.fromkeys(ids):
+        record = await to_thread(get_record, db, user_id, rid)
+        if record is not None and record.user_id == user_id and record.id == rid:
+            records[rid] = record
+    if state.focus_record_id not in records:
+        state.focus_record_id = None
+    context = build_state_context(state, records, timezone_name)
     try:
         action = await get_action(
-            text, now, timezone_name, llm_config, context="\n".join(filter(None, context))
+            text, now, timezone_name, llm_config, context=context
         )
     except LLMConfigError:
         return ChatResponse(
@@ -113,31 +129,16 @@ async def process_user_turn(
         )
 
     if isinstance(action, AskUser):
-        # Вопрос не заменяет действие: иначе теряются type/title первого шага.
-        if state.pending is None:
-            state.missing = action.missing
-        state.awaiting = "answer"
-        state.candidates = []
+        state = update_state(state, action, None)
         await to_thread(save_conversation_state, db, state)
         return ChatResponse(
-            conversation_id=conversation_id, reply=action.question, awaiting="answer"
+            conversation_id=conversation_id, reply=action.question, awaiting=state.awaiting
         )
 
     continuing = (
-        state.awaiting == "answer"
-        and state.pending is not None
-        and isinstance(state.pending.root, CreateRecord)
+        continues_pending(state, action)
         and isinstance(action, CreateRecord)
-        and state.pending.root.type == action.type
     )
-    if (
-        isinstance(action, CreateRecord)
-        and state.pending is not None
-        and isinstance(state.pending.root, CreateRecord)
-        and state.pending.root.type != action.type
-    ):
-        state = clear_pending(state)
-        state.candidates = []
     if continuing:
         # LLM возвращает полное действие, но дописываем только ожидаемые слоты.
         # type/title и неназванные end/deadline из черновика остаются неизменными.
@@ -156,34 +157,28 @@ async def process_user_turn(
 
     result = await execute(db, user_id, action)
 
-    if not result.ok and result.missing:
-        state.pending = LLMAction(action)
-        question = AskUser(
-            question=question_for_missing(result.missing), missing=result.missing
-        )
-        state.missing = question.missing
-        state.awaiting = "answer"
-        state.candidates = []
-        await to_thread(save_conversation_state, db, state)
-        return ChatResponse(
-            conversation_id=conversation_id,
-            reply=question.question,
-            result=result,
-            awaiting="answer",
-        )
-
-    if result.ok:
-        # Список/поиск во время уточнения не уничтожает незавершённое создание.
-        if continuing or state.pending is None:
-            state = clear_pending(state)
-            state.candidates = []
-        if result.action in {"create_record", "list_records", "search_records"}:
-            state.focus_record_id = focus_record_id(result)
+    state = update_state(state, action, result)
     await to_thread(save_conversation_state, db, state)
+
+    if result.candidates:
+        choices = "; ".join(
+            f"{index}) {record_summary(record, timezone_name)}"
+            for index, record in enumerate(result.candidates[:MAX_SHOWN], 1)
+        )
+        reply = f"Какую запись выбрать? {choices}."
+    elif not result.ok and result.missing:
+        reply = question_for_missing(result.missing)
+    else:
+        reply = reply_for_result(result, timezone_name, action=action, now=now)
+    if state.pending_skipped and state.pending is not None:
+        pending = state.pending.root
+        title = getattr(pending, "title", None)
+        reminder = f"Запись «{title}» ещё не создана." if title else "Действие ещё не завершено."
+        reply += " " + reminder + " " + question_for_missing(state.missing)
 
     return ChatResponse(
         conversation_id=conversation_id,
-        reply=reply_for_result(result, timezone_name, action=action, now=now),
+        reply=reply,
         result=result,
         awaiting=state.awaiting,
     )
