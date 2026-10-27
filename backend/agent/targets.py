@@ -64,7 +64,16 @@ async def resolve_target(
             records = await _owned(db, user_id, [state.focus_record_id])
             if records:
                 return Target(records=records)
-        return Target(error="Какую запись? Назовите её или выберите из списка.")
+        if not target.text:
+            return Target(error="Какую запись? Назовите её или выберите из списка.")
+        # Фокуса нет, но запись описана («перенеси встречу с Натальей») — ищем по описанию.
+
+    if target.all and state.awaiting == "choice" and state.candidates:
+        # «Да», «все» на «Отменить 3 записи?»: ровно то, что спросили, даже если модель
+        # повторила описание (иначе вопрос повторится по кругу).
+        records = await _owned(db, user_id, list(state.candidates))
+        if records:
+            return Target(records=records)
 
     if target.all and not _described(target):
         # «Да», «все» на подтверждение: все записи с экрана.

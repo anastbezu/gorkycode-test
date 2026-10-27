@@ -10,6 +10,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
 from uuid import UUID
+from zoneinfo import ZoneInfo
 
 from schemas import (
     ActionResult,
@@ -21,7 +22,7 @@ from schemas import (
     UndoLast,
     UpdateRecord,
 )
-from services.records import restore_record, set_status, update_record
+from services.records import get_record, restore_record, set_status, update_record
 
 from .targets import resolve_target
 
@@ -37,6 +38,32 @@ class ChangeOutcome:
     before: list[dict[str, Any]] = field(default_factory=list)
     similar: bool = False  # кандидаты только похожи: «Точно такой нет. Может, эту?»
     confirm: bool = False  # несколько записей одной командой: «Отменить 3 …?»
+    # Цель найдена, но менять нечего: «на час позже» по описанию — модель не видела время
+    # записи. Агент повторяет запрос к модели с этой записью в фокусе.
+    unchanged: Record | None = None
+
+
+def changes_nothing(action: UpdateRecord) -> bool:
+    return all(
+        getattr(action, name) is None
+        for name in ("title", "start", "end", "deadline", "time_given")
+    )
+
+
+def keep_time(action: UpdateRecord, record: Record, zone: ZoneInfo) -> UpdateRecord:
+    """«Перенеси на пятницу»: модель прислала только день (полночь без time_given) —
+    время остаётся прежним, как требует контракт update_record."""
+    if action.start is None or action.time_given or record.start is None or record.all_day:
+        return action
+    day = action.start.astimezone(zone)
+    if (day.hour, day.minute) != (0, 0):
+        return action
+    old = record.start.astimezone(zone)
+    start = day.replace(hour=old.hour, minute=old.minute)
+    end = action.end
+    if end is None and record.end is not None:
+        end = start + (record.end - record.start)  # длительность встречи сохраняется
+    return action.model_copy(update={"start": start, "end": end, "time_given": True})
 
 
 def target_statuses(action: UpdateRecord | SetStatus) -> list[RecordStatus]:
@@ -77,7 +104,8 @@ async def _apply(
     befores: list[dict[str, Any]] = []
     for record in records:
         if isinstance(action, UpdateRecord):
-            change = await to_thread(update_record, db, user_id, record.id, action, now=now)
+            fixed = keep_time(action, record, now.tzinfo)
+            change = await to_thread(update_record, db, user_id, record.id, fixed, now=now)
         else:
             change = await to_thread(set_status, db, user_id, record.id, action.status)
         if not change.result.ok:
@@ -106,6 +134,13 @@ async def execute_change(
         return ChangeOutcome(ActionResult(action="undo_last", ok=True, restored=restored))
 
     restored: list[Record] = []
+    if (isinstance(action, SetStatus) and action.replaces_last and state.last_action is not None
+            and state.last_action.action == "set_status" and state.last_action.record_ids):
+        # «Нет, не этот, а тот»: тот же статус, что применили к прошлой записи, — модель
+        # иногда путает его с «верни» (active).
+        previous = await to_thread(get_record, db, user_id, state.last_action.record_ids[0])
+        if previous is not None:
+            action = action.model_copy(update={"status": previous.status})
     if action.replaces_last and state.last_action is not None:
         # «Нет, не этот, а тот»: сначала вернуть прошлое, потом то же действие с новой целью.
         restored, error = await undo(db, user_id, state.last_action)
@@ -131,6 +166,12 @@ async def execute_change(
             action=action.action, ok=False, candidates=target.candidates, restored=restored
         )
         return ChangeOutcome(result, similar=target.similar, confirm=target.confirm)
+
+    if isinstance(action, UpdateRecord) and changes_nothing(action) and len(target.records) == 1:
+        record = target.records[0]
+        result = ActionResult(action=action.action, ok=False, restored=restored,
+                              error="Что изменить у этой записи? Назовите новое время или дату.")
+        return ChangeOutcome(result, unchanged=record)
 
     outcome = await _apply(db, user_id, action, target.records, now)
     outcome.result.restored = restored

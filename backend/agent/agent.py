@@ -9,7 +9,15 @@ from zoneinfo import ZoneInfo
 import openai
 from pydantic import ValidationError
 
-from schemas import AskUser, ChatResponse, CreateRecord, LLMAction, LLMConfig
+from schemas import (
+    AskUser,
+    ChatResponse,
+    CreateRecord,
+    LLMAction,
+    LLMConfig,
+    TargetRef,
+    UpdateRecord,
+)
 from services.conversation import (
     get_or_create_conversation_state,
     merge_pending,
@@ -19,7 +27,7 @@ from services.records import get_record
 
 from .actions import execute
 from .change_replies import reply_for_change
-from .changes import CHANGE_ACTIONS, execute_change
+from .changes import CHANGE_ACTIONS, changes_nothing, execute_change
 from .context import build_state_context, record_summary
 from .llm import LLMConfigError, make_client
 from .presentation import MAX_SHOWN
@@ -72,15 +80,22 @@ async def get_action(
     if context:
         prompt += "\n" + context
     tools = localize_tools(get_agent_tools(), now)
-    response = await client.chat.completions.create(
-        model=model,
-        messages=[
-            {"role": "system", "content": prompt},
-            {"role": "user", "content": text},
-        ],
-        tools=tools,
-        tool_choice="required",
-    )
+    try:
+        response = await client.chat.completions.create(
+            model=model,
+            messages=[
+                {"role": "system", "content": prompt},
+                {"role": "user", "content": text},
+            ],
+            tools=tools,
+            tool_choice="required",
+        )
+    finally:
+        # Клиент создаётся на запрос: закрываем соединения сразу, а не сборщиком мусора
+        # после закрытия цикла событий («Event loop is closed» в живом прогоне на Windows).
+        close = getattr(client, "close", None)
+        if close is not None:
+            await close()
     if not response.choices:
         raise ActionParseError("модель вернула пустой ответ")
     message = response.choices[0].message
@@ -98,6 +113,24 @@ async def get_action(
         return LLMAction.model_validate({**args, "action": call.function.name}).root
     except (json.JSONDecodeError, ValidationError, TypeError) as e:
         raise ActionParseError(str(e)) from e
+
+
+async def retry_with_focus(
+    text: str, now: datetime, timezone_name: str, llm_config: LLMConfig | None,
+    state, record,
+) -> UpdateRecord | None:
+    """Повторить запрос к модели, показав ей найденную запись в фокусе."""
+    focused = state.model_copy(update={"focus_record_id": record.id})
+    context = build_state_context(focused, {record.id: record}, timezone_name)
+    try:
+        retry = await get_action(text, now, timezone_name, llm_config, context=context)
+    except (LLMConfigError, openai.APIError, ActionParseError):
+        return None
+    if not isinstance(retry, UpdateRecord) or changes_nothing(retry):
+        return None
+    # Цель уже найдена — та же запись, что в фокусе.
+    state.focus_record_id = record.id
+    return retry.model_copy(update={"target": TargetRef(focus=True), "replaces_last": False})
 
 
 async def process_user_turn(
@@ -199,6 +232,16 @@ async def process_user_turn(
     if action.action in CHANGE_ACTIONS:
         # Изменение, статус, откат: нужна цель из состояния и прежние значения для отката.
         change = await execute_change(db, user_id, action, state, now=now)
+        if change.unchanged is not None:
+            # «Перенеси встречу с Натальей на час позже»: запись найдена по описанию, но её
+            # времени модель не видела и сдвиг не посчитала. Единственный случай второго
+            # вызова модели за реплику — с этой записью «В фокусе».
+            retry = await retry_with_focus(
+                text, now, timezone_name, llm_config, state, change.unchanged
+            )
+            if retry is not None:
+                action = retry
+                change = await execute_change(db, user_id, action, state, now=now)
         result = change.result
     else:
         result = await execute(db, user_id, action, now=now)

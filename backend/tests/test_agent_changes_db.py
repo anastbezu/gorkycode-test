@@ -57,8 +57,8 @@ class Dialog:
         self.db.flush()
         return row
 
-    def say(self, text, action):
-        self.actions.append(action)
+    def say(self, text, *actions):
+        self.actions.extend(actions)
         return asyncio.run(process_user_turn(
             self.db, self.user_id, self.conversation_id, text, "Europe/Moscow", now=NOW,
         ))
@@ -207,3 +207,60 @@ def test_unknown_number_and_not_found(dialog) -> None:
     assert dialog.say("Отмени встречу с дизайнером",
                       cancel(text="встречу с дизайнером")).reply == (
         "Не нашёл «встречу с дизайнером».")
+
+
+# --- Как отвечала модель в живом прогоне 27.10.2026 (раздел 7) -----------------------------
+
+def test_move_to_day_keeps_previous_time(dialog) -> None:
+    """7.1: «на пятницу» модель присылает полночь без time_given — время прежнее."""
+    meeting = dialog.add("Встреча с Иваном", at(22, 15))
+    move = UpdateRecord(target=TargetRef(text="встречу с Иваном"), start=at(23))
+    reply = dialog.say("Перенеси встречу с Иваном на пятницу", move).reply
+    assert dialog.row(meeting).start == at(23, 15)
+    assert dialog.row(meeting).all_day is False
+    assert "23.10 в 15:00" in reply
+
+
+def test_replaces_last_keeps_status_of_previous_action(dialog) -> None:
+    """7.15: модель вернула status=active и «по сайту» — отменяется созвон по сайту."""
+    integration = dialog.add("Созвон с Вектором по интеграции", at(22, 15))
+    site = dialog.add("Созвон с Вектором по сайту", at(28, 12))
+    dialog.say("Отмени созвон с Вектором по интеграции",
+               cancel(text="созвон с Вектором по интеграции"))
+    wrong = SetStatus(target=TargetRef(text="по сайту"), status=RecordStatus.ACTIVE,
+                      replaces_last=True)
+    response = dialog.say("Нет, не этот, а тот, что по сайту", wrong)
+    assert dialog.row(integration).status == RecordStatus.ACTIVE
+    assert dialog.row(site).status == RecordStatus.CANCELLED
+    assert response.result.ok
+
+
+def test_shift_by_description_asks_model_again_with_record_in_focus(dialog) -> None:
+    """7.17: «на час позже» по описанию — модель не видела время; второй вызов с фокусом."""
+    meeting = dialog.add("Встреча с Натальей по презентации", at(27, 16, 30))
+    blind = UpdateRecord(target=TargetRef(focus=True, text="встречу с Натальей"))
+    seen = UpdateRecord(target=TargetRef(focus=True), start=at(27, 17, 30), time_given=True)
+    reply = dialog.say("Перенеси встречу с Натальей на час позже", blind, seen).reply
+    assert dialog.row(meeting).start == at(27, 17, 30)
+    assert "27.10 в 17:30" in reply
+
+    dialog.say("Верни как было", UndoLast())  # 7.18
+    assert dialog.row(meeting).start == at(27, 16, 30)
+
+
+def test_shift_without_answer_on_retry_asks_user(dialog) -> None:
+    meeting = dialog.add("Встреча с Натальей по презентации", at(27, 16, 30))
+    blind = UpdateRecord(target=TargetRef(text="встречу с Натальей"))
+    reply = dialog.say("Перенеси встречу с Натальей", blind, blind).reply
+    assert reply.startswith("Что изменить")
+    assert dialog.row(meeting).start == at(27, 16, 30)
+
+
+def test_yes_with_repeated_description_takes_asked_records(dialog) -> None:
+    """7.20: на «Да» модель повторила фильтры — отменяется то, что спросили, без нового вопроса."""
+    rows = [dialog.add(f"Созвон {n}", at(22, 10 + n)) for n in range(3)]
+    tomorrow = SearchFilters(date_from=at(22), date_to=at(23))
+    dialog.say("Отмени всё на завтра", cancel(all=True, filters=tomorrow))
+    response = dialog.say("Да", cancel(all=True, filters=tomorrow))
+    assert response.awaiting is None and response.result.ok
+    assert all(dialog.row(r).status == RecordStatus.CANCELLED for r in rows)

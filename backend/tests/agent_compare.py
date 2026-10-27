@@ -110,6 +110,8 @@ def compare(expect: Expect, observed: Observed, tz: ZoneInfo) -> list[str]:
         # Названо ли время: от флага зависит, станет ли запись «на весь день».
         timed = " " in expect.start
         flag = getattr(action, "time_given", _MISSING)
+        if flag is None and getattr(action, "action", None) == "update_record":
+            flag = _MISSING  # у изменения пусто — «весь день» прежний (сервис update_record)
         if flag is not _MISSING and flag is not timed:
             reason = "время названо" if timed else "время не названо"
             problems.append(f"time_given: ожидалось {str(timed).lower()} — {reason}")
