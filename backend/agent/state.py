@@ -9,8 +9,6 @@ from pydantic import BaseModel
 
 from schemas import ActionResult, AskUser, ConversationState, CreateRecord, LastAction, LLMAction
 
-from .presentation import shown_records
-
 MUTATIONS = {"create_record", "update_record", "set_status"}
 LIST_ACTIONS = {"list_records", "search_records"}
 REFUSALS = {"не надо", "забудь", "отмена", "проехали", "забей", "неважно", "отбой", "стоп"}
@@ -50,9 +48,7 @@ def continues_pending(state: ConversationState, action: BaseModel) -> bool:
 def focus_record_id(result: ActionResult) -> UUID | None:
     if not result.ok:
         return None
-    if result.action in LIST_ACTIONS:
-        records = shown_records(result.records)
-    elif result.action in MUTATIONS:
+    if result.action in LIST_ACTIONS | MUTATIONS:
         records = result.records
     elif result.action == "undo_last":
         records = result.restored
@@ -72,7 +68,7 @@ def update_state(
 
     action — конкретная модель действия (или LLMAction); result=None только для AskUser.
     before — снимки записей ДО update_record/set_status, в порядке result.records.
-    Кандидаты сохраняются без группировки: каждый номер — отдельная запись.
+    `shown` — все записи ответа (или кандидаты) без группировки: номер N — `shown[N-1]`.
     """
     if isinstance(action, LLMAction):
         action = action.root
@@ -121,7 +117,8 @@ def update_state(
     if continuing or new.pending is None:
         new = reset_pending(new)
     if result.action in LIST_ACTIONS:
-        new.shown = [record.id for record in shown_records(result.records)]
+        # Номера на экране — все записи ответа в том же порядке, без группировки (api.md)
+        new.shown = [record.id for record in result.records]
     elif choosing:
         new.shown = [record.id for record in result.records]
     if result.action in MUTATIONS | LIST_ACTIONS | {"undo_last"}:

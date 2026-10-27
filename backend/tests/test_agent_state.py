@@ -186,18 +186,21 @@ def test_group_order_matches_state_reply_and_context(state, kind):
     records = [first, other, latest]
     action = ListRecords(date_from=NOW) if kind == "list_records" else SearchRecords(query="всё")
     new = update_state(state, action, ActionResult(action=kind, ok=True, records=records))
-    assert new.shown == [latest.id, other.id] and new.focus_record_id is None
+    # Номера на экране — все записи в порядке ответа, без группировки (api.md, data-model.md)
+    assert new.shown == [first.id, other.id, latest.id] and new.focus_record_id is None
     reply = reply_for_list(records, action, "UTC", NOW) if kind == "list_records" \
         else reply_for_search(records, "всё", "UTC", NOW)
-    assert "1) Созвон — 2 раза, последний 05.01.2030" in reply
+    # Текст может свернуть повторы, но без номеров: они не совпали бы с экраном
+    assert "Созвон — 2 раза, последний 05.01.2030" in reply and "1)" not in reply
     assert reply.casefold().index("созвон") < reply.casefold().index("отчёт")
     context = build_state_context(new, {r.id: r for r in records}, "UTC")
-    assert context.index('1) task "Созвон"') < context.index('2) task "Отчёт"')
+    assert context.index('1) task "Созвон"') < context.index('2) task "Отчёт"') \
+        < context.index('3) task "Созвон"')
     assert "05.01.2030" in context
     assert len(records) == 3  # группировка не меняет выдачу сервисов
 
 
-def test_grouping_does_not_merge_types_or_statuses_and_shown_is_bounded(state):
+def test_grouping_does_not_merge_types_and_shown_keeps_all_numbers(state):
     active = record(state)
     done = active.model_copy(update={"id": uuid4(), "status": "done"})
     meeting = active.model_copy(update={"id": uuid4(), "type": "meeting", "start": NOW})
@@ -205,15 +208,16 @@ def test_grouping_does_not_merge_types_or_statuses_and_shown_is_bounded(state):
     action = SearchRecords(query="всё")
     items = [record(state, f"Дело {i}") for i in range(12)]
     new = update_state(state, action, ActionResult(action=action.action, ok=True, records=items))
-    assert new.shown == [r.id for r in items[:10]]
+    # Номер N — shown[N-1] и дальше десятого; в промпт попадают первые 10
+    assert new.shown == [r.id for r in items]
 
 
-def test_one_displayed_group_focuses_its_latest_record(state):
+def test_repeated_titles_are_several_records_and_give_no_focus(state):
     items = [record(state, start=NOW + timedelta(days=i)) for i in [2, 1, 3]]
     action = SearchRecords(query="договор")
     new = update_state(state, action, ActionResult(action=action.action, ok=True, records=items))
-    assert new.shown == [items[2].id]
-    assert new.focus_record_id == items[2].id
+    assert new.shown == [r.id for r in items]
+    assert new.focus_record_id is None
 
 
 def test_missing_stores_action_and_empty_results_clear_focus(state):

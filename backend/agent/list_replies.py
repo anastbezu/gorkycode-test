@@ -106,10 +106,8 @@ def reply_for_list(records: list[Record], action: ListRecords,
         else item_phrase(group.record, tz, today, multi_day)
         for group in groups[:MAX_SPOKEN]
     ]
-    items = "; ".join(
-        f"{index}) {phrase}" if len(groups) > 1 else phrase
-        for index, phrase in enumerate(phrases, 1)
-    )
+    # Без номеров: группы повторов не совпадают с номерами на экране (api.md)
+    items = "; ".join(phrases)
 
     if n == 1:
         return f"{lead} одно дело: {items}."

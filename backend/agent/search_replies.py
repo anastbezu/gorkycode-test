@@ -35,9 +35,7 @@ def reply_for_search(records: list[Record], query: str, timezone_name: str, now:
         else f"«{group.record.title}» — {when_phrase(group.record, tz, today)}"
         for group in groups[:MAX_SPOKEN]
     ]
-    items = "; ".join(
-        f"{index}) {phrase}" if len(groups) > 1 else phrase
-        for index, phrase in enumerate(phrases, 1)
-    )
+    # Без номеров: группы повторов не совпадают с номерами на экране (api.md)
+    items = "; ".join(phrases)
     tail = " Остальные на экране." if len(groups) > MAX_SPOKEN else ""
     return f"Нашёл {n} {noun}. {items}.{tail}"

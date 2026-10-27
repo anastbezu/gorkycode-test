@@ -28,7 +28,7 @@ def test_single_record_names_date_and_time():
     assert reply == "«Подписать договор» — 22 августа, в 20:30."
 
 
-def test_several_records_keep_numbered_result_order():
+def test_several_records_keep_result_order_without_numbers():
     records = [
         make("Старый договор", start=datetime(2025, 3, 1, 10, 0, tzinfo=MSK)),
         make("Свежий договор", start=datetime(2026, 10, 20, 9, 0, tzinfo=MSK)),
@@ -38,7 +38,8 @@ def test_several_records_keep_numbered_result_order():
     assert reply.startswith("Нашёл 3 записи.")
     assert "Свежий договор" in reply
     assert "20 октября, в 09:00" in reply
-    assert reply.index("1) «Старый") < reply.index("2) «Свежий") < reply.index("3) «Средний")
+    assert reply.index("«Старый") < reply.index("«Свежий") < reply.index("«Средний")
+    assert "1)" not in reply  # номера — только на экране
 
 
 def test_all_day_record_has_no_time():
