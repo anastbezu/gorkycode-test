@@ -1,18 +1,5 @@
-import logging
-from uuid import UUID
+"""Compatibility import; state transitions live in agent.state."""
 
-from schemas import ActionResult
+from .state import focus_record_id
 
-log = logging.getLogger(__name__)
-
-
-def focus_record_id(result: ActionResult) -> UUID | None:
-    """Единственная созданная/показанная запись; пустая или множественная выдача снимает фокус."""
-    if (
-        result.ok
-        and result.action in {"create_record", "list_records", "search_records"}
-        and len(result.records) == 1
-    ):
-        return result.records[0].id
-    return None
-
+__all__ = ["focus_record_id"]

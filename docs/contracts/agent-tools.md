@@ -73,11 +73,22 @@ class UndoLast(BaseModel):
     """Откатить последнее изменение: «верни как было», «верни»."""
     action: Literal["undo_last"] = "undo_last"
 
+class AskDraft(BaseModel):
+    """Что уже известно для создания записи, пока не хватает других данных."""
+    type: RecordType | None = None
+    title: str | None = None
+    start: AwareDatetime | None = None   # названные дата и время; только дата — начало дня, time_given=false
+    end: AwareDatetime | None = None
+    deadline: AwareDatetime | None = None
+    time_given: bool | None = None
+    time: str | None = None              # время без даты, «ЧЧ:ММ»: «встреча с Сергеем в 14:45»
+
 class AskUser(BaseModel):
     """Спросить, если для действия не хватает данных."""
     action: Literal["ask_user"] = "ask_user"
     question: str
-    missing: list[str] = Field(description="Каких полей не хватает: start, type …")
+    missing: list[str] = Field(description="Каких полей не хватает: start, type, title …")
+    draft: AskDraft | None = None        # для создания: что уже названо, чтобы ответ дополнил
 
 class Help(BaseModel):
     """Реплика не про задачи и встречи или вопрос «что ты умеешь»."""
@@ -91,6 +102,8 @@ LLMAction = RootModel[Annotated[
 ```
 
 ## Правила
+- `AskUser.draft` — только для создания. Код хранит такой вопрос в `ConversationState.pending`; следующий `create_record` дополняет черновик: поля из `missing` берутся из ответа, остальное — из `draft`. Время без даты (`draft.time`) ставится на день из ответа. `AskUser` без `draft` работает как раньше.
+- Встреча со временем, но без дня («встреча с Сергеем в 14:45») — `ask_user` о дне с `draft.time`, не «сегодня».
 **Даты и время**
 - Даты — ISO 8601 со смещением. `{ISO_EXAMPLE}` в описаниях агент заменяет примером в поясе пользователя (`2026-10-25T15:00:00+03:00` для Europe/Moscow).
 - «В N» без «утра», «вечера», «ночи»: часы 1–7 — это N+12 («в 3» = 15:00, «без пятнадцати три» = 14:45), 8–12 — как сказано. Явное «утра», «ночи», «вечера» сильнее правила.

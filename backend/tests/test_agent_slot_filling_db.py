@@ -7,8 +7,12 @@ from uuid import uuid4
 import pytest
 
 from agent import agent as agent_module
-from schemas import CreateRecord, ListRecords
-from services.conversation import ConversationAccessError, get_or_create_conversation_state
+from schemas import CreateRecord, LastAction, ListRecords
+from services.conversation import (
+    ConversationAccessError,
+    get_or_create_conversation_state,
+    save_conversation_state,
+)
 from services.records import create_record, get_record, list_records_for_period
 
 
@@ -38,6 +42,7 @@ def test_two_turns_persist_record_clear_draft_and_isolate_owner(db, monkeypatch)
     assert state.pending is None
     assert state.missing == state.candidates == []
     assert state.focus_record_id == last.result.records[0].id
+    assert state.last_action.record_ids == [state.focus_record_id]
     record = get_record(db, uid, state.focus_record_id)
     assert record.title == "встреча с Денисом"
     assert record.start == start
@@ -65,3 +70,20 @@ def test_open_ended_list_includes_future_and_undated_records(db):
     create_record(db, uuid4(), CreateRecord(type="task", title="Чужое", time_given=False))
     result = list_records_for_period(db, uid, ListRecords(date_from=now))
     assert [record.id for record in result.records] == [dated.id, undated.id]
+
+
+def test_extended_conversation_fields_survive_database_reload(db):
+    uid, cid = uuid4(), uuid4()
+    state = get_or_create_conversation_state(db, cid, uid)
+    item = create_record(db, uid, CreateRecord(
+        type="task", title="Договор", time_given=False,
+    )).records[0]
+    state.shown = [item.id]
+    state.last_action = LastAction(action="create_record", record_ids=[item.id])
+    state.pending_skipped = True
+    save_conversation_state(db, state)
+    db.expire_all()
+    loaded = get_or_create_conversation_state(db, cid, uid)
+    assert loaded.shown == state.shown
+    assert loaded.last_action == state.last_action
+    assert loaded.pending_skipped is True
