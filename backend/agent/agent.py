@@ -76,9 +76,13 @@ async def process_user_turn(
     text: str,
     timezone_name: str,
     llm_config: LLMConfig | None = None,
+    *,
+    now: datetime | None = None,
 ) -> ChatResponse:
-    # Один снимок времени на запрос: общий для промпта и описаний инструментов.
-    now = datetime.now(ZoneInfo(timezone_name))
+    # Один снимок времени на запрос: общий для промпта, описаний инструментов и сервисов.
+    # Готовый now подставляют автотесты (agent-08).
+    zone = ZoneInfo(timezone_name)
+    now = now.astimezone(zone) if now is not None else datetime.now(zone)
     state = await to_thread(get_or_create_conversation_state, db, conversation_id, user_id)
     if is_refusal(text, state):
         creating = state.pending is not None and isinstance(state.pending.root, CreateRecord)
@@ -155,7 +159,7 @@ async def process_user_turn(
         # Сохраняем ожидание до ответа сервиса (включая ошибки и дату без времени).
         action = state.pending.root
 
-    result = await execute(db, user_id, action)
+    result = await execute(db, user_id, action, now=now)
 
     state = update_state(state, action, result)
     await to_thread(save_conversation_state, db, state)

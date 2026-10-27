@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session
 
 from db import get_engine, get_session, models
 from main import app
-from schemas import CreateRecord, RecordType
+from schemas import CreateRecord, ListRecords, RecordType
 from services import create_record, get_or_create_conversation_state
 
 pytestmark = pytest.mark.anyio
@@ -28,6 +28,25 @@ YEKT = ZoneInfo("Asia/Yekaterinburg")
 @pytest.fixture
 def anyio_backend() -> str:
     return "asyncio"
+
+
+@pytest.fixture(autouse=True)
+def fake_llm(monkeypatch: pytest.MonkeyPatch) -> None:
+    """В CI нет ключа LLM: подменяется только выбор действия моделью,
+    маршрут, агент, сервисы и база — настоящие."""
+
+    async def get_action(text, now, timezone_name, llm_config=None, *, context=""):
+        if text.startswith("Что у меня"):
+            day = now.replace(hour=0, minute=0, second=0, microsecond=0)
+            return ListRecords(date_from=day, date_to=day + timedelta(days=7))
+        if text.startswith("Поставь встречу"):
+            start = (now + timedelta(days=1)).replace(hour=15, minute=0, second=0, microsecond=0)
+            return CreateRecord(
+                type=RecordType.MEETING, title="встреча с Иваном", start=start, time_given=True
+            )
+        return CreateRecord(type=RecordType.TASK, title=text, time_given=False)
+
+    monkeypatch.setattr("agent.agent.get_action", get_action)
 
 
 def _client() -> httpx.AsyncClient:
@@ -236,3 +255,20 @@ async def test_health_503_when_db_unavailable(monkeypatch: pytest.MonkeyPatch) -
 
     assert response.status_code == 503
     assert response.json() == {"status": "error", "db": "unavailable"}
+
+
+async def test_chat_meeting_saved_with_time_and_zone(
+    client: httpx.AsyncClient, db: Session
+) -> None:
+    user_id = uuid4()
+    response = await client.post(
+        "/api/chat",
+        headers={"X-User-Id": str(user_id)},
+        json={"text": "Поставь встречу с Иваном завтра в 15:00", "timezone": "Europe/Moscow"},
+    )
+
+    assert response.status_code == 200
+    row = db.scalar(select(models.Record).where(models.Record.user_id == user_id))
+    assert row.type is RecordType.MEETING
+    assert row.start == _tomorrow_at(15, MSK)
+    assert "15:00" in response.json()["reply"]

@@ -33,6 +33,9 @@ services:
       LLM_BASE_URL: ${LLM_BASE_URL:-}
       LLM_API_KEY: ${LLM_API_KEY:-}
       LLM_MODEL: ${LLM_MODEL:-}
+      STT_API_KEY: ${STT_API_KEY:-}
+      STT_MODEL: ${STT_MODEL:-}
+      STT_THINKING_LEVEL: ${STT_THINKING_LEVEL:-}
       CORS_ORIGINS: ${CORS_ORIGINS:-}
     depends_on:
       postgres:

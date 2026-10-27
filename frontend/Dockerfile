@@ -1,8 +1,15 @@
+# Сборка: исходники → статика в dist/
+# slim (glibc), а не alpine: у сборщика (rolldown) и TypeScript 7 нативные бинарники
+FROM node:22-slim AS build
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci --no-audit --no-fund
+COPY . .
+RUN npm run build
+
+# Итоговый образ: только nginx и собранная статика
 FROM nginx:alpine
-
-# Временная статическая страница, пока нет задачи фронтенда. Лишнее отсекает .dockerignore.
-COPY . /usr/share/nginx/html
-
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY --from=build /app/dist /usr/share/nginx/html
 EXPOSE 80
-
 CMD ["nginx", "-g", "daemon off;"]

@@ -11,10 +11,26 @@ from .conversation import (
     merge_pending,
     save_conversation_state,
 )
-from .records import create_record, list_records_for_period, list_undated_records
+from .records import (
+    RecordChange,
+    create_record,
+    find_conflicts,
+    find_duplicate,
+    list_records_for_period,
+    list_undated_records,
+    restore_record,
+    set_status,
+    update_record,
+)
 
 __all__ = [
     "ConversationAccessError",
+    "RecordChange",
+    "restore_record",
+    "find_conflicts",
+    "find_duplicate",
+    "set_status",
+    "update_record",
     "clear_pending",
     "create_record",
     "get_conversation_state",

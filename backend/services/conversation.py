@@ -1,7 +1,11 @@
-"""Сервисы состояния разговора (backend-02a).
+"""Сервисы состояния разговора (backend-02a, backend-03).
 
 Состояние хранится в таблице `conversation_states`; наружу — только `schemas.ConversationState`.
 Черновик действия (`pending`) дописывается на каждом шаге уточнения, не теряя уже сказанного.
+
+Сервисы не делают `commit` — только `add` / `flush` в переданную сессию. Коммитит маршрут
+`POST /api/chat` один раз за реплику: запись и состояние разговора сохраняются вместе или
+не сохраняются вовсе (`docs/decisions.md`, «Доступ к БД»).
 """
 
 from typing import Any
@@ -37,15 +41,16 @@ def get_conversation_state(
 def get_or_create_conversation_state(
     db: Session, conversation_id: UUID, user_id: UUID
 ) -> ConversationState:
-    """Текущее состояние разговора; для нового разговора — пустое состояние, сохранённое в БД.
+    """Текущее состояние разговора; для нового разговора — пустое состояние в сессии.
 
+    Новое состояние добавляется в сессию (`flush`), а сохраняется коммитом маршрута.
     Чужой разговор (тот же id, другой `user_id`) не отдаём: `ConversationAccessError`.
     """
     row = db.get(models.ConversationState, conversation_id)
     if row is None:
         row = models.ConversationState(conversation_id=conversation_id, user_id=user_id)
         db.add(row)
-        db.commit()
+        db.flush()
         db.refresh(row)
     elif row.user_id != user_id:
         raise ConversationAccessError(
@@ -55,9 +60,10 @@ def get_or_create_conversation_state(
 
 
 def save_conversation_state(db: Session, state: ConversationState) -> None:
-    """Сохранить поля состояния из контракта.
+    """Записать поля состояния из контракта в сессию (`flush`, без `commit`).
 
-    Включая `shown`, `last_action`, `pending_skipped` для agent-06/07.
+    `focus_record_id`, `shown`, `last_action`, `pending`, `pending_skipped`, `candidates`,
+    `missing`, `awaiting`.
     """
     row = db.get(models.ConversationState, state.conversation_id)
     if row is None:
@@ -73,12 +79,12 @@ def save_conversation_state(db: Session, state: ConversationState) -> None:
     row.last_action = (
         state.last_action.model_dump(mode="json") if state.last_action is not None else None
     )
-    row.pending_skipped = state.pending_skipped
     row.pending = state.pending.model_dump(mode="json") if state.pending is not None else None
+    row.pending_skipped = state.pending_skipped
     row.candidates = list(state.candidates)
     row.missing = list(state.missing)
     row.awaiting = state.awaiting
-    db.commit()
+    db.flush()
 
 
 def merge_pending(state: ConversationState, incoming: dict[str, Any]) -> ConversationState:
@@ -99,8 +105,5 @@ def merge_pending(state: ConversationState, incoming: dict[str, Any]) -> Convers
 
 
 def clear_pending(state: ConversationState) -> ConversationState:
-    """Очистить черновик, признак пропуска, кандидатов и ожидание."""
-    return state.model_copy(update={
-        "pending": None, "missing": [], "awaiting": None,
-        "pending_skipped": False, "candidates": [],
-    })
+    """Очистить черновик после успешного завершения действия: `pending`, `missing`, `awaiting`."""
+    return state.model_copy(update={"pending": None, "missing": [], "awaiting": None})

@@ -124,7 +124,7 @@ def test_slot_filling_preserves_draft_and_clears_only_after_success(
 
     main_thread = get_ident()
 
-    def create(db, user_id, action):
+    def create(db, user_id, action, *, now=None):
         assert get_ident() != main_thread
         # Реальные бизнес-правила: полночь без time_given не завершает встречу.
         error = validate_create(action, datetime(2030, 1, 1, tzinfo=UTC))
@@ -376,7 +376,7 @@ def test_creation_of_another_type_does_not_reuse_meeting_title(monkeypatch, conv
     action = CreateRecord(type="task", title="Купить хлеб", time_given=False)
     monkeypatch.setattr(agent_module, "get_action", AsyncMock(return_value=action))
 
-    def create(db, owner, incoming):
+    def create(db, owner, incoming, *, now=None):
         assert incoming == action
         return ActionResult(action="create_record", ok=True, records=[Record(
             id=uuid4(), user_id=owner, type=incoming.type, title=incoming.title,
@@ -458,7 +458,7 @@ def test_interrupted_creation_resumes_once_then_expires(
         contexts.append(context)
         return next(incoming)
 
-    def create(db, owner, action):
+    def create(db, owner, action, *, now=None):
         error = validate_create(action, datetime(2030, 1, 1, tzinfo=UTC))
         if error:
             return error
@@ -538,3 +538,30 @@ def test_state_save_failure_propagates_instead_of_confirming(monkeypatch):
     monkeypatch.setattr(agent_module, "save_conversation_state", broken)
     with pytest.raises(RuntimeError, match="storage unavailable"):
         turn()
+
+
+def test_now_is_shared_by_llm_and_service(monkeypatch):
+    from schemas import Record
+
+    seen = {}
+    fixed = datetime(2026, 10, 21, 7, 0, tzinfo=UTC)  # 10:00 по Москве
+
+    async def get_action(text, now, *args, **kwargs):
+        seen["llm"] = now
+        return CreateRecord(type="task", title="купить хлеб", time_given=False)
+
+    def create(db, user_id, action, *, now=None):
+        seen["service"] = now
+        return ActionResult(action="create_record", ok=True, records=[Record(
+            id=uuid4(), user_id=user_id, type=action.type, title=action.title,
+            created_at=fixed,
+        )])
+
+    monkeypatch.setattr(agent_module, "get_action", get_action)
+    monkeypatch.setattr(actions_module, "create_record", create)
+    asyncio.run(process_user_turn(
+        None, uuid4(), uuid4(), "купить хлеб", "Europe/Moscow", now=fixed,
+    ))
+
+    assert seen["llm"] == seen["service"] == fixed
+    assert str(seen["llm"].tzinfo) == "Europe/Moscow"
