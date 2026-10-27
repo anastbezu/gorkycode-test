@@ -70,6 +70,24 @@ def _fmt(value: Any, tz: ZoneInfo) -> str:
     return repr(value)
 
 
+def _check_target(expect: Expect, target: Any) -> list[str]:
+    """Цель изменения: номер из «Показано», фокус, «все», слова описания."""
+    wanted = {"index": expect.target_index, "focus": expect.target_focus,
+              "all": expect.target_all}
+    if all(v is None for v in wanted.values()) and not expect.target_text:
+        return []
+    if target is None:
+        return ["цель: у действия нет target"]
+    problems = [
+        f"target.{name}: ожидалось {value}, получено {getattr(target, name, None)}"
+        for name, value in wanted.items()
+        if value is not None and getattr(target, name, None) != value
+    ]
+    if expect.target_text:
+        problems += _check_words("target.text", expect.target_text, target.text)
+    return problems
+
+
 def compare(expect: Expect, observed: Observed, tz: ZoneInfo) -> list[str]:
     """Список расхождений; пустой список — реплика прошла."""
     action = observed.action
@@ -104,6 +122,13 @@ def compare(expect: Expect, observed: Observed, tz: ZoneInfo) -> list[str]:
         if expected is not None:
             actual = getattr(filters, field, None) if filters is not None else None
             problems += _check_moment(f"фильтр {field}", expected, actual, tz)
+    if expect.status is not None and str(getattr(action, "status", None)) != expect.status:
+        problems.append(f"status: ожидалось {expect.status}, получено "
+                        f"{getattr(action, 'status', None)}")
+    if expect.replaces_last is not None and (
+            getattr(action, "replaces_last", None) is not expect.replaces_last):
+        problems.append(f"replaces_last: ожидалось {expect.replaces_last}")
+    problems += _check_target(expect, getattr(action, "target", None))
     if expect.kind is not None and getattr(action, "kind", None) != expect.kind:
         problems.append(f"kind: ожидалось {expect.kind}, получено {getattr(action, 'kind', None)}")
     if expect.ok is not None and observed.ok is not expect.ok:

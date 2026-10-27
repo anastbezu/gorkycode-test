@@ -4,7 +4,7 @@ from datetime import datetime
 
 from schemas import AskUser, CreateRecord, ListRecords
 from tests.agent_cases import CASES, Case, Expect, Turn
-from tests.agent_live import TZ, Harness, render, select_cases
+from tests.agent_live import TZ, Harness, render, select_cases, skip_reason
 
 
 def case(id_: str) -> Case:
@@ -100,5 +100,6 @@ def test_every_case_runs_without_crash(monkeypatch):
         return Help(kind="offtopic")
 
     harness = Harness(monkeypatch, model)
-    reports = [harness.run_case(c) for c in CASES if c.skip is None]
+    # Кейсы с базой прогоняет test_agent_harness_db.py.
+    reports = [harness.run_case(c) for c in CASES if skip_reason(c, with_db=False) is None]
     assert reports and all(r.turns for r in reports)

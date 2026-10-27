@@ -21,9 +21,10 @@ from zoneinfo import ZoneInfo
 import openai
 
 from agent import agent as agent_module
+from db import models
 from schemas import ActionResult, ConversationState, Record
 from services.records import validate_create
-from tests.agent_cases import CASES, NOW, TIMEZONE, Case, Expect
+from tests.agent_cases import CASES, NEEDS_DB, NOW, TIMEZONE, Case, Expect
 from tests.agent_compare import Observed, compare, describe
 
 TZ = ZoneInfo(TIMEZONE)
@@ -82,6 +83,17 @@ class Harness:
             return self.result
 
         monkeypatch.setattr(agent_module, "execute", tracked_execute)
+
+        real_change = agent_module.execute_change
+
+        async def tracked_change(db_, user_id, action, state, *, now):
+            # Изменения идут мимо execute (нужны цель из состояния и прежние значения).
+            self.executed = action
+            outcome = await real_change(db_, user_id, action, state, now=now)
+            self.result = outcome.result
+            return outcome
+
+        monkeypatch.setattr(agent_module, "execute_change", tracked_change)
         monkeypatch.setattr(agent_module, "get_action", self._get_action)
 
     def _load(self, db, conversation_id, user_id) -> ConversationState:
@@ -128,9 +140,23 @@ class Harness:
         )
         return observed, response.reply
 
+    def seed(self, user_id, case: Case) -> None:
+        """Записи-предусловия кейса (раздел 7, пересечения) — в тестовую базу."""
+        for item in case.records:
+            start = _local(item.start)
+            self.db.add(models.Record(
+                user_id=user_id, type=item.type, title=item.title, start=start,
+                deadline=_local(item.deadline), all_day=False,
+            ))
+        self.db.flush()
+
     def run_case(self, case: Case) -> CaseReport:
         report = CaseReport(case)
         user_id, conversation_id = uuid4(), uuid4()
+        if case.needs_db:
+            if self.db is None:
+                raise ValueError(f"кейсу {case.id} нужна база: Harness(db=...)")
+            self.seed(user_id, case)
         for number, turn in enumerate(case.turns, 1):
             observed, reply = self.run_turn(turn.text, user_id, conversation_id)
             problems = compare(turn.expect, observed, TZ)
@@ -139,6 +165,10 @@ class Harness:
             if problems:
                 break  # дальше по диалогу проверять бессмысленно
         return report
+
+
+def _local(value: str | None) -> datetime | None:
+    return datetime.strptime(value, "%Y-%m-%d %H:%M").replace(tzinfo=TZ) if value else None
 
 
 def _fake_execute(user_id, action, now: datetime) -> ActionResult:
@@ -162,6 +192,15 @@ def select_cases(sections: str | None) -> list[Case]:
         return list(CASES)
     wanted = {s.strip() for s in sections.split(",") if s.strip()}
     return [c for c in CASES if c.section in wanted]
+
+
+def skip_reason(case: Case, with_db: bool) -> str | None:
+    """Почему кейс не прогоняется: своя причина или нет базы для изменений."""
+    if case.skip is not None:
+        return case.skip
+    if case.needs_db and not with_db:
+        return NEEDS_DB
+    return None
 
 
 def describe_expect(expect: Expect) -> str:
