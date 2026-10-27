@@ -27,6 +27,7 @@ from services import (
     get_conversation_state,
     get_or_create_conversation_state,
     list_records_for_period,
+    restore_record,
     save_conversation_state,
     set_status,
     update_record,
@@ -181,10 +182,46 @@ def test_undo_update(db: Session) -> None:
     rec = make(db, user_id, title="Отправить отчёт", start=at(15)).records[0]
     change = update_record(db, user_id, rec.id, update(start=DAY, time_given=False), now=NOW)
 
-    undo = update_record(db, user_id, rec.id, update(**change.before), now=NOW, allow_past=True)
+    undo = restore_record(db, user_id, rec.id, change.before)
 
     restored = undo.result.records[0]
     assert (restored.start, restored.all_day) == (at(15), False)
+
+
+def test_undo_clears_fields_that_were_empty(db: Session) -> None:
+    """Поле было пустым — после «верни» снова пустое: срок, дата задачи, конец встречи."""
+    user_id = uuid4()
+    task = make(db, user_id, title="Купить молоко").records[0]  # без даты и срока
+    meeting = make(db, user_id, type=RecordType.MEETING, title="Созвон", start=at(12)).records[0]
+
+    dated = update_record(db, user_id, task.id, update(start=DAY, time_given=False), now=NOW)
+    assert dated.result.records[0].all_day is True
+    undo = restore_record(db, user_id, task.id, dated.before)
+    assert undo.result.ok, undo.result.error
+    restored = undo.result.records[0]
+    assert (restored.start, restored.all_day) == (None, False)
+
+    with_deadline = update_record(db, user_id, task.id, update(deadline=at(18)), now=NOW)
+    assert with_deadline.before == {"deadline": None}
+    undo = restore_record(db, user_id, task.id, with_deadline.before)
+    assert undo.result.records[0].deadline is None
+
+    with_end = update_record(db, user_id, meeting.id, update(end=at(13)), now=NOW)
+    undo = restore_record(db, user_id, meeting.id, with_end.before)
+    assert (undo.result.records[0].start, undo.result.records[0].end) == (at(12), None)
+
+
+def test_undo_moved_meeting_restores_start_and_end(db: Session) -> None:
+    user_id = uuid4()
+    rec = make(
+        db, user_id, type=RecordType.MEETING, title="Планёрка", start=at(15), end=at(16)
+    ).records[0]
+    moved = update_record(db, user_id, rec.id, update(start=at(17)), now=NOW)
+    assert (moved.result.records[0].start, moved.result.records[0].end) == (at(17), at(18))
+
+    undo = restore_record(db, user_id, rec.id, moved.before)
+
+    assert (undo.result.records[0].start, undo.result.records[0].end) == (at(15), at(16))
 
 
 def test_undo_status(db: Session) -> None:
@@ -208,20 +245,44 @@ def test_undo_create_is_cancel(db: Session) -> None:
     assert list_records_for_period(db, user_id, period).records == []
 
 
-def test_undo_restores_past_time_only_with_allow_past(db: Session) -> None:
-    """Запись на 10:00 перенесли на 12:00, а «верни» сказали, когда 10:00 уже прошло."""
+def test_undo_restores_past_time(db: Session) -> None:
+    """Запись на 10:00 перенесли на 12:00, а «верни» сказали, когда 10:00 уже прошло:
+    изменение на прошедшее время отклоняется, откат — нет."""
     user_id = uuid4()
     rec = make(db, user_id, title="Позвонить маме", start=at(10)).records[0]
     change = update_record(db, user_id, rec.id, update(start=at(12)), now=NOW)
     later = NOW + timedelta(days=4)  # время at(10) уже прошло
 
-    refused = update_record(db, user_id, rec.id, update(**change.before), now=later)
-    allowed = update_record(
-        db, user_id, rec.id, update(**change.before), now=later, allow_past=True
-    )
+    refused = update_record(db, user_id, rec.id, update(start=at(10)), now=later)
+    allowed = restore_record(db, user_id, rec.id, change.before)
 
     assert refused.result.ok is False
     assert allowed.result.ok and allowed.result.records[0].start == at(10)
+
+
+def test_restore_rejects_foreign_record_and_unknown_fields(db: Session) -> None:
+    owner = uuid4()
+    rec = make(db, owner, title="Отправить отчёт", start=at(15)).records[0]
+
+    assert restore_record(db, uuid4(), rec.id, {"start": None}).result.ok is False
+    assert restore_record(db, owner, rec.id, {"status": "done"}).result.ok is False
+
+
+def test_failed_save_does_not_break_turn(db: Session) -> None:
+    """Ошибка базы при изменении — `ok=False`, а состояние разговора сохраняется дальше."""
+    user_id, conversation_id = uuid4(), uuid4()
+    rec = make(db, user_id, title="Отправить отчёт", start=at(15)).records[0]
+    state = get_or_create_conversation_state(db, conversation_id, user_id)
+
+    # Пустое название нарушает ограничение базы `title_not_empty`.
+    broken = update_record(db, user_id, rec.id, update(title="   "), now=NOW)
+    assert broken.result.ok is False
+
+    save_conversation_state(db, state.model_copy(update={"shown": [rec.id]}))
+    db.commit()
+    db.expire_all()
+    assert db.get(models.Record, rec.id).title == "Отправить отчёт"
+    assert get_conversation_state(db, conversation_id, user_id).shown == [rec.id]
 
 
 # --- конфликт и дубль -----------------------------------------------------------------------

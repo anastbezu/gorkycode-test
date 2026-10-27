@@ -181,7 +181,8 @@ def find_duplicate(db: Session, user_id: UUID, title: str, start: datetime) -> R
         .where(
             m.user_id == user_id,
             m.status == RecordStatus.ACTIVE,
-            func.lower(m.title) == title.strip().lower(),
+            # Обе стороны — через lower() базы: один и тот же регистр при любой локали.
+            func.lower(m.title) == func.lower(title.strip()),
             m.start == start,
         )
         .limit(1)
@@ -205,6 +206,11 @@ def _save(db: Session, row: models.Record) -> bool:
             db.flush()
         db.refresh(row)  # значения по умолчанию из базы: created_at, updated_at, status
     except SQLAlchemyError:
+        # Точка сохранения откатилась, но в памяти у записи остались новые значения: следующий
+        # `flush` реплики (сохранение состояния) попытался бы записать их снова и упал бы.
+        # Сбрасываем их — существующая запись перечитается из базы при обращении.
+        if row in db:
+            db.expire(row)
         return False
     return True
 
@@ -280,7 +286,6 @@ def update_record(
     action: UpdateRecord,
     *,
     now: datetime | None = None,
-    allow_past: bool = False,
 ) -> RecordChange:
     """Изменить запись пользователя: только поля, переданные в `action` (не `None`).
 
@@ -291,9 +296,9 @@ def update_record(
     - У встречи с концом перенос начала без нового конца сдвигает конец на ту же величину:
       длительность сохраняется (иначе конец оказался бы раньше начала).
     - Проверки — как при создании: пояс, конец позже начала, новая дата не в прошлом.
-      `allow_past=True` — для отката («верни»): прежнее время могло уже пройти.
     - Возвращает изменённую запись (и пересечения, если это встреча) и прежние значения
-      изменённых полей в `RecordChange.before` — «верни» передаёт их обратно сюда же.
+      изменённых полей в `RecordChange.before`. Откат («верни») — `restore_record` с этим
+      `before`: в `UpdateRecord` `None` значит «не менять», и пустое поле им не вернуть.
     """
     now = now or datetime.now().astimezone()
     row = _user_record(db, user_id, record_id)
@@ -320,7 +325,7 @@ def update_record(
         time_given = not row.all_day
     all_day = start is not None and not time_given
 
-    check_past = {} if allow_past else {
+    check_past = {
         name: value for name, value in (("start", start), ("deadline", deadline))
         if name in changes
     }
@@ -342,20 +347,82 @@ def update_record(
     user_tz = next(
         (v.tzinfo for v in (action.start, action.end, action.deadline) if v is not None), None
     )
+    title = changes["title"].strip() if "title" in changes else row.title
+    return _apply(db, row, title, start, end, deadline, all_day, user_tz)
+
+
+def restore_record(
+    db: Session, user_id: UUID, record_id: UUID, before: dict[str, Any]
+) -> RecordChange:
+    """Откатить изменение («верни»): вернуть полям значения из `before` `update_record`.
+
+    - `None` в `before` — тоже значение: поле было пустым и снова станет пустым
+      («поставь задаче срок на пятницу» → «верни» убирает срок).
+    - Даты — строки ISO 8601, как их пишет `update_record`; «весь день» — через `time_given`.
+    - Проверки — пояс и конец позже начала; «не в прошлом» не проверяется: прежнее время
+      могло уже пройти, а откат должен вернуть запись как была.
+    - Возвращает запись и `before` самого отката (повторное «верни» не нужно, но формат общий).
+    """
+    row = _user_record(db, user_id, record_id)
+    if row is None:
+        return RecordChange(_fail("update_record", "Запись не найдена."))
+    unknown = set(before) - {"title", "start", "end", "deadline", "time_given"}
+    if unknown:
+        return RecordChange(_fail("update_record", f"Нельзя вернуть поля: {sorted(unknown)}."))
+
+    try:
+        dates = {
+            name: datetime.fromisoformat(before[name]) if before[name] is not None else None
+            for name in ("start", "end", "deadline")
+            if name in before
+        }
+    except (TypeError, ValueError):
+        return RecordChange(_fail("update_record", "Прежние значения записи повреждены."))
+    start = dates.get("start", row.start)
+    end = dates.get("end", row.end)
+    deadline = dates.get("deadline", row.deadline)
+    all_day = not before["time_given"] if "time_given" in before else row.all_day
+    all_day = all_day and start is not None  # без даты — не «весь день»
+
+    error = _check_dates(
+        "update_record",
+        record_type=row.type,
+        start=start,
+        end=end,
+        deadline=deadline,
+        all_day=all_day,
+        time_given=not all_day,
+        check_past={},
+        now=datetime.now().astimezone(),
+    )
+    if error is not None:
+        return RecordChange(error)
+
+    user_tz = next((v.tzinfo for v in dates.values() if v is not None), None)
+    title = before["title"] if before.get("title") is not None else row.title
+    return _apply(db, row, title, start, end, deadline, all_day, user_tz)
+
+
+def _apply(
+    db: Session,
+    row: models.Record,
+    title: str,
+    start: datetime | None,
+    end: datetime | None,
+    deadline: datetime | None,
+    all_day: bool,
+    user_tz,
+) -> RecordChange:
+    """Записать новые значения полей; в `before` — прежние значения изменённых полей."""
     before: dict[str, Any] = {}
-    new_values = {
-        "title": changes["title"].strip() if "title" in changes else row.title,
-        "start": start,
-        "end": end,
-        "deadline": deadline,
-        "all_day": all_day,
-    }
+    new_values = {"title": title, "start": start, "end": end, "deadline": deadline,
+                  "all_day": all_day}
     for name, value in new_values.items():
         old = getattr(row, name)
         if old != value:
             before[name] = _json(old, user_tz)
             setattr(row, name, value)
-    # Откат передаёт before обратно как UpdateRecord: «весь день» там выражается time_given.
+    # В `before` «весь день» выражается так же, как в `UpdateRecord`, — через `time_given`.
     if "all_day" in before:
         before["time_given"] = not before.pop("all_day")
 

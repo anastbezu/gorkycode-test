@@ -18,6 +18,7 @@ from .records import (
     find_duplicate,
     list_records_for_period,
     list_undated_records,
+    restore_record,
     set_status,
     update_record,
 )
@@ -25,6 +26,7 @@ from .records import (
 __all__ = [
     "ConversationAccessError",
     "RecordChange",
+    "restore_record",
     "find_conflicts",
     "find_duplicate",
     "set_status",
