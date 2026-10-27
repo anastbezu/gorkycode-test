@@ -15,13 +15,27 @@ def when_phrase(record: Record, tz: ZoneInfo, today: date) -> str:
     return day
 
 
-def reply_for_search(records: list[Record], query: str, timezone_name: str, now: datetime) -> str:
-    """Порядок групп совпадает с shown; представитель повторов — последний по дате."""
+def reply_for_search(
+    records: list[Record], query: str, timezone_name: str, now: datetime, *,
+    similar: bool = False,
+) -> str:
+    """Порядок групп совпадает с shown; представитель повторов — последний по дате.
+
+    similar — точных нет, это похожие по смыслу (search.md): «Точно не нашёл …. Похожие: …».
+    """
     if not records:
         return f"По запросу «{query}» ничего не нашлось. Попробуйте другие слова."
 
     tz = ZoneInfo(timezone_name)
     today = now.astimezone(tz).date()
+
+    if similar:
+        phrases = [
+            f"«{record.title}» — {when_phrase(record, tz, today)}"
+            for record in records[:MAX_SPOKEN]
+        ]
+        tail = " Остальные на экране." if len(records) > MAX_SPOKEN else ""
+        return f"Точно не нашёл «{query}». Похожие: {'; '.join(phrases)}.{tail}"
 
     if len(records) == 1:
         record = records[0]
