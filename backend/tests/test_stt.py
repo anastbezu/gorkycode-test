@@ -9,6 +9,7 @@ Ogg Opus (Firefox), WAV. Аудиофайлы в репозиторий не к�
 import base64
 import json
 import struct
+import time
 from collections.abc import AsyncIterator
 from uuid import uuid4
 
@@ -33,6 +34,7 @@ def anyio_backend() -> str:
 @pytest.fixture(autouse=True)
 def reset_rate_limit() -> None:
     stt_route.rate_limiter.reset()
+    stt_route.global_rate_limiter.reset()
 
 
 @pytest.fixture
@@ -175,9 +177,25 @@ async def _post(
         (_ogg(2.0), "audio/ogg", 2.0),
         (_wav(31.5), "audio/wav", 31.5),
     ],
+    # Короткие имена: байты записи в имени теста не помещаются в переменную окружения Windows.
+    ids=["webm-2s", "webm-35s", "mp4-2s", "mp4-33s", "mp4-plain", "ogg-2s", "wav-31s"],
 )
 def test_duration(audio: bytes, content_type: str, expected: float) -> None:
     assert duration_seconds(audio, content_type) == pytest.approx(expected, abs=0.01)
+
+
+def test_mp4_sample_count_beyond_file_is_ignored() -> None:
+    """Файл в сотню байт с count = 0xFFFFFFFF в trun: разбор не идёт по 4 млрд сэмплов."""
+    time_header = b"\x00" * 4 + struct.pack(">IIII", 0, 0, 48000, 0)
+    moov = _box(b"moov", _box(b"trak", _box(b"mdia", _box(b"mdhd", time_header + b"\x00" * 4))))
+    trun = _box(b"trun", b"\x00\x00\x01\x00" + struct.pack(">I", 0xFFFFFFFF))
+    data = _box(b"ftyp", b"M4A \x00\x00\x00\x00") + moov + _box(b"moof", _box(b"traf", trun))
+
+    started = time.perf_counter()
+    seconds = duration_seconds(data, "audio/mp4")
+
+    assert time.perf_counter() - started < 1
+    assert seconds == 0
 
 
 @pytest.mark.parametrize("content_type", ["audio/webm", "audio/mp4", "audio/ogg", "audio/wav"])
@@ -317,6 +335,21 @@ async def test_rate_limit_429_per_user(client: httpx.AsyncClient, calls: list) -
     assert (await _post(client, audio, "audio/webm", user_id=other)).status_code == 200
 
 
+async def test_rate_limit_429_for_everyone(
+    client: httpx.AsyncClient, calls: list, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Без X-User-Id каждый запрос — новый пользователь; общий предел всё равно срабатывает."""
+    monkeypatch.setattr(stt_route, "global_rate_limiter", stt_route.RateLimiter(3, 60))
+    audio = _webm(1_980)
+    for _ in range(3):
+        assert (await _post(client, audio, "audio/webm")).status_code == 200
+
+    limited = await _post(client, audio, "audio/webm")
+    _assert_error(limited, 429)
+    assert int(limited.headers["Retry-After"]) > 0
+    assert len(calls) == 3
+
+
 def test_rate_limiter_window() -> None:
     now = [0.0]
     limiter = stt_route.RateLimiter(2, 60, clock=lambda: now[0])
@@ -438,6 +471,22 @@ async def test_gemini_plain_text_answer(monkeypatch: pytest.MonkeyPatch) -> None
 @pytest.mark.parametrize("code", [400, 403, 429, 500, 503])
 async def test_gemini_error_is_unavailable(monkeypatch: pytest.MonkeyPatch, code: int) -> None:
     _gemini(monkeypatch, lambda request: httpx.Response(code, json={"error": {}}))
+    with pytest.raises(STTUnavailableError):
+        await stt_client.transcribe(b"x", "audio/webm")
+
+
+@pytest.mark.parametrize(
+    "response",
+    [
+        httpx.Response(200, text="<html>Bad gateway</html>"),
+        httpx.Response(200, json=["не объект"]),
+        httpx.Response(200, json={"candidates": ["не объект"]}),
+    ],
+)
+async def test_gemini_answer_out_of_format_is_unavailable(
+    monkeypatch: pytest.MonkeyPatch, response: httpx.Response
+) -> None:
+    _gemini(monkeypatch, lambda request: response)
     with pytest.raises(STTUnavailableError):
         await stt_client.transcribe(b"x", "audio/webm")
 

@@ -94,7 +94,12 @@ async def transcribe(audio: bytes, content_type: str) -> str:
         # Ключ в URL не передаётся — в лог попадает только ответ провайдера.
         logger.warning("Gemini STT: %s %s", response.status_code, response.text[:500])
         raise STTUnavailableError(f"ответ провайдера {response.status_code}")
-    return _parse_text(response.json())
+    try:
+        return _parse_text(response.json())
+    except (ValueError, AttributeError, TypeError) as exc:
+        # Ответ 200, но не JSON или не того вида — для пользователя это тот же сбой сервиса.
+        logger.warning("Gemini STT: ответ не по формату: %s", response.text[:500])
+        raise STTUnavailableError("ответ провайдера не по формату") from exc
 
 
 def _parse_text(payload: dict) -> str:

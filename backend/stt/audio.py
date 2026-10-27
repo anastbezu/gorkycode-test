@@ -210,7 +210,7 @@ def _fragment_end(data: bytes, body: int, end: int, default_duration: int, start
     flags = 0
     base = start
     total = 0
-    for box_type, b, _ in _boxes(data, body, end):
+    for box_type, b, box_end in _boxes(data, body, end):
         if box_type == b"tfhd":
             flags = int.from_bytes(data[b + 1 : b + 4], "big")
             offset = b + 8 + (8 if flags & 0x01 else 0) + (4 if flags & 0x02 else 0)
@@ -227,6 +227,9 @@ def _fragment_end(data: bytes, body: int, end: int, default_duration: int, start
                 total += count * default_duration
                 continue
             per_sample = 4 * bin(run_flags & 0xF00).count("1")
+            # Число сэмплов — из самого файла: не верим ему больше, чем помещается в боксе.
+            # Иначе файл в сотню байт с count = 4 млрд держал бы сервер в цикле десятки минут.
+            count = min(count, max(box_end - offset, 0) // per_sample)
             for n in range(count):
                 at = offset + n * per_sample
                 total += int.from_bytes(data[at : at + 4], "big")

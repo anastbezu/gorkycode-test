@@ -5,6 +5,7 @@
 `{"detail": "<текст для пользователя>"}`: интерфейс показывает `detail` как есть.
 """
 
+import asyncio
 import logging
 from typing import Annotated
 
@@ -41,12 +42,17 @@ MAX_UPLOAD_BYTES = 10 * 1024 * 1024
 # запись и 2–5 с распознавания, так что больше 10–15 в минуту живой человек не наговорит.
 RATE_LIMIT_REQUESTS = 15
 RATE_LIMIT_WINDOW_SECONDS = 60
+# Общий предел на весь сервер — защита серверного ключа: без `X-User-Id` каждый запрос получает
+# новый id, и лимит на пользователя не действует. 120 в минуту — восемь человек, которые
+# говорят без пауз; на демо и проверке столько одновременно не бывает.
+GLOBAL_RATE_LIMIT_REQUESTS = 120
 
 # Запись не пишется на диск: Starlette по умолчанию сбрасывает файл больше 1 МБ во временный
 # файл — поднимаем этот порог до предела загрузки, и запись целиком остаётся в памяти.
 MultiPartParser.spool_max_size = MAX_UPLOAD_BYTES
 
 rate_limiter = RateLimiter(RATE_LIMIT_REQUESTS, RATE_LIMIT_WINDOW_SECONDS)
+global_rate_limiter = RateLimiter(GLOBAL_RATE_LIMIT_REQUESTS, RATE_LIMIT_WINDOW_SECONDS)
 
 NOT_RECOGNIZED = "Не расслышал, повторите, пожалуйста."
 
@@ -64,7 +70,7 @@ def _error(code: int, detail: str, headers: dict[str, str] | None = None) -> HTT
         413: {"description": "Запись длиннее 30 секунд"},
         415: {"description": "Формат файла не из списка или поле `audio` пустое"},
         422: {"description": "Речь не распознана: тишина, шум, пустой результат"},
-        429: {"description": "Слишком много запросов от одного пользователя"},
+        429: {"description": "Слишком много запросов от пользователя или от всех вместе"},
         503: {"description": "Сервис распознавания недоступен или не задан ключ"},
     },
 )
@@ -85,6 +91,14 @@ async def speech_to_text(
         raise _error(
             status.HTTP_429_TOO_MANY_REQUESTS,
             "Слишком много голосовых запросов подряд — подождите немного и повторите.",
+            headers={"Retry-After": str(max(int(retry_after) + 1, 1))},
+        )
+    # После лимита пользователя: его отклонённые запросы общий предел не расходуют.
+    retry_after = global_rate_limiter.hit("all")
+    if retry_after is not None:
+        raise _error(
+            status.HTTP_429_TOO_MANY_REQUESTS,
+            "Сейчас слишком много голосовых запросов — подождите немного или напишите текстом.",
             headers={"Retry-After": str(max(int(retry_after) + 1, 1))},
         )
 
@@ -110,7 +124,9 @@ async def speech_to_text(
     )
     if len(data) > MAX_UPLOAD_BYTES:
         raise too_long
-    seconds = duration_seconds(data, content_type)
+    # Разбор заголовков — синхронный цикл по файлу до 10 МБ: в потоке, чтобы не держать
+    # сервер (и `/api/chat` других пользователей), пока он идёт.
+    seconds = await asyncio.to_thread(duration_seconds, data, content_type)
     if seconds is None:
         if len(data) > MAX_BYTES_WITHOUT_DURATION:
             raise too_long
