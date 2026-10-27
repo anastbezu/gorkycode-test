@@ -197,20 +197,23 @@ def _conflicts_for(db: Session, row: models.Record) -> list[Record]:
     return find_conflicts(db, row.user_id, row.start, row.end, exclude_id=row.id)
 
 
-def _save(db: Session, row: models.Record) -> bool:
+def _save(db: Session, row: models.Record, changes: dict[str, Any] | None = None) -> bool:
     """`flush` записи в точке сохранения: при ошибке откатывается только она,
-    а транзакция реплики (и всё, что в ней уже сделано) остаётся целой."""
+    а транзакция реплики (и всё, что в ней уже сделано) остаётся целой.
+
+    Новые значения полей (`changes`) ставятся уже внутри точки сохранения: `begin_nested`
+    сначала сбрасывает в базу всё, что накопилось в сессии, и ошибка изменённой заранее записи
+    пришлась бы на транзакцию реплики — дальше сессия не дала бы сохранить даже состояние.
+    При откате точки сохранения SQLAlchemy перечитывает запись из базы — новые значения не
+    остаются в памяти."""
     try:
         with db.begin_nested():
             db.add(row)
+            for name, value in (changes or {}).items():
+                setattr(row, name, value)
             db.flush()
         db.refresh(row)  # значения по умолчанию из базы: created_at, updated_at, status
     except SQLAlchemyError:
-        # Точка сохранения откатилась, но в памяти у записи остались новые значения: следующий
-        # `flush` реплики (сохранение состояния) попытался бы записать их снова и упал бы.
-        # Сбрасываем их — существующая запись перечитается из базы при обращении.
-        if row in db:
-            db.expire(row)
         return False
     return True
 
@@ -414,19 +417,15 @@ def _apply(
     user_tz,
 ) -> RecordChange:
     """Записать новые значения полей; в `before` — прежние значения изменённых полей."""
-    before: dict[str, Any] = {}
     new_values = {"title": title, "start": start, "end": end, "deadline": deadline,
                   "all_day": all_day}
-    for name, value in new_values.items():
-        old = getattr(row, name)
-        if old != value:
-            before[name] = _json(old, user_tz)
-            setattr(row, name, value)
+    changed = {name: value for name, value in new_values.items() if getattr(row, name) != value}
+    before: dict[str, Any] = {name: _json(getattr(row, name), user_tz) for name in changed}
     # В `before` «весь день» выражается так же, как в `UpdateRecord`, — через `time_given`.
     if "all_day" in before:
         before["time_given"] = not before.pop("all_day")
 
-    if not _save(db, row):
+    if not _save(db, row, changed):
         return RecordChange(_fail("update_record", "Не удалось сохранить изменения."))
 
     return RecordChange(
@@ -453,8 +452,7 @@ def set_status(
         return RecordChange(_fail("set_status", "Запись не найдена."))
 
     before = {"status": row.status.value} if row.status != status else {}
-    row.status = status
-    if not _save(db, row):
+    if not _save(db, row, {"status": status}):
         return RecordChange(_fail("set_status", "Не удалось изменить статус."))
 
     return RecordChange(
