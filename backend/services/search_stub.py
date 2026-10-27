@@ -71,19 +71,38 @@ def _narrow_by_when(records: list[Record], when: datetime) -> list[Record]:
     return next((tier for tier in tiers if tier), [])
 
 
+# Слова типа записи не обязаны быть в названии: «встречу с Иваном» ↔ «Созвон с Иваном» — нет,
+# но «встречу с Иваном» ↔ «Иван, обсудить бюджет» — да (search.md, «Точно»).
+TYPE_STEMS = ("встреч", "задач", "напомин")
+STOP_WORDS = {"для", "про", "под", "над", "все", "всё", "мою", "мой", "эту", "этот"}
+
+
+def target_stems(text: str) -> list[str]:
+    """Основы значимых слов: грубо отрезаем окончание, чтобы «Иваном» нашёл «Иван»."""
+    stems = []
+    for word in query_words(text.lower()):
+        word = word.strip(".,!?«»\"")
+        if word in STOP_WORDS or word.startswith(TYPE_STEMS):
+            continue
+        cut = 2 if len(word) >= 6 else 1 if len(word) == 5 else 0
+        stems.append(word[: len(word) - cut])
+    return stems
+
+
 def find_target(
         db: Session, user_id: UUID, text: str | None, when: datetime | None,
         filters: SearchFilters | None, statuses: list[RecordStatus], limit: int = 21,
 ) -> TargetMatch:
-    """ВРЕМЕННАЯ заглушка find_target() из search.md: «точно» — все слова в названии.
+    """ВРЕМЕННАЯ заглушка find_target() из search.md: «точно» — основы всех значимых слов
+    описания есть в названии.
 
     Похожих по смыслу заглушка не находит: `similar` — только точные по словам записи,
     которые не подошли под названное время (как в контракте).
     """
     m = models.Record
     stmt = select(m).where(m.user_id == user_id, m.status.in_(statuses))
-    for word in query_words(text or ""):
-        stmt = stmt.where(m.title.ilike(like_pattern(word), escape="\\"))
+    for stem in target_stems(text or ""):
+        stmt = stmt.where(m.title.ilike(like_pattern(stem), escape="\\"))
     if filters is not None:
         if filters.types:
             stmt = stmt.where(m.type.in_(filters.types))

@@ -170,3 +170,17 @@ def test_statuses_are_passed_to_find_target(db: Session, user_id, monkeypatch) -
     statuses = [RecordStatus.DONE, RecordStatus.CANCELLED]
     resolve(db, user_id, TargetRef(text="отчёт"), statuses=statuses)
     assert seen == [statuses]
+
+
+def test_target_stems_drop_type_words_and_endings() -> None:
+    from services.search_stub import target_stems
+
+    assert target_stems("встречу с Иваном") == ["иван"]
+    assert target_stems("созвон с Севером по CRM") == ["созв", "север", "crm"]
+
+
+def test_stub_never_takes_other_record_for_crm(db: Session, user_id) -> None:
+    """«Отмени созвон с Севером по CRM» не находит «…по новому продукту» точно."""
+    add(db, user_id, "Созвон с Севером по новому продукту", at(22, 12))
+    match = find_target(db, user_id, "созвон с Севером по CRM", None, None, ACTIVE)
+    assert match.exact == []

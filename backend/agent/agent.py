@@ -16,6 +16,8 @@ from services.conversation import (
 from services.records import get_record
 
 from .actions import execute
+from .change_replies import reply_for_change
+from .changes import CHANGE_ACTIONS, execute_change
 from .context import build_state_context, record_summary
 from .llm import LLMConfigError, make_client
 from .presentation import MAX_SHOWN
@@ -170,12 +172,20 @@ async def process_user_turn(
         # Сохраняем ожидание до ответа сервиса (включая ошибки и дату без времени).
         action = state.pending.root
 
-    result = await execute(db, user_id, action, now=now)
+    change = None
+    if action.action in CHANGE_ACTIONS:
+        # Изменение, статус, откат: нужна цель из состояния и прежние значения для отката.
+        change = await execute_change(db, user_id, action, state, now=now)
+        result = change.result
+    else:
+        result = await execute(db, user_id, action, now=now)
 
-    state = update_state(state, action, result)
+    state = update_state(state, action, result, before=change.before if change else None)
     await to_thread(save_conversation_state, db, state)
 
-    if result.candidates:
+    if change is not None:
+        reply = reply_for_change(change, action, timezone_name)
+    elif result.candidates:
         choices = "; ".join(
             f"{index}) {record_summary(record, timezone_name)}"
             for index, record in enumerate(result.candidates[:MAX_SHOWN], 1)

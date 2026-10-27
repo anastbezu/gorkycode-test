@@ -76,6 +76,9 @@ def test_shared_create_record_json_and_tool_export():
         "create_record",
         "list_records",
         "search_records",
+        "update_record",
+        "set_status",
+        "undo_last",
         "ask_user",
         "help",
     }
