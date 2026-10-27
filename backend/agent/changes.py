@@ -41,7 +41,9 @@ class ChangeOutcome:
     # Цель найдена, но менять нечего: «на час позже» по описанию — модель не видела время
     # записи. Агент повторяет запрос к модели с этой записью в фокусе.
     unchanged: Record | None = None
-    applied: UpdateRecord | SetStatus | None = None  # исполненное действие (после keep_time)
+    # Действие, которое на самом деле обработано: со статусом прошлого действия при
+    # replaces_last, со временем записи после keep_time. Его получают ответ и update_state.
+    applied: UpdateRecord | SetStatus | None = None
 
 
 def changes_nothing(action: UpdateRecord) -> bool:
@@ -65,6 +67,18 @@ def keep_time(action: UpdateRecord, record: Record, zone: ZoneInfo) -> UpdateRec
     if end is None and record.end is not None:
         end = start + (record.end - record.start)  # длительность встречи сохраняется
     return action.model_copy(update={"start": start, "end": end, "time_given": True})
+
+
+def confirming(state: ConversationState, action: UpdateRecord | SetStatus) -> list[UUID] | None:
+    """Кандидаты, если это ответ на «Отменить N записей?» тем же массовым действием."""
+    pending = state.pending.root if state.pending is not None else None
+    same = (
+        state.awaiting == "choice" and state.candidates
+        and isinstance(action, SetStatus) and action.target.all
+        and isinstance(pending, SetStatus) and pending.target.all
+        and pending.status == action.status
+    )
+    return list(state.candidates) if same else None
 
 
 def target_statuses(action: UpdateRecord | SetStatus) -> list[RecordStatus]:
@@ -97,6 +111,17 @@ async def undo(db, user_id: UUID, last: LastAction) -> tuple[list[Record], str |
     return restored, None
 
 
+async def _revert(
+    db, user_id: UUID, action: UpdateRecord | SetStatus, changed: list[Record],
+    befores: list[dict[str, Any]],
+) -> None:
+    for record, before in zip(changed, befores, strict=True):
+        if isinstance(action, UpdateRecord):
+            await to_thread(restore_record, db, user_id, record.id, before)
+        elif "status" in before:
+            await to_thread(set_status, db, user_id, record.id, RecordStatus(before["status"]))
+
+
 async def _apply(
     db, user_id: UUID, action: UpdateRecord | SetStatus, records: list[Record], now: datetime
 ) -> ChangeOutcome:
@@ -111,7 +136,10 @@ async def _apply(
         else:
             change = await to_thread(set_status, db, user_id, record.id, action.status)
         if not change.result.ok:
-            return ChangeOutcome(change.result)
+            # Массовое действие — всё или ничего: уже изменённые записи возвращаем, иначе
+            # маршрут закоммитит их без last_action, и «верни» их не откатит.
+            await _revert(db, user_id, action, changed, befores)
+            return ChangeOutcome(change.result, applied=applied)
         changed.extend(change.result.records)
         conflicts.extend(change.result.conflicts)
         befores.append(change.before)
@@ -147,33 +175,37 @@ async def execute_change(
         # «Нет, не этот, а тот»: сначала вернуть прошлое, потом то же действие с новой целью.
         restored, error = await undo(db, user_id, state.last_action)
         if error is not None:
-            return ChangeOutcome(ActionResult(action=action.action, ok=False, error=error))
+            return ChangeOutcome(ActionResult(action=action.action, ok=False, error=error),
+                                 applied=action)
 
     if isinstance(action, UpdateRecord) and action.target.all:
         result = ActionResult(
             action=action.action, ok=False, restored=restored,
             error="Изменить несколько записей сразу не получится — назовите одну.",
         )
-        return ChangeOutcome(result)
+        return ChangeOutcome(result, applied=action)
 
-    target = await resolve_target(db, user_id, action.target, state, target_statuses(action))
+    target = await resolve_target(db, user_id, action.target, state, target_statuses(action),
+                                  confirming=confirming(state, action))
     if target.error is not None:
         result = ActionResult(
             action=action.action, ok=False, error=target.error, restored=restored
         )
-        return ChangeOutcome(result)
+        return ChangeOutcome(result, applied=action)
     if target.candidates:
-        # Ничего не меняем до выбора: кандидаты станут номерами на экране.
+        # Ничего не меняем до выбора: кандидаты станут номерами на экране, а в черновик
+        # (pending) уйдёт исправленное действие.
         result = ActionResult(
             action=action.action, ok=False, candidates=target.candidates, restored=restored
         )
-        return ChangeOutcome(result, similar=target.similar, confirm=target.confirm)
+        return ChangeOutcome(result, similar=target.similar, confirm=target.confirm,
+                             applied=action)
 
     if isinstance(action, UpdateRecord) and changes_nothing(action) and len(target.records) == 1:
         record = target.records[0]
         result = ActionResult(action=action.action, ok=False, restored=restored,
                               error="Что изменить у этой записи? Назовите новое время или дату.")
-        return ChangeOutcome(result, unchanged=record)
+        return ChangeOutcome(result, unchanged=record, applied=action)
 
     outcome = await _apply(db, user_id, action, target.records, now)
     outcome.result.restored = restored

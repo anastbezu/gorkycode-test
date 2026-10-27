@@ -264,3 +264,108 @@ def test_yes_with_repeated_description_takes_asked_records(dialog) -> None:
     response = dialog.say("Да", cancel(all=True, filters=tomorrow))
     assert response.awaiting is None and response.result.ok
     assert all(dialog.row(r).status == RecordStatus.CANCELLED for r in rows)
+
+
+# --- Ревью PR agent-07: регрессии -----------------------------------------------------------
+
+def test_new_mass_request_during_choice_is_not_taken_as_confirmation(dialog) -> None:
+    """«Отметь отчёт выполненным» → выбор → «Отмени все созвоны»: отчёты не трогаем."""
+    reports = [dialog.add(f"Подготовить отчёт {n}", at(23, 10 + n), type=RecordType.TASK)
+               for n in range(2)]
+    calls = [dialog.add(f"Созвон {n}", at(22, 10 + n)) for n in range(2)]
+    response = dialog.say("Отметь отчёт выполненным",
+                          SetStatus(target=TargetRef(text="отчёт"), status=RecordStatus.DONE))
+    assert response.awaiting == "choice"
+
+    response = dialog.say("Отмени все созвоны", cancel(all=True, text="созвоны"))
+    # Новый массовый запрос: своё подтверждение по созвонам, ничего не изменено.
+    assert response.awaiting == "choice"
+    assert dialog.state().candidates == [c.id for c in calls]
+    assert all(dialog.row(r).status == RecordStatus.ACTIVE for r in reports + calls)
+
+    dialog.say("Да", cancel(all=True))
+    assert all(dialog.row(c).status == RecordStatus.CANCELLED for c in calls)
+    assert all(dialog.row(r).status == RecordStatus.ACTIVE for r in reports)
+
+
+def test_yes_to_other_mass_question_with_other_status_is_new_request(dialog) -> None:
+    calls = [dialog.add(f"Созвон {n}", at(22, 10 + n)) for n in range(2)]
+    dialog.say("Отмени все созвоны", cancel(all=True, text="созвоны"))
+    done_all = SetStatus(target=TargetRef(all=True, text="созвоны"), status=RecordStatus.DONE)
+    response = dialog.say("Нет, отметь все созвоны выполненными", done_all)
+    assert response.awaiting == "choice"  # новое подтверждение, а не отмена по старому
+    assert all(dialog.row(c).status == RecordStatus.ACTIVE for c in calls)
+
+
+def test_mass_change_is_all_or_nothing(dialog, monkeypatch) -> None:
+    """Сервис упал на второй записи — первая возвращается, last_action прежний."""
+    from agent import changes as changes_module
+
+    calls = [dialog.add(f"Созвон {n}", at(22, 10 + n)) for n in range(3)]
+    dialog.say("Отмени все созвоны", cancel(all=True, text="созвоны"))
+    real = changes_module.set_status
+    seen = []
+
+    def flaky(db, user_id, record_id, status):
+        seen.append(record_id)
+        if len(seen) == 2:
+            from schemas import ActionResult
+            from services.records import RecordChange
+            return RecordChange(ActionResult(action="set_status", ok=False,
+                                             error="Не удалось изменить статус."))
+        return real(db, user_id, record_id, status)
+
+    monkeypatch.setattr(changes_module, "set_status", flaky)
+    response = dialog.say("Да", cancel(all=True))
+    assert not response.result.ok
+    assert all(dialog.row(c).status == RecordStatus.ACTIVE for c in calls)
+    assert dialog.state().last_action is None
+
+
+def test_corrected_status_reaches_reply_and_pending(dialog) -> None:
+    """replaces_last с ошибочным active: ответ и черновик — с исправленным cancelled."""
+    integration = dialog.add("Созвон с Вектором по интеграции", at(22, 15))
+    site = dialog.add("Созвон с Вектором по сайту", at(28, 12))
+    dialog.add("Встреча по сайту", at(29, 12))
+    dialog.say("Отмени созвон с Вектором по интеграции",
+               cancel(text="созвон с Вектором по интеграции"))
+
+    wrong = SetStatus(target=TargetRef(text="сайт"), status=RecordStatus.ACTIVE,
+                      replaces_last=True)
+    response = dialog.say("Нет, не этот, а тот, что по сайту", wrong)
+    assert response.awaiting == "choice"  # «по сайту» — две записи
+    assert dialog.state().pending.root.status == RecordStatus.CANCELLED
+    assert dialog.row(integration).status == RecordStatus.ACTIVE
+
+    response = dialog.say("Первую", SetStatus(target=TargetRef(index=1),
+                                              status=RecordStatus.CANCELLED))
+    assert dialog.row(site).status == RecordStatus.CANCELLED
+    assert "Отменил" in response.reply and "Вернул в активные" not in response.reply
+
+
+def test_corrected_status_reply_when_target_is_single(dialog) -> None:
+    dialog.add("Созвон с Вектором по интеграции", at(22, 15))
+    dialog.add("Созвон с Вектором по сайту", at(28, 12))
+    dialog.say("Отмени созвон с Вектором по интеграции",
+               cancel(text="созвон с Вектором по интеграции"))
+    wrong = SetStatus(target=TargetRef(text="по сайту"), status=RecordStatus.ACTIVE,
+                      replaces_last=True)
+    reply = dialog.say("Нет, не этот, а тот, что по сайту", wrong).reply
+    assert "Отменил: «Созвон с Вектором по сайту»" in reply
+    assert "в активные" not in reply
+
+
+def test_retry_keeps_restored_from_first_attempt(dialog) -> None:
+    """replaces_last + «на час позже»: откат первой попытки остаётся в ответе и результате."""
+    ivan = dialog.add("Встреча с Иваном", at(22, 15))
+    natalia = dialog.add("Встреча с Натальей", at(27, 16, 30))
+    dialog.say("Перенеси встречу с Иваном на час позже",
+               UpdateRecord(target=TargetRef(text="встречу с Иваном"), start=at(22, 16),
+                            time_given=True))
+    blind = UpdateRecord(target=TargetRef(text="встречу с Натальей"), replaces_last=True)
+    seen = UpdateRecord(target=TargetRef(focus=True), start=at(27, 17, 30), time_given=True)
+    response = dialog.say("Нет, не эту, а с Натальей", blind, seen)
+    assert dialog.row(ivan).start == at(22, 15)
+    assert dialog.row(natalia).start == at(27, 17, 30)
+    assert [r.id for r in response.result.restored] == [ivan.id]
+    assert response.reply.startswith("Вернул «Встреча с Иваном»")

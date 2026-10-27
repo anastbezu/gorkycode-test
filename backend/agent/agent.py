@@ -234,6 +234,7 @@ async def process_user_turn(
     if action.action in CHANGE_ACTIONS:
         # Изменение, статус, откат: нужна цель из состояния и прежние значения для отката.
         change = await execute_change(db, user_id, action, state, now=now)
+        action = change.applied or action
         if change.unchanged is not None:
             # «Перенеси встречу с Натальей на час позже»: запись найдена по описанию, но её
             # времени модель не видела и сдвиг не посчитала. Единственный случай второго
@@ -242,8 +243,11 @@ async def process_user_turn(
                 text, now, timezone_name, llm_config, state, change.unchanged, action.target
             )
             if retry is not None:
-                action = retry
-                change = await execute_change(db, user_id, action, state, now=now)
+                # Откат «нет, не этот, а тот» уже сделан первой попыткой — не теряем его.
+                restored = change.result.restored
+                change = await execute_change(db, user_id, retry, state, now=now)
+                change.result.restored = restored + change.result.restored
+                action = change.applied or retry
         result = change.result
     else:
         result = await execute(db, user_id, action, now=now)

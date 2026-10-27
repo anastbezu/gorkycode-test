@@ -50,7 +50,11 @@ async def resolve_target(
     target: TargetRef,
     state: ConversationState,
     statuses: list[RecordStatus],
+    *,
+    confirming: list[UUID] | None = None,
 ) -> Target:
+    """`confirming` — кандидаты ждущего подтверждения того же массового действия
+    («Отменить 3 записи?»); без него `all` с описанием — новый запрос через `find_target()`."""
     if target.index is not None:
         number = target.index
         if 1 <= number <= len(state.shown):
@@ -68,10 +72,9 @@ async def resolve_target(
             return Target(error="Какую запись? Назовите её или выберите из списка.")
         # Фокуса нет, но запись описана («перенеси встречу с Натальей») — ищем по описанию.
 
-    if target.all and state.awaiting == "choice" and state.candidates:
-        # «Да», «все» на «Отменить 3 записи?»: ровно то, что спросили, даже если модель
-        # повторила описание (иначе вопрос повторится по кругу).
-        records = await _owned(db, user_id, list(state.candidates))
+    if target.all and confirming and not _described(target):
+        # «Да», «все» на «Отменить 3 записи?» — ровно то, что спросили.
+        records = await _owned(db, user_id, list(confirming))
         if records:
             return Target(records=records)
 
@@ -90,6 +93,10 @@ async def resolve_target(
     )
     if target.all:
         # Массовое действие — только точные записи; похожие не предлагаем.
+        if confirming and {r.id for r in match.exact} == set(confirming):
+            # «Да», а модель повторила то же описание: нашлись ровно спрошенные записи —
+            # это подтверждение, а не новый вопрос по кругу.
+            return Target(records=match.exact)
         if len(match.exact) > MAX_ALL:
             return Target(error="Слишком много записей. Уточните, какие.")
         if len(match.exact) == 1:
