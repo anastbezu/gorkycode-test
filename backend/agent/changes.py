@@ -41,6 +41,7 @@ class ChangeOutcome:
     # Цель найдена, но менять нечего: «на час позже» по описанию — модель не видела время
     # записи. Агент повторяет запрос к модели с этой записью в фокусе.
     unchanged: Record | None = None
+    applied: UpdateRecord | SetStatus | None = None  # исполненное действие (после keep_time)
 
 
 def changes_nothing(action: UpdateRecord) -> bool:
@@ -102,10 +103,11 @@ async def _apply(
     changed: list[Record] = []
     conflicts: list[Record] = []
     befores: list[dict[str, Any]] = []
+    applied = action
     for record in records:
         if isinstance(action, UpdateRecord):
-            fixed = keep_time(action, record, now.tzinfo)
-            change = await to_thread(update_record, db, user_id, record.id, fixed, now=now)
+            applied = keep_time(action, record, now.tzinfo)
+            change = await to_thread(update_record, db, user_id, record.id, applied, now=now)
         else:
             change = await to_thread(set_status, db, user_id, record.id, action.status)
         if not change.result.ok:
@@ -114,7 +116,7 @@ async def _apply(
         conflicts.extend(change.result.conflicts)
         befores.append(change.before)
     result = ActionResult(action=action.action, ok=True, records=changed, conflicts=conflicts)
-    return ChangeOutcome(result, befores)
+    return ChangeOutcome(result, befores, applied=applied)
 
 
 async def execute_change(

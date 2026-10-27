@@ -117,7 +117,7 @@ async def get_action(
 
 async def retry_with_focus(
     text: str, now: datetime, timezone_name: str, llm_config: LLMConfig | None,
-    state, record,
+    state, record, target: TargetRef,
 ) -> UpdateRecord | None:
     """Повторить запрос к модели, показав ей найденную запись в фокусе."""
     focused = state.model_copy(update={"focus_record_id": record.id})
@@ -128,9 +128,11 @@ async def retry_with_focus(
         return None
     if not isinstance(retry, UpdateRecord) or changes_nothing(retry):
         return None
-    # Цель уже найдена — та же запись, что в фокусе.
+    # Цель уже найдена — та же запись, что в фокусе; описание остаётся, как назвал пользователь.
     state.focus_record_id = record.id
-    return retry.model_copy(update={"target": TargetRef(focus=True), "replaces_last": False})
+    return retry.model_copy(update={
+        "target": target.model_copy(update={"focus": True}), "replaces_last": False,
+    })
 
 
 async def process_user_turn(
@@ -237,7 +239,7 @@ async def process_user_turn(
             # времени модель не видела и сдвиг не посчитала. Единственный случай второго
             # вызова модели за реплику — с этой записью «В фокусе».
             retry = await retry_with_focus(
-                text, now, timezone_name, llm_config, state, change.unchanged
+                text, now, timezone_name, llm_config, state, change.unchanged, action.target
             )
             if retry is not None:
                 action = retry

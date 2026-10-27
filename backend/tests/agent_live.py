@@ -90,6 +90,8 @@ class Harness:
             # Изменения идут мимо execute (нужны цель из состояния и прежние значения).
             self.executed = action
             outcome = await real_change(db_, user_id, action, state, now=now)
+            # Сверяем исполненное: код мог поправить действие («на пятницу» — прежнее время).
+            self.executed = outcome.applied or action
             self.result = outcome.result
             return outcome
 

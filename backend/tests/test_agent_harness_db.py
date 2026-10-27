@@ -207,3 +207,22 @@ def test_cases_with_records_pass_on_ideal_model(db: Session, monkeypatch) -> Non
             turn = report.turns[-1]
             failed[case.id] = (turn.number, turn.reply, turn.problems)
     assert failed == {}
+
+
+def test_harness_sees_applied_change_not_raw_model_answer(db: Session, monkeypatch) -> None:
+    """Живой прогон 27.10: модель ошиблась, код поправил — автотест сверяет исполненное."""
+    from schemas import TargetRef, UpdateRecord
+
+    def case(case_id):
+        return next(c for c in CASES if c.id == case_id)
+
+    midnight = UpdateRecord(target=TargetRef(text="встречу с Иваном"),
+                            start=datetime(2026, 10, 23, tzinfo=TZ))
+    report = Harness(monkeypatch, scripted(midnight), db=db).run_case(case("7.1"))
+    assert report.passed, report.turns[-1].problems
+
+    blind = UpdateRecord(target=TargetRef(focus=True, text="встречу с Натальей"))
+    seen = UpdateRecord(target=TargetRef(focus=True),
+                        start=datetime(2026, 10, 27, 17, 30, tzinfo=TZ), time_given=True)
+    report = Harness(monkeypatch, scripted(blind, seen), db=db).run_case(case("7.17"))
+    assert report.passed, report.turns[-1].problems
