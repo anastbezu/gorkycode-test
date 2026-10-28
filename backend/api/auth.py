@@ -33,8 +33,11 @@ from .deps import TOKEN_INVALID, bearer_token
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
-# Подбор пароля: не больше 10 неудачных попыток входа за 15 минут на один логин (без учёта
-# регистра) — дальше 429, откуда бы ни пришли попытки. Удачный вход счётчик сбрасывает.
+# Подбор пароля: не больше 10 неудачных попыток входа за 15 минут на пару «логин + IP» — дальше
+# 429. Только по логину нельзя: чужой человек десятью неверными паролями закрыл бы вход в учётку
+# жюри прямо во время показа. IP — из `X-Real-IP`, который ставит Nginx на сервере (клиент его
+# не подделает: бэкенд доступен только через Nginx); без Nginx — адрес соединения.
+# Удачный вход счётчик сбрасывает.
 FAILED_LOGIN_LIMIT = 10
 FAILED_LOGIN_WINDOW_SECONDS = 15 * 60
 # Общий предел на вход и регистрацию всех вместе: хеш пароля нарочно медленный, поток таких
@@ -126,6 +129,11 @@ async def credentials_validation_handler(
     )
 
 
+def client_ip(request: Request) -> str:
+    """IP клиента: `X-Real-IP` от Nginx, без него — адрес соединения."""
+    return request.headers.get("x-real-ip") or (request.client.host if request.client else "")
+
+
 def _token_or_401(authorization: str | None) -> str:
     token = bearer_token(authorization)
     if token is None:
@@ -173,10 +181,12 @@ def register_account(
         429: {"description": "Слишком много попыток входа"},
     },
 )
-def login(body: Credentials, db: Annotated[Session, Depends(get_session)]) -> AuthResponse:
+def login(
+    body: Credentials, request: Request, db: Annotated[Session, Depends(get_session)]
+) -> AuthResponse:
     """Вход по логину и паролю. Ошибка одна на оба случая: не подсказывает, что неверно."""
     _check_global_limit()
-    key = body.login.lower()
+    key = f"{body.login.lower()}|{client_ip(request)}"
     retry_after = failed_logins.retry_after(key)
     if retry_after is not None:
         minutes = max(round(retry_after / 60), 1)

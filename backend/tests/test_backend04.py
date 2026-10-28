@@ -193,16 +193,17 @@ async def test_failed_logins_limit_429(client: httpx.AsyncClient) -> None:
     assert limited.status_code == 429  # и с верным паролем, пока окно не прошло
     assert int(limited.headers["Retry-After"]) > 0
     assert isinstance(limited.json()["detail"], str)
-    # Лимит — на логин: другая учётка входит…
+    # Лимит — на пару «логин + IP»: другая учётка с того же адреса входит…
     other = await client.post("/api/auth/login", json={"login": "boris", "password": PASSWORD})
     assert other.status_code == 200
-    # …а этот логин закрыт с любого адреса.
+    # …и та же учётка с другого адреса (IP — из X-Real-IP, его ставит Nginx): подбор с одного
+    # адреса не закрывает вход владельцу, например жюри во время показа.
     elsewhere = await client.post(
         "/api/auth/login",
         headers={"X-Real-IP": "203.0.113.7"},
         json={"login": "anna", "password": PASSWORD},
     )
-    assert elsewhere.status_code == 429
+    assert elsewhere.status_code == 200
 
 
 def test_failed_logins_window() -> None:
