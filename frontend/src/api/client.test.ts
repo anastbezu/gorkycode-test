@@ -1,13 +1,15 @@
 // Поведение клиента на поддельном сервере: что уходит в запросах и как клиент восстанавливается.
 // fetch подменяется функцией, которая отвечает как бэкенд по api.md.
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { AuthResponse } from './types';
 
 const NEW_ID = '9c5896b5-9632-4dda-8002-05fd22573310';
 
 interface Call {
   url: string;
   userId: string | null;
-  body: { conversation_id: string | null; llm_config?: unknown } | null;
+  authHeader: string | null;
+  body: { conversation_id: string | null; llm_config?: unknown; login?: string; password?: string } | null;
 }
 
 let calls: Call[];
@@ -17,23 +19,49 @@ function fakeServer(delayMs = 5) {
   return vi.fn(async (url: string, init: RequestInit = {}) => {
     const headers = new Headers(init.headers);
     const userId = headers.get('X-User-Id');
-    const body = init.body ? JSON.parse(String(init.body)) : null;
-    calls.push({ url, userId, body });
+    const authHeader = headers.get('Authorization');
+    const body = init.body ? (typeof init.body === 'string' ? JSON.parse(init.body) : null) : null;
+    calls.push({ url, userId, authHeader, body });
     await new Promise((r) => setTimeout(r, delayMs));
     const json = (status: number, data: unknown, extra: { [k: string]: string } = {}) =>
       new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json', ...extra } });
 
+    if (url === '/api/auth/login') {
+      if (body?.password === 'wrong') return json(401, { detail: 'Неверный логин или пароль' });
+      return json(200, { token: 'jwt-123', account: { id: 'acc-1', login: body?.login ?? 'demo', demo: false } });
+    }
+    if (url === '/api/auth/register') {
+      if (body?.login === 'taken') return json(409, { detail: 'Логин уже занят' });
+      if (body?.login === 'bad') return json(422, { detail: 'Логин от 3 до 32 символов' });
+      return json(201, { token: 'jwt-456', account: { id: 'acc-2', login: body?.login ?? 'newuser', demo: false } });
+    }
+    if (url === '/api/auth/logout') {
+      return new Response(null, { status: 204 });
+    }
+    if (url === '/api/auth/me') {
+      if (authHeader !== 'Bearer jwt-123') return json(401, { detail: 'Токен недействителен' });
+      return json(200, { id: 'acc-1', login: 'demo', demo: false });
+    }
+    if (authHeader === 'Bearer jwt-expired') {
+      return json(401, { detail: 'Сессия входа истекла — вы снова гость. Войдите ещё раз.' });
+    }
+
     if (userId && !/^[0-9a-f-]{36}$/.test(userId)) return json(400, { detail: 'X-User-Id должен быть UUID' });
-    const issued: { [k: string]: string } = userId ? {} : { 'X-User-Id': NEW_ID };
+    const issued: { [k: string]: string } = (userId || authHeader) ? {} : { 'X-User-Id': NEW_ID };
     if (url.startsWith('/api/items')) return json(200, [], issued);
     if (body?.conversation_id === 'gone') return json(404, { detail: 'Разговор не найден' });
     return json(200, { conversation_id: 'c1', reply: 'ок', result: null, awaiting: null }, issued);
   });
 }
 
-async function freshClient(storedUserId: string | null = null) {
+async function freshClient(
+  storedUserId: string | null = null,
+  storedAuth: AuthResponse | null = null,
+) {
   vi.resetModules();
-  const data = new Map<string, string>(storedUserId ? [['gorky.userId', JSON.stringify(storedUserId)]] : []);
+  const data = new Map<string, string>();
+  if (storedUserId) data.set('gorky.userId', JSON.stringify(storedUserId));
+  if (storedAuth) data.set('gorky.auth', JSON.stringify(storedAuth));
   vi.stubGlobal('localStorage', {
     getItem: (k: string) => data.get(k) ?? null,
     setItem: (k: string, v: string) => void data.set(k, v),
@@ -151,5 +179,117 @@ describe('распознавание речи', () => {
     );
     const file = new File(['x'], 'speech.webm', { type: 'audio/webm' });
     await expect(client.transcribe(file)).rejects.toMatchObject({ kind: 'rejected', detail: `ошибка ${status}` });
+  });
+});
+
+describe('учётки и вход', () => {
+  it('без входа: запрос уходит с X-User-Id и без Authorization', async () => {
+    const client = await freshClient(NEW_ID);
+    await client.fetchItems(items);
+    expect(calls[0].userId).toBe(NEW_ID);
+    expect(calls[0].authHeader).toBeNull();
+  });
+
+  it('после login: запросы идут с Authorization и без X-User-Id, гостевой id в хранилище сохранён', async () => {
+    const client = await freshClient(NEW_ID);
+    const authRes = await client.login({ login: 'alice', password: 'password123' });
+    expect(authRes.token).toBe('jwt-123');
+    expect(client.currentAccount()?.login).toBe('alice');
+
+    await client.fetchItems(items);
+    const lastCall = calls[calls.length - 1];
+    expect(lastCall.authHeader).toBe('Bearer jwt-123');
+    expect(lastCall.userId).toBeNull();
+    expect(localStorage.getItem('gorky.userId')).toBe(JSON.stringify(NEW_ID));
+  });
+
+  it('401 на запрос с токеном: вход забыт, подписчик вызван, запрос не повторён, rejected 401', async () => {
+    const client = await freshClient(NEW_ID, {
+      token: 'jwt-expired',
+      account: { id: 'acc-1', login: 'alice', demo: false },
+    });
+    const expired = vi.fn();
+    client.onSessionExpired(expired);
+
+    await expect(client.fetchItems(items)).rejects.toMatchObject({
+      kind: 'rejected',
+      status: 401,
+      detail: 'Сессия входа истекла — вы снова гость. Войдите ещё раз.',
+    });
+
+    expect(expired).toHaveBeenCalledTimes(1);
+    expect(client.currentAccount()).toBeNull();
+    expect(localStorage.getItem('gorky.auth')).toBeNull();
+    expect(calls.filter((c) => c.url.startsWith('/api/items'))).toHaveLength(1);
+  });
+
+  it('401 на login: вход не забывается (его и не было), подписчик не вызван, ошибка с detail сервера', async () => {
+    const client = await freshClient(NEW_ID);
+    const expired = vi.fn();
+    client.onSessionExpired(expired);
+
+    await expect(client.login({ login: 'alice', password: 'wrong' })).rejects.toMatchObject({
+      kind: 'rejected',
+      status: 401,
+      detail: 'Неверный логин или пароль',
+    });
+
+    expect(expired).not.toHaveBeenCalled();
+    expect(client.currentAccount()).toBeNull();
+  });
+
+  it('logout: забывает вход и при 204, и при обрыве сети', async () => {
+    const client1 = await freshClient(NEW_ID, {
+      token: 'jwt-123',
+      account: { id: 'acc-1', login: 'alice', demo: false },
+    });
+    await client1.logout();
+    expect(client1.currentAccount()).toBeNull();
+    expect(localStorage.getItem('gorky.auth')).toBeNull();
+
+    const client2 = await freshClient(NEW_ID, {
+      token: 'jwt-123',
+      account: { id: 'acc-1', login: 'alice', demo: false },
+    });
+    vi.stubGlobal('fetch', vi.fn(async () => Promise.reject(new TypeError('Network down'))));
+    await expect(client2.logout()).resolves.toBeUndefined();
+    expect(client2.currentAccount()).toBeNull();
+    expect(localStorage.getItem('gorky.auth')).toBeNull();
+  });
+
+  it('register: 409 и 422 возвращают ApiError(rejected) с detail', async () => {
+    const client = await freshClient(NEW_ID);
+
+    await expect(client.register({ login: 'taken', password: 'password123' })).rejects.toMatchObject({
+      kind: 'rejected',
+      status: 409,
+      detail: 'Логин уже занят',
+    });
+
+    await expect(client.register({ login: 'bad', password: '123' })).rejects.toMatchObject({
+      kind: 'rejected',
+      status: 422,
+      detail: 'Логин от 3 до 32 символов',
+    });
+  });
+
+  it('fetchMe: обновляет профиль при валидном токене, 401 сбрасывает сессию', async () => {
+    const client = await freshClient(NEW_ID, {
+      token: 'jwt-123',
+      account: { id: 'acc-old', login: 'alice', demo: false },
+    });
+    const me = await client.fetchMe();
+    expect(me.id).toBe('acc-1');
+    expect(client.currentAccount()?.id).toBe('acc-1');
+
+    const clientBad = await freshClient(NEW_ID, {
+      token: 'jwt-bad',
+      account: { id: 'acc-bad', login: 'bob', demo: false },
+    });
+    const expired = vi.fn();
+    clientBad.onSessionExpired(expired);
+    await expect(clientBad.fetchMe()).rejects.toMatchObject({ kind: 'rejected', status: 401 });
+    expect(expired).toHaveBeenCalledTimes(1);
+    expect(clientBad.currentAccount()).toBeNull();
   });
 });

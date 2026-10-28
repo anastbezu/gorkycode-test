@@ -49,3 +49,19 @@ export interface ChatResponse {
   result: ActionResult | null;
   awaiting: 'answer' | 'choice' | null;
 }
+
+export interface Credentials {
+  login: string;
+  password: string;
+}
+
+export interface Account {
+  id: string;
+  login: string;
+  demo: boolean;
+}
+
+export interface AuthResponse {
+  token: string;
+  account: Account;
+}

@@ -1,8 +1,19 @@
 // Страница ассистента: чат слева, «Мои дела» справа (на телефоне — шторкой), настройки LLM.
 // Состояние разговора и ленты — здесь; сеть — api/client.ts; показ дат — lib/dates.ts.
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ApiError, fetchItems, onProfileReset, sendChat, transcribe } from './api/client';
-import type { LLMConfig } from './api/types';
+import {
+  ApiError,
+  currentAccount,
+  fetchItems,
+  fetchMe,
+  logout,
+  onProfileReset,
+  onSessionExpired,
+  sendChat,
+  transcribe,
+} from './api/client';
+import type { Account, LLMConfig } from './api/types';
+import { AuthModal } from './components/AuthModal';
 import { Background } from './components/Background';
 import { CalendarView } from './components/CalendarView';
 import { ResultView } from './components/ResultView';
@@ -83,6 +94,8 @@ function usePanel(tz: string) {
 
 export function App() {
   const tz = browserTimeZone();
+  const [account, setAccount] = useState<Account | null>(currentAccount);
+  const [authOpen, setAuthOpen] = useState(false);
   const [chat, setChat] = useState<StoredChat>(loadChat);
   const [pending, setPending] = useState(false);
   const [banner, setBanner] = useState<Banner>(null);
@@ -104,6 +117,27 @@ export function App() {
   // «Озвучка недоступна» — одно сообщение за всё время страницы
   const noVoiceShown = useRef(false);
 
+  const switchUser = useCallback(
+    (next: Account | null) => {
+      setAccount(next);
+      setChat({ conversationId: null, messages: [] });
+      stopSpeaking();
+      if (recording) {
+        void recording.stop();
+        setRecording(null);
+      }
+      sending.current = false;
+      setPending(false);
+      void panel.load();
+    },
+    [recording, panel],
+  );
+
+  const handleLogout = async () => {
+    await logout();
+    switchUser(null);
+  };
+
   useEffect(() => saveChat(chat), [chat]);
   useEffect(() => {
     void panel.load();
@@ -115,6 +149,20 @@ export function App() {
       }),
     [],
   );
+  useEffect(
+    () =>
+      onSessionExpired(() => {
+        switchUser(null);
+        setBanner({ text: 'Сессия входа истекла — вы снова гость. Войдите ещё раз.' });
+      }),
+    [switchUser],
+  );
+  useEffect(() => {
+    if (!account) return;
+    void fetchMe()
+      .then((acc) => setAccount(acc))
+      .catch(() => {});
+  }, []);
   useEffect(() => {
     feedEnd.current?.scrollIntoView({ block: 'end' });
   }, [chat.messages.length, pending, banner]);
@@ -250,11 +298,33 @@ export function App() {
           <button type="button" className="icon-btn" onClick={() => setSettingsOpen(true)} aria-label="Настройки LLM">
             <SettingsIcon />
           </button>
+          {account ? (
+            <div className="header__user">
+              <span className="header__username" title={account.login}>
+                {account.login}
+              </span>
+              <button
+                type="button"
+                className="btn btn--glass header__logout-btn"
+                onClick={() => void handleLogout()}
+              >
+                Выйти
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              className="btn btn--glass header__login-btn"
+              onClick={() => setAuthOpen(true)}
+            >
+              Войти
+            </button>
+          )}
         </div>
       </header>
 
       {screen === 'calendar' ? (
-        <CalendarView tz={tz} />
+        <CalendarView key={account?.id ?? 'guest'} tz={tz} />
       ) : (
       <>
       <main className="chat">
@@ -371,6 +441,13 @@ export function App() {
 
       {settingsOpen && (
         <SettingsModal initial={llmConfig} onSave={saveSettings} onClose={() => setSettingsOpen(false)} />
+      )}
+
+      {authOpen && (
+        <AuthModal
+          onSuccess={(acc) => switchUser(acc)}
+          onClose={() => setAuthOpen(false)}
+        />
       )}
     </div>
   );

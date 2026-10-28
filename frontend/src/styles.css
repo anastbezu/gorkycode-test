@@ -236,6 +236,29 @@ button:disabled {
   gap: 8px;
 }
 
+.header__user {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.header__username {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text);
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.header__login-btn,
+.header__logout-btn {
+  min-height: 36px;
+  padding: 0 14px;
+  font-size: 14px;
+}
+
 .chat {
   grid-area: chat;
   display: flex;
@@ -947,6 +970,45 @@ button:disabled {
   color: var(--muted);
 }
 
+.field__error {
+  padding: 10px 14px;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--banner-text);
+  background: var(--banner-bg);
+  border: 1px solid var(--banner-border);
+  border-radius: 12px;
+}
+
+.auth-tabs {
+  display: flex;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 3px;
+  gap: 4px;
+}
+
+.auth-tab {
+  flex: 1;
+  min-height: 38px;
+  border: none;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--muted);
+  font-family: inherit;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.auth-tab--active {
+  background: var(--surface-glass);
+  color: var(--text);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
 .modal__actions {
   display: flex;
   justify-content: flex-end;
@@ -977,6 +1039,18 @@ button:disabled {
 
   .header__title-short {
     display: inline;
+  }
+
+  .header__username {
+    max-width: 76px;
+    font-size: 13px;
+  }
+
+  .header__login-btn,
+  .header__logout-btn {
+    min-height: 32px;
+    padding: 0 10px;
+    font-size: 13px;
   }
 
   .feed {
