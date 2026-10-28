@@ -15,8 +15,8 @@
 ## Контекст
 
 ### Контракты
-- [`data-model.md`](../contracts/data-model.md): `ConversationState` с новыми полями `shown`, `last_action` (`LastAction`), `pending_skipped` и раздел «Правила состояния».
-- [`agent-tools.md`](../contracts/agent-tools.md): действия `UpdateRecord`, `SetStatus`, `UndoLast`; раздел «Проверки кода» (не в прошлом, конфликт, дубль); `ListRecords.date_to = None`; `ActionResult.restored`.
+- [`data-model.md`](../../contracts/data-model.md): `ConversationState` с новыми полями `shown`, `last_action` (`LastAction`), `pending_skipped` и раздел «Правила состояния».
+- [`agent-tools.md`](../../contracts/agent-tools.md): действия `UpdateRecord`, `SetStatus`, `UndoLast`; раздел «Проверки кода» (не в прошлом, конфликт, дубль); `ListRecords.date_to = None`; `ActionResult.restored`.
 - Pydantic-схемы уже приведены к контракту в `backend/schemas/` (`UpdateRecord`, `SetStatus`, `UndoLast`, `Help`, `TargetRef`, `LastAction`, новые поля `ConversationState`, `ActionResult.restored`, необязательный `ListRecords.date_to`). Схемы не меняй — если чего-то не хватает, это правка контракта через техлида.
 
 ### Что уже есть в `develop` и на что опираться
@@ -26,7 +26,7 @@
 - `backend/api/chat.py`: `POST /api/chat`; пока отвечает разборщиком `handle_without_llm` (`backend/api/dispatch.py`), агента подключает Илья в [agent-05](agent-05-integratsiya-s-servisami-i-api.md).
 
 ### Транзакции: один коммит на реплику
-Решение техлида ([`docs/decisions.md`](../decisions.md), строка «Доступ к БД» уточняется в этом же PR). Сейчас каждый сервис делает `commit` сам (`create_record`, `save_conversation_state`, `get_or_create_conversation_state`). При переносе записи агент сначала меняет запись, потом сохраняет состояние с прежними значениями для «верни». Если второе упало, перенос остался, а откатить его нечем.
+Решение техлида ([`docs/decisions.md`](../../decisions.md), строка «Доступ к БД» уточняется в этом же PR). Сейчас каждый сервис делает `commit` сам (`create_record`, `save_conversation_state`, `get_or_create_conversation_state`). При переносе записи агент сначала меняет запись, потом сохраняет состояние с прежними значениями для «верни». Если второе упало, перенос остался, а откатить его нечем.
 
 Поэтому:
 - сервисы записей и состояния **не коммитят** — только `add`/`flush` в переданную сессию;
