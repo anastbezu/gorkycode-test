@@ -341,7 +341,7 @@ OpenAI-совместимый адрес. Три фразы с двумя ком
 ## Подключение к `/api/chat` (agent-05)
 
 Маршрут `api/chat.py` проверяет пояс (`parse_timezone`), владельца разговора (чужой или
-несуществующий `conversation_id` — 404), загружает стартовый датасет новому пользователю и
+несуществующий `conversation_id` — 404) и
 вызывает `process_user_turn(db, user.id, conversation_id, req.text, zone.key, req.llm_config)`.
 В агента идёт уже проверенный пояс `zone.key`.
 

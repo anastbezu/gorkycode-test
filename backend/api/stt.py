@@ -67,6 +67,7 @@ def _error(code: int, detail: str, headers: dict[str, str] | None = None) -> HTT
     summary="Распознать голосовую запись",
     responses={
         400: {"description": "Заголовок X-User-Id не UUID"},
+        401: {"description": "Токен учётки недействителен"},
         413: {"description": "Запись длиннее 30 секунд"},
         415: {"description": "Формат файла не из списка или поле `audio` пустое"},
         422: {"description": "Речь не распознана: тишина, шум, пустой результат"},

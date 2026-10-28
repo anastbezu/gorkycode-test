@@ -10,7 +10,7 @@
 """
 
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import UUID
 
@@ -452,7 +452,13 @@ def set_status(
         return RecordChange(_fail("set_status", "Запись не найдена."))
 
     before = {"status": row.status.value} if row.status != status else {}
-    if not _save(db, row, {"status": status}):
+    changes: dict[str, Any] = {"status": status}
+    # Момент отмены — для чистки через 30 дней: ставится при отмене, снимается при возврате.
+    if status == RecordStatus.CANCELLED and row.status != RecordStatus.CANCELLED:
+        changes["cancelled_at"] = datetime.now(UTC)
+    elif status != RecordStatus.CANCELLED:
+        changes["cancelled_at"] = None
+    if not _save(db, row, changes):
         return RecordChange(_fail("set_status", "Не удалось изменить статус."))
 
     return RecordChange(

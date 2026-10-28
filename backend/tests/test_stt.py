@@ -15,9 +15,11 @@ from uuid import uuid4
 
 import httpx
 import pytest
+from sqlalchemy.orm import Session
 
 import api.stt as stt_route
 import stt.client as stt_client
+from db import get_session
 from main import app
 from stt import STTUnavailableError, duration_seconds
 
@@ -51,10 +53,16 @@ def calls(monkeypatch: pytest.MonkeyPatch) -> list[tuple[bytes, str]]:
 
 
 @pytest.fixture
-async def client() -> AsyncIterator[httpx.AsyncClient]:
+async def client(db: Session) -> AsyncIterator[httpx.AsyncClient]:
+    """Пользователь запроса — строка в `users` (backend-04): маршрут работает в сессии теста,
+    всё записанное откатывается. Без базы такие тесты пропускаются."""
+    app.dependency_overrides[get_session] = lambda: db
     transport = httpx.ASGITransport(app=app)
-    async with httpx.AsyncClient(transport=transport, base_url="http://test") as c:
-        yield c
+    try:
+        async with httpx.AsyncClient(transport=transport, base_url="http://test") as c:
+            yield c
+    finally:
+        app.dependency_overrides.pop(get_session, None)
 
 
 def _wav(seconds: float, rate: int = 8000) -> bytes:
