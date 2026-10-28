@@ -150,6 +150,9 @@ def _ideal_model_actions() -> dict:
     def move(start, **target):
         return UpdateRecord(target=TargetRef(**target), start=start, time_given=True)
 
+    def shift(minutes, **target):
+        return UpdateRecord(target=TargetRef(**target), shift_minutes=minutes)
+
     tomorrow = ListRecords(date_from=at(22), date_to=at(23))
     team = CreateRecord(type="meeting", title="встреча с командой", start=at(22, 15),
                         time_given=True)
@@ -166,7 +169,7 @@ def _ideal_model_actions() -> dict:
         "7.2": [status("done", text="задачу про отчёт"), status("done", index=1)],
         "7.3": [status("cancelled", text="созвон с Вектором"), status("cancelled", index=2)],
         "7.4": [tomorrow, move(at(23, 12), index=2)],
-        "7.5": [team, move(at(22, 16), focus=True)],
+        "7.5": [team, shift(60, focus=True)],
         "7.6": [status("done", text="позвонить Ольге")],
         "7.7": [status("cancelled", text="задачу про договор")],
         "7.8": [status("cancelled", text="задачу про отчёт")],
@@ -179,8 +182,8 @@ def _ideal_model_actions() -> dict:
         "7.15": [vector, SetStatus(target=TargetRef(text="созвон по сайту"),
                                    status="cancelled", replaces_last=True)],
         "7.16": [tomorrow, move(at(22, 16), focus=True)],
-        "7.17": [move(at(27, 17, 30), text="встречу с Натальей")],
-        "7.18": [move(at(27, 17, 30), text="встречу с Натальей"), UndoLast()],
+        "7.17": [shift(60, text="встречу с Натальей")],
+        "7.18": [shift(60, text="встречу с Натальей"), UndoLast()],
         "7.19": [all_tomorrow],
         "7.20": [all_tomorrow, status("cancelled", all=True)],
         "7.21": [all_tomorrow, status("cancelled", all=True), UndoLast()],
@@ -221,8 +224,6 @@ def test_harness_sees_applied_change_not_raw_model_answer(db: Session, monkeypat
     report = Harness(monkeypatch, scripted(midnight), db=db).run_case(case("7.1"))
     assert report.passed, report.turns[-1].problems
 
-    blind = UpdateRecord(target=TargetRef(focus=True, text="встречу с Натальей"))
-    seen = UpdateRecord(target=TargetRef(focus=True),
-                        start=datetime(2026, 10, 27, 17, 30, tzinfo=TZ), time_given=True)
-    report = Harness(monkeypatch, scripted(blind, seen), db=db).run_case(case("7.17"))
+    later = UpdateRecord(target=TargetRef(text="встречу с Натальей"), shift_minutes=60)
+    report = Harness(monkeypatch, scripted(later), db=db).run_case(case("7.17"))
     assert report.passed, report.turns[-1].problems

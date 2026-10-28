@@ -7,7 +7,7 @@
 
 from asyncio import to_thread
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
 from uuid import UUID
 from zoneinfo import ZoneInfo
@@ -38,9 +38,6 @@ class ChangeOutcome:
     before: list[dict[str, Any]] = field(default_factory=list)
     similar: bool = False  # кандидаты только похожи: «Точно такой нет. Может, эту?»
     confirm: bool = False  # несколько записей одной командой: «Отменить 3 …?»
-    # Цель найдена, но менять нечего: «на час позже» по описанию — модель не видела время
-    # записи. Агент повторяет запрос к модели с этой записью в фокусе.
-    unchanged: Record | None = None
     # Действие, которое на самом деле обработано: со статусом прошлого действия при
     # replaces_last, со временем записи после keep_time. Его получают ответ и update_state.
     applied: UpdateRecord | SetStatus | None = None
@@ -49,8 +46,24 @@ class ChangeOutcome:
 def changes_nothing(action: UpdateRecord) -> bool:
     return all(
         getattr(action, name) is None
-        for name in ("title", "start", "end", "deadline", "time_given")
+        for name in ("title", "start", "end", "deadline", "time_given", "shift_minutes")
     )
+
+
+def apply_shift(action: UpdateRecord, record: Record) -> UpdateRecord:
+    """«На час позже»: модель передаёт только сдвиг (`shift_minutes`), новое время от
+    текущего времени записи считает код — модели не нужно видеть запись (один вызов LLM).
+    Конец встречи сдвигает сервис update_record (длительность сохраняется)."""
+    if not action.shift_minutes:
+        return action.model_copy(update={"shift_minutes": None})
+    delta = timedelta(minutes=action.shift_minutes)
+    update: dict[str, Any] = {"shift_minutes": None}
+    if record.start is not None:
+        update["start"] = record.start + delta
+        update["time_given"] = not record.all_day
+    elif record.deadline is not None:
+        update["deadline"] = record.deadline + delta
+    return action.model_copy(update=update)
 
 
 def keep_time(action: UpdateRecord, record: Record, zone: ZoneInfo) -> UpdateRecord:
@@ -154,7 +167,7 @@ async def _apply(
     savepoint = await _savepoint(db, records)
     for record in records:
         if isinstance(action, UpdateRecord):
-            applied = keep_time(action, record, now.tzinfo)
+            applied = keep_time(apply_shift(action, record), record, now.tzinfo)
             change = await to_thread(update_record, db, user_id, record.id, applied, now=now)
         else:
             change = await to_thread(set_status, db, user_id, record.id, action.status)
@@ -230,11 +243,15 @@ async def execute_change(
         return ChangeOutcome(result, similar=target.similar, confirm=target.confirm,
                              applied=action)
 
-    if isinstance(action, UpdateRecord) and changes_nothing(action) and len(target.records) == 1:
-        record = target.records[0]
+    if isinstance(action, UpdateRecord) and changes_nothing(action):
         result = ActionResult(action=action.action, ok=False, restored=restored,
                               error="Что изменить у этой записи? Назовите новое время или дату.")
-        return ChangeOutcome(result, unchanged=record, applied=action)
+        return ChangeOutcome(result, applied=action)
+    if isinstance(action, UpdateRecord) and action.shift_minutes and any(
+            r.start is None and r.deadline is None for r in target.records):
+        result = ActionResult(action=action.action, ok=False, restored=restored,
+                              error="У записи нет времени — назовите новую дату или время.")
+        return ChangeOutcome(result, applied=action)
 
     outcome = await _apply(db, user_id, action, target.records, now)
     outcome.result.restored = restored

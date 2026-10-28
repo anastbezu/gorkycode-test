@@ -235,27 +235,6 @@ def test_replaces_last_keeps_status_of_previous_action(dialog) -> None:
     assert response.result.ok
 
 
-def test_shift_by_description_asks_model_again_with_record_in_focus(dialog) -> None:
-    """7.17: «на час позже» по описанию — модель не видела время; второй вызов с фокусом."""
-    meeting = dialog.add("Встреча с Натальей по презентации", at(27, 16, 30))
-    blind = UpdateRecord(target=TargetRef(focus=True, text="встречу с Натальей"))
-    seen = UpdateRecord(target=TargetRef(focus=True), start=at(27, 17, 30), time_given=True)
-    reply = dialog.say("Перенеси встречу с Натальей на час позже", blind, seen).reply
-    assert dialog.row(meeting).start == at(27, 17, 30)
-    assert "27.10 в 17:30" in reply
-
-    dialog.say("Верни как было", UndoLast())  # 7.18
-    assert dialog.row(meeting).start == at(27, 16, 30)
-
-
-def test_shift_without_answer_on_retry_asks_user(dialog) -> None:
-    meeting = dialog.add("Встреча с Натальей по презентации", at(27, 16, 30))
-    blind = UpdateRecord(target=TargetRef(text="встречу с Натальей"))
-    reply = dialog.say("Перенеси встречу с Натальей", blind, blind).reply
-    assert reply.startswith("Что изменить")
-    assert dialog.row(meeting).start == at(27, 16, 30)
-
-
 def test_yes_with_repeated_description_takes_asked_records(dialog) -> None:
     """7.20: на «Да» модель повторила фильтры — отменяется то, что спросили, без нового вопроса."""
     rows = [dialog.add(f"Созвон {n}", at(22, 10 + n)) for n in range(3)]
@@ -355,16 +334,51 @@ def test_corrected_status_reply_when_target_is_single(dialog) -> None:
     assert "в активные" not in reply
 
 
-def test_retry_keeps_restored_from_first_attempt(dialog) -> None:
-    """replaces_last + «на час позже»: откат первой попытки остаётся в ответе и результате."""
+def test_shift_by_description_is_counted_by_code(dialog) -> None:
+    """7.17, 7.18: «на час позже» — модель шлёт только сдвиг, время считает код (один вызов)."""
+    meeting = dialog.add("Встреча с Натальей по презентации", at(27, 16, 30))
+    later = UpdateRecord(target=TargetRef(text="встречу с Натальей"), shift_minutes=60)
+    reply = dialog.say("Перенеси встречу с Натальей на час позже", later).reply
+    assert dialog.row(meeting).start == at(27, 17, 30)
+    assert "27.10 в 17:30" in reply
+
+    dialog.say("Верни как было", UndoLast())
+    assert dialog.row(meeting).start == at(27, 16, 30)
+
+
+def test_shift_keeps_meeting_duration_and_moves_deadline(dialog) -> None:
+    meeting = models.Record(user_id=dialog.user_id, type=RecordType.MEETING, title="Планёрка",
+                            start=at(22, 10), end=at(22, 11), all_day=False)
+    task = models.Record(user_id=dialog.user_id, type=RecordType.TASK, title="Сдать отчёт",
+                         deadline=at(23, 18), all_day=False)
+    dialog.db.add_all([meeting, task])
+    dialog.db.flush()
+    dialog.say("Сдвинь планёрку на полчаса раньше",
+               UpdateRecord(target=TargetRef(text="планёрку"), shift_minutes=-30))
+    assert (dialog.row(meeting).start, dialog.row(meeting).end) == (at(22, 9, 30), at(22, 10, 30))
+    dialog.say("Сдвинь срок отчёта на день",
+               UpdateRecord(target=TargetRef(text="отчёт"), shift_minutes=1440))
+    assert dialog.row(task).deadline == at(24, 18)
+
+
+def test_update_without_changes_asks_what_to_change(dialog) -> None:
+    meeting = dialog.add("Встреча с Натальей", at(27, 16, 30))
+    reply = dialog.say("Перенеси встречу с Натальей",
+                       UpdateRecord(target=TargetRef(text="встречу с Натальей"))).reply
+    assert reply.startswith("Что изменить")
+    assert dialog.row(meeting).start == at(27, 16, 30)
+
+
+def test_replaces_last_with_shift_keeps_restored(dialog) -> None:
+    """«Нет, не эту, а с Натальей» со сдвигом: откат прошлого — в результате и ответе."""
     ivan = dialog.add("Встреча с Иваном", at(22, 15))
     natalia = dialog.add("Встреча с Натальей", at(27, 16, 30))
     dialog.say("Перенеси встречу с Иваном на час позже",
-               UpdateRecord(target=TargetRef(text="встречу с Иваном"), start=at(22, 16),
-                            time_given=True))
-    blind = UpdateRecord(target=TargetRef(text="встречу с Натальей"), replaces_last=True)
-    seen = UpdateRecord(target=TargetRef(focus=True), start=at(27, 17, 30), time_given=True)
-    response = dialog.say("Нет, не эту, а с Натальей", blind, seen)
+               UpdateRecord(target=TargetRef(text="встречу с Иваном"), shift_minutes=60))
+    assert dialog.row(ivan).start == at(22, 16)
+    fix = UpdateRecord(target=TargetRef(text="встречу с Натальей"), shift_minutes=60,
+                       replaces_last=True)
+    response = dialog.say("Нет, не эту, а с Натальей", fix)
     assert dialog.row(ivan).start == at(22, 15)
     assert dialog.row(natalia).start == at(27, 17, 30)
     assert [r.id for r in response.result.restored] == [ivan.id]

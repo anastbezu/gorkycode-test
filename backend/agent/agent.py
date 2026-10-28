@@ -15,8 +15,6 @@ from schemas import (
     CreateRecord,
     LLMAction,
     LLMConfig,
-    TargetRef,
-    UpdateRecord,
 )
 from services.conversation import (
     get_or_create_conversation_state,
@@ -27,7 +25,7 @@ from services.records import get_record
 
 from .actions import execute
 from .change_replies import reply_for_change
-from .changes import CHANGE_ACTIONS, changes_nothing, execute_change
+from .changes import CHANGE_ACTIONS, execute_change
 from .context import build_state_context, record_summary
 from .llm import LLMConfigError, make_client
 from .presentation import MAX_SHOWN
@@ -113,26 +111,6 @@ async def get_action(
         return LLMAction.model_validate({**args, "action": call.function.name}).root
     except (json.JSONDecodeError, ValidationError, TypeError) as e:
         raise ActionParseError(str(e)) from e
-
-
-async def retry_with_focus(
-    text: str, now: datetime, timezone_name: str, llm_config: LLMConfig | None,
-    state, record, target: TargetRef,
-) -> UpdateRecord | None:
-    """Повторить запрос к модели, показав ей найденную запись в фокусе."""
-    focused = state.model_copy(update={"focus_record_id": record.id})
-    context = build_state_context(focused, {record.id: record}, timezone_name)
-    try:
-        retry = await get_action(text, now, timezone_name, llm_config, context=context)
-    except (LLMConfigError, openai.APIError, ActionParseError):
-        return None
-    if not isinstance(retry, UpdateRecord) or changes_nothing(retry):
-        return None
-    # Цель уже найдена — та же запись, что в фокусе; описание остаётся, как назвал пользователь.
-    state.focus_record_id = record.id
-    return retry.model_copy(update={
-        "target": target.model_copy(update={"focus": True}), "replaces_last": False,
-    })
 
 
 async def process_user_turn(
@@ -235,19 +213,6 @@ async def process_user_turn(
         # Изменение, статус, откат: нужна цель из состояния и прежние значения для отката.
         change = await execute_change(db, user_id, action, state, now=now)
         action = change.applied or action
-        if change.unchanged is not None:
-            # «Перенеси встречу с Натальей на час позже»: запись найдена по описанию, но её
-            # времени модель не видела и сдвиг не посчитала. Единственный случай второго
-            # вызова модели за реплику — с этой записью «В фокусе».
-            retry = await retry_with_focus(
-                text, now, timezone_name, llm_config, state, change.unchanged, action.target
-            )
-            if retry is not None:
-                # Откат «нет, не этот, а тот» уже сделан первой попыткой — не теряем его.
-                restored = change.result.restored
-                change = await execute_change(db, user_id, retry, state, now=now)
-                change.result.restored = restored + change.result.restored
-                action = change.applied or retry
         result = change.result
     else:
         result = await execute(db, user_id, action, now=now)

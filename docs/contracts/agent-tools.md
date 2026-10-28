@@ -60,6 +60,7 @@ class UpdateRecord(BaseModel):
     end: AwareDatetime | None = None
     time_given: bool | None = None
     deadline: AwareDatetime | None = None
+    shift_minutes: int | None = Field(default=None, description="Сдвиг от текущего времени записи в минутах, когда новое время не названо: «на час позже» = 60, «на полчаса раньше» = -30, «на день позже» = 1440. Время записи считает код — start тогда не заполняй.")
     replaces_last: bool = Field(default=False, description="true — «нет, не эту, а ту»: прошлое действие применено не к той записи")
 
 class SetStatus(BaseModel):
