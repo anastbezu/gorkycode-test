@@ -10,12 +10,16 @@
 import { loadAuth, loadUserId, saveAuth, saveUserId } from '../lib/storage';
 import type {
   Account,
+  ActionResult,
   AuthResponse,
   ChatRequest,
   ChatResponse,
+  CreateItem,
   Credentials,
   LLMConfig,
   Record,
+  RecordStatus,
+  UpdateItem,
 } from './types';
 
 const USER_HEADER = 'X-User-Id';
@@ -266,6 +270,72 @@ export async function fetchItems(query: ItemsQuery): Promise<Record[]> {
       continue;
     }
     return parse<Record[]>(res);
+  }
+}
+
+export async function createItem(body: CreateItem, tz: string): Promise<ActionResult> {
+  let retriedUser = false;
+  for (;;) {
+    const { res, sentId } = await asUser((id, token) =>
+      fetchWithTimeout(
+        `/api/items?tz=${encodeURIComponent(tz)}`,
+        {
+          method: 'POST',
+          headers: headersFor(id, token, { 'Content-Type': 'application/json' }),
+          body: JSON.stringify(body),
+        },
+        ITEMS_TIMEOUT_MS,
+      ),
+    );
+    if (!retriedUser && recoverBadUser(res, sentId)) {
+      retriedUser = true;
+      continue;
+    }
+    return parse<ActionResult>(res);
+  }
+}
+
+export async function updateItem(id: string, body: UpdateItem, tz: string): Promise<ActionResult> {
+  let retriedUser = false;
+  for (;;) {
+    const { res, sentId } = await asUser((userId, token) =>
+      fetchWithTimeout(
+        `/api/items/${encodeURIComponent(id)}?tz=${encodeURIComponent(tz)}`,
+        {
+          method: 'PATCH',
+          headers: headersFor(userId, token, { 'Content-Type': 'application/json' }),
+          body: JSON.stringify(body),
+        },
+        ITEMS_TIMEOUT_MS,
+      ),
+    );
+    if (!retriedUser && recoverBadUser(res, sentId)) {
+      retriedUser = true;
+      continue;
+    }
+    return parse<ActionResult>(res);
+  }
+}
+
+export async function setItemStatus(id: string, status: RecordStatus, tz: string): Promise<ActionResult> {
+  let retriedUser = false;
+  for (;;) {
+    const { res, sentId } = await asUser((userId, token) =>
+      fetchWithTimeout(
+        `/api/items/${encodeURIComponent(id)}/status?tz=${encodeURIComponent(tz)}`,
+        {
+          method: 'POST',
+          headers: headersFor(userId, token, { 'Content-Type': 'application/json' }),
+          body: JSON.stringify({ status }),
+        },
+        ITEMS_TIMEOUT_MS,
+      ),
+    );
+    if (!retriedUser && recoverBadUser(res, sentId)) {
+      retriedUser = true;
+      continue;
+    }
+    return parse<ActionResult>(res);
   }
 }
 

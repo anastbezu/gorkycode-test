@@ -10,14 +10,17 @@ import {
   onProfileReset,
   onSessionExpired,
   sendChat,
+  setItemStatus,
   transcribe,
 } from './api/client';
-import type { Account, LLMConfig } from './api/types';
+import type { Account, ActionResult, LLMConfig, Record } from './api/types';
 import { AuthModal } from './components/AuthModal';
 import { Background } from './components/Background';
 import { CalendarView } from './components/CalendarView';
+import { RecordDialog, type RecordDialogTarget } from './components/RecordDialog';
 import { ResultView } from './components/ResultView';
 import { SettingsModal } from './components/SettingsModal';
+import { Toast, type ToastInfo } from './components/Toast';
 import { activeTodayCount, panelDayKeys, PANEL_DAYS, TasksPanel, type PanelState } from './components/TasksPanel';
 import { RecordingIndicator } from './components/RecordingIndicator';
 import { BackIcon, CalendarIcon, MicIcon, SendIcon, SettingsIcon } from './components/icons';
@@ -96,6 +99,9 @@ export function App() {
   const tz = browserTimeZone();
   const [account, setAccount] = useState<Account | null>(currentAccount);
   const [authOpen, setAuthOpen] = useState(false);
+  const [dialogTarget, setDialogTarget] = useState<RecordDialogTarget | null>(null);
+  const [calendarReloadKey, setCalendarReloadKey] = useState(0);
+  const [toast, setToast] = useState<ToastInfo | null>(null);
   const [chat, setChat] = useState<StoredChat>(loadChat);
   const [pending, setPending] = useState(false);
   const [banner, setBanner] = useState<Banner>(null);
@@ -116,6 +122,83 @@ export function App() {
   const [recording, setRecording] = useState<Recording | null>(null);
   // «Озвучка недоступна» — одно сообщение за всё время страницы
   const noVoiceShown = useRef(false);
+
+  const openRecord = useCallback((record: Record) => {
+    setDialogTarget({ mode: 'edit', record });
+  }, []);
+
+  const openCreate = useCallback((initialDay?: string) => {
+    setDialogTarget({ mode: 'create', initialDay });
+  }, []);
+
+  const updateRecordInFeed = useCallback((updated: Record) => {
+    setChat((prev) => {
+      let changed = false;
+      const nextMessages = prev.messages.map((m) => {
+        if (m.role !== 'assistant' || !m.result?.records) return m;
+        const records = m.result.records.map((r) => {
+          if (r.id === updated.id) {
+            changed = true;
+            return { ...r, ...updated };
+          }
+          return r;
+        });
+        return changed ? { ...m, result: { ...m.result, records } } : m;
+      });
+      return changed ? { ...prev, messages: nextMessages } : prev;
+    });
+  }, []);
+
+  const handleActionSuccess = useCallback(
+    (res: ActionResult) => {
+      void panel.load();
+      setCalendarReloadKey((k) => k + 1);
+      if (res.records && res.records.length > 0) {
+        updateRecordInFeed(res.records[0]);
+      }
+    },
+    [panel, updateRecordInFeed],
+  );
+
+  const handleDeleteRecord = useCallback(
+    async (record: Record) => {
+      try {
+        await setItemStatus(record.id, 'cancelled', tz);
+        void panel.load();
+        setCalendarReloadKey((k) => k + 1);
+        updateRecordInFeed({ ...record, status: 'cancelled' });
+        setToast({ recordId: record.id, title: record.title });
+      } catch (err) {
+        if (err instanceof ApiError && err.kind === 'rejected') {
+          setBanner({ text: err.detail });
+        } else {
+          setBanner({ text: 'Нет ответа от сервера, проверьте список.' });
+        }
+      }
+    },
+    [tz, panel, updateRecordInFeed],
+  );
+
+  const handleRestoreRecord = useCallback(
+    async (recordId: string) => {
+      setToast(null);
+      try {
+        const res = await setItemStatus(recordId, 'active', tz);
+        void panel.load();
+        setCalendarReloadKey((k) => k + 1);
+        if (res.records && res.records.length > 0) {
+          updateRecordInFeed(res.records[0]);
+        }
+      } catch (err) {
+        if (err instanceof ApiError && err.kind === 'rejected') {
+          setBanner({ text: err.detail });
+        } else {
+          setBanner({ text: 'Нет ответа от сервера, проверьте список.' });
+        }
+      }
+    },
+    [tz, panel, updateRecordInFeed],
+  );
 
   const switchUser = useCallback(
     (next: Account | null) => {
@@ -324,7 +407,13 @@ export function App() {
       </header>
 
       {screen === 'calendar' ? (
-        <CalendarView key={account?.id ?? 'guest'} tz={tz} />
+        <CalendarView
+          key={account?.id ?? 'guest'}
+          tz={tz}
+          reloadKey={calendarReloadKey}
+          onOpen={openRecord}
+          onCreate={openCreate}
+        />
       ) : (
       <>
       <main className="chat">
@@ -350,7 +439,7 @@ export function App() {
             ) : (
               <div key={m.id} className="assistant">
                 <div className="bubble bubble--assistant">{m.reply}</div>
-                <ResultView result={m.result} awaiting={m.awaiting} tz={tz} />
+                <ResultView result={m.result} awaiting={m.awaiting} tz={tz} onOpen={openRecord} />
               </div>
             ),
           )}
@@ -434,9 +523,23 @@ export function App() {
           onSelectDay={setSelectedDay}
           onRetry={() => void panel.load()}
           onClose={() => setSheetOpen(false)}
+          onOpen={openRecord}
+          onCreate={openCreate}
         />
       </div>
       </>
+      )}
+
+      <Toast toast={toast} onRestore={handleRestoreRecord} onDismiss={() => setToast(null)} />
+
+      {dialogTarget && (
+        <RecordDialog
+          target={dialogTarget}
+          tz={tz}
+          onSuccess={handleActionSuccess}
+          onDelete={(r) => void handleDeleteRecord(r)}
+          onClose={() => setDialogTarget(null)}
+        />
       )}
 
       {settingsOpen && (

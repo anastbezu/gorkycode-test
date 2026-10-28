@@ -48,7 +48,36 @@ function fakeServer(delayMs = 5) {
 
     if (userId && !/^[0-9a-f-]{36}$/.test(userId)) return json(400, { detail: 'X-User-Id должен быть UUID' });
     const issued: { [k: string]: string } = (userId || authHeader) ? {} : { 'X-User-Id': NEW_ID };
-    if (url.startsWith('/api/items')) return json(200, [], issued);
+    if (url.startsWith('/api/items')) {
+      const method = init.method ?? 'GET';
+      if (method === 'POST') {
+        if (body?.title === 'invalid') return json(422, { detail: 'Неверные данные' });
+        return json(201, {
+          action: 'create_record',
+          ok: true,
+          records: [{ id: 'new-id', title: body?.title ?? '', status: body?.status ?? 'active', user_id: NEW_ID }],
+          conflicts: [],
+          candidates: [],
+          restored: [],
+          missing: [],
+          error: null,
+        }, issued);
+      }
+      if (method === 'PATCH') {
+        if (url.includes('missing-id')) return json(404, { detail: 'Запись не найдена' });
+        return json(200, {
+          action: 'update_record',
+          ok: true,
+          records: [{ id: 'upd-id', title: body?.title ?? '', status: 'active', user_id: NEW_ID }],
+          conflicts: [],
+          candidates: [],
+          restored: [],
+          missing: [],
+          error: null,
+        }, issued);
+      }
+      return json(200, [], issued);
+    }
     if (body?.conversation_id === 'gone') return json(404, { detail: 'Разговор не найден' });
     return json(200, { conversation_id: 'c1', reply: 'ок', result: null, awaiting: null }, issued);
   });
@@ -291,5 +320,44 @@ describe('учётки и вход', () => {
     await expect(clientBad.fetchMe()).rejects.toMatchObject({ kind: 'rejected', status: 401 });
     expect(expired).toHaveBeenCalledTimes(1);
     expect(clientBad.currentAccount()).toBeNull();
+  });
+});
+
+describe('действия с записями', () => {
+  it('createItem: отправляет POST на /api/items?tz=... с телом и разбирает 201', async () => {
+    const client = await freshClient(NEW_ID);
+    const res = await client.createItem({ type: 'task', title: 'Новая задача' }, 'Europe/Moscow');
+    expect(res.ok).toBe(true);
+    expect(res.records[0].id).toBe('new-id');
+    const lastCall = calls[calls.length - 1];
+    expect(lastCall.url).toBe('/api/items?tz=Europe%2FMoscow');
+    expect(lastCall.body).toEqual({ type: 'task', title: 'Новая задача' });
+  });
+
+  it('updateItem: отправляет PATCH на /api/items/{id}?tz=... и разбирает 200', async () => {
+    const client = await freshClient(NEW_ID);
+    const res = await client.updateItem('rec-123', { title: 'Обновлено' }, 'Europe/Moscow');
+    expect(res.ok).toBe(true);
+    const lastCall = calls[calls.length - 1];
+    expect(lastCall.url).toBe('/api/items/rec-123?tz=Europe%2FMoscow');
+    expect(lastCall.body).toEqual({ title: 'Обновлено' });
+  });
+
+  it('updateItem: 404 возвращает rejected с detail', async () => {
+    const client = await freshClient(NEW_ID);
+    await expect(client.updateItem('missing-id', { title: 'X' }, 'Europe/Moscow')).rejects.toMatchObject({
+      kind: 'rejected',
+      status: 404,
+      detail: 'Запись не найдена',
+    });
+  });
+
+  it('setItemStatus: отправляет POST на /api/items/{id}/status?tz=...', async () => {
+    const client = await freshClient(NEW_ID);
+    const res = await client.setItemStatus('rec-123', 'done', 'Europe/Moscow');
+    expect(res.ok).toBe(true);
+    const lastCall = calls[calls.length - 1];
+    expect(lastCall.url).toBe('/api/items/rec-123/status?tz=Europe%2FMoscow');
+    expect(lastCall.body).toEqual({ status: 'done' });
   });
 });
