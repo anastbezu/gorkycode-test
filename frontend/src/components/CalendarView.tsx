@@ -3,6 +3,7 @@
 // Данные — один GET /api/items на видимую сетку месяца, без записей «без даты»: у них нет дня.
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ApiError, fetchItems } from '../api/client';
+import type { Record } from '../api/types';
 import {
   addDaysToKey,
   dayKey,

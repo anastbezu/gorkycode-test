@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { ApiError, createItem, setItemStatus, updateItem } from '../api/client';
-import type { ActionResult, Record, RecordType } from '../api/types';
+import type { ActionResult, Record, RecordStatus, RecordType } from '../api/types';
 import { recordWhen } from '../lib/dates';
 import {
   buildCreateItem,
@@ -28,6 +28,12 @@ const TYPE_LABELS: { [k in RecordType]: string } = {
   reminder: 'Напоминание',
 };
 
+const STATUS_LABELS: { [k in RecordStatus]: string } = {
+  active: 'Активно',
+  done: 'Выполнено',
+  cancelled: 'Удалено',
+};
+
 export function RecordDialog({ target, tz, onSuccess, onDelete, onClose }: Props) {
   const isEdit = target.mode === 'edit';
   const originalRecord = isEdit ? target.record : null;
@@ -46,10 +52,14 @@ export function RecordDialog({ target, tz, onSuccess, onDelete, onClose }: Props
   const [pendingResult, setPendingResult] = useState<ActionResult | null>(null);
 
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      if (pendingResult) onSuccess(pendingResult); // запись уже сохранена — списки обновить
+      onClose();
+    };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  }, [onClose, onSuccess, pendingResult]);
 
   const updateValidation = isEdit
     ? buildUpdateItem(originalRecord!, values, tz)
@@ -140,12 +150,17 @@ export function RecordDialog({ target, tz, onSuccess, onDelete, onClose }: Props
   };
 
   if (conflicts && conflicts.length > 0) {
+    // Запись уже сохранена: любое закрытие окна обновляет списки, а не только «Понятно»
+    const closeSaved = () => {
+      if (pendingResult) onSuccess(pendingResult);
+      onClose();
+    };
     return (
-      <div className="modal" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="modal" onMouseDown={(e) => e.target === e.currentTarget && closeSaved()}>
         <div className="modal__dialog" role="dialog" aria-modal="true">
           <div className="modal__head">
             <h2 className="modal__title">Пересечение встреч</h2>
-            <button type="button" className="icon-btn" onClick={onClose} aria-label="Закрыть">
+            <button type="button" className="icon-btn" onClick={closeSaved} aria-label="Закрыть">
               <CloseIcon />
             </button>
           </div>
@@ -161,14 +176,7 @@ export function RecordDialog({ target, tz, onSuccess, onDelete, onClose }: Props
             ))}
           </div>
           <div className="modal__actions">
-            <button
-              type="button"
-              className="btn btn--primary"
-              onClick={() => {
-                if (pendingResult) onSuccess(pendingResult);
-                onClose();
-              }}
-            >
+            <button type="button" className="btn btn--primary" onClick={closeSaved}>
               Понятно
             </button>
           </div>
@@ -223,7 +231,7 @@ export function RecordDialog({ target, tz, onSuccess, onDelete, onClose }: Props
           <div className="record-dialog__type-badge">
             <span className="tag tag--type">{TYPE_LABELS[values.type]}</span>
             <span className={`tag tag--${originalRecord!.status}`}>
-              {originalRecord!.status === 'done' ? 'Выполнено' : 'Активно'}
+              {STATUS_LABELS[originalRecord!.status]}
             </span>
           </div>
         )}
