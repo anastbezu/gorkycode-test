@@ -33,35 +33,29 @@
 - Данные базы — в томе Docker `postgres_data`, переживают пересборку и перезапуск контейнеров.
 
 ### Nginx
-В `server`-блоке `gorky.bond` с `listen 443 ssl` (его создал certbot) вместо стандартного `location /` поставить:
+В `server`-блоке `gorky.bond` с `listen 443 ssl` (его создал certbot):
 
 ```nginx
-location /api/ {
+# Бэкенд: API, документация и проверка здоровья
+location ~ ^/(api|health|docs|openapi.json) {
+    client_max_body_size 5m;
     proxy_pass http://127.0.0.1:8000;
-    include proxy_params;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
 }
 
-location = /health {
-    proxy_pass http://127.0.0.1:8000;
-    include proxy_params;
-}
-
-location /docs {
-    proxy_pass http://127.0.0.1:8000;
-    include proxy_params;
-}
-
-location = /openapi.json {
-    proxy_pass http://127.0.0.1:8000;
-    include proxy_params;
-}
-
+# Фронтенд: всё остальное
 location / {
     proxy_pass http://127.0.0.1:3000;
-    include proxy_params;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
 }
 ```
-`proxy_params` (поставляется с nginx в Ubuntu) передаёт `Host`, `X-Real-IP`, `X-Forwarded-For` и `X-Forwarded-Proto`; бэкенд доверяет этим заголовкам, поэтому его редиректы ведут на `https://`. После правки: `sudo nginx -t && sudo systemctl reload nginx`. Порты `8000` и `3000` — значения по умолчанию `BACKEND_PORT` и `FRONTEND_PORT`; на сервере их не меняют, иначе нужно менять и Nginx.
+Директива `client_max_body_size 5m;` пропускает аудиозаписи до 5 МБ в `/api/stt` с запасом под 30 секунд речи (по умолчанию у Nginx лимит 1 МБ). Заголовки `proxy_set_header` передают `Host`, `X-Real-IP`, `X-Forwarded-For` и `X-Forwarded-Proto`; бэкенд доверяет этим заголовкам, поэтому его редиректы ведут на `https://`. После правки: `sudo nginx -t && sudo systemctl reload nginx`. Порты `8000` и `3000` — значения по умолчанию `BACKEND_PORT` и `FRONTEND_PORT`; на сервере их не меняют, иначе нужно менять и Nginx.
 
 ### Проект на сервере
 - Клон репозитория — `/opt/gorkycode`, ветка `develop`. Пользователь из секрета `USERNAME` — владелец каталога, состоит в группе `docker`.
