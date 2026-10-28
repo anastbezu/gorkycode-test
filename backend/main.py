@@ -15,7 +15,7 @@ from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 
-from api import auth, chat, health, items, stt
+from api import auth, calendar, chat, health, items, stt
 from api.deps import USER_ID_HEADER
 from db import SessionLocal
 from services.demo_accounts import ensure_demo_accounts, parse_demo_accounts
@@ -122,3 +122,4 @@ app.include_router(auth.router)
 app.include_router(chat.router)
 app.include_router(items.router)
 app.include_router(stt.router)
+app.include_router(calendar.router)

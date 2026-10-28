@@ -20,6 +20,9 @@ class GoogleConfig:
     client_secret: str
     redirect_uri: str
     token_key: str  # ключ Fernet для шифрования refresh-токенов
+    # Куда вернуть пользователя после Google: на стенде — «/» (тот же домен), локально —
+    # адрес Vite, напр. http://localhost:5173/. К адресу добавляется ?calendar=connected|error.
+    return_url: str = "/"
 
 
 def google_config() -> GoogleConfig | None:
@@ -32,4 +35,4 @@ def google_config() -> GoogleConfig | None:
     }
     if not all(values.values()):
         return None
-    return GoogleConfig(**values)
+    return GoogleConfig(**values, return_url=os.getenv("GOOGLE_RETURN_URL", "").strip() or "/")

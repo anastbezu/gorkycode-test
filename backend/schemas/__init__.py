@@ -20,6 +20,7 @@ from .actions import (
 )
 from .api import ChatRequest, ChatResponse, LLMConfig, STTResponse
 from .auth import Account, AuthResponse, Credentials
+from .calendar import GoogleCalendarStatus, GoogleConnectResponse
 from .conversation import ConversationState, LastAction
 from .record import Record, RecordStatus, RecordType
 from .search import SearchHit, TargetMatch
@@ -28,6 +29,8 @@ __all__ = [
     "Account",
     "AuthResponse",
     "Credentials",
+    "GoogleCalendarStatus",
+    "GoogleConnectResponse",
     "UpdateRecord",
     "UndoLast",
     "SetStatus",
