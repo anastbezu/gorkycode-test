@@ -39,7 +39,7 @@ backend-01-model-dannyh.md
 | [agent-08](agent-08-avtotest-agenta.md) | `agent` | Илья | Автотест агента по эталонным кейсам: в CI без модели, живой прогон через модель перед изменением промпта |
 | [search-01](search-01-modul-poiska.md) | `search` | Родион | Модуль поиска: `search()` в два уровня («точно» и «похоже»), `find_target()` для цели изменения, векторы на текст, локальная модель |
 | [agent-09](agent-09-tsel-i-pohozhie-cherez-poisk.md) | `agent` | Илья | Поправка к agent-07 и agent-04: цель изменения через `find_target()`, ответ «точно не нашёл, похожие» |
-| [product-05](product-05-makety-vhod-i-upravlenie.md) | `product` | Маша | Макеты: вход и учётки, действия с записями в карточке и календаре, подключение календаря; `features.md` |
+| [product-05](product-05-makety-vhod-i-upravlenie.md) | `product` | Маша | Макеты по готовому сайту: вход, действия с записями, правки вида для Аси; подключение календаря; `features.md` |
 | [backend-04](backend-04-uchetki-i-vhod.md) | `backend` | Денис | Учётки и вход по токену, гость пустой, демо-учётки с датасетом и сброс, срок хранения 30 дней |
 | [backend-05](backend-05-zapisi-iz-interfeysa.md) | `backend` | Давид | Записи из интерфейса без LLM: создать, перенести, выполнено, удалить и вернуть; сброс `last_action` |
 | [frontend-04](frontend-04-vhod-na-stranitse.md) | `frontend` | Ася | Вход на странице: гость по умолчанию, учётка по желанию, 401 → гость |
