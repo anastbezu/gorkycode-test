@@ -76,7 +76,9 @@ def _tomorrow_at(hour: int, tz: ZoneInfo) -> datetime:
     )
 
 
-async def test_new_user_gets_id_header_and_dataset(client: httpx.AsyncClient, db: Session) -> None:
+async def test_new_guest_gets_id_header_and_empty_calendar(
+    client: httpx.AsyncClient, db: Session
+) -> None:
     response = await client.post(
         "/api/chat",
         headers={"Origin": "https://gorky.bond"},
@@ -87,7 +89,7 @@ async def test_new_user_gets_id_header_and_dataset(client: httpx.AsyncClient, db
     user_id = UUID(response.headers["X-User-Id"])
     # Фронтенд на другом origin может прочитать выданный id.
     assert "x-user-id" in response.headers["access-control-expose-headers"].lower()
-    assert _count(db, user_id) == 1000 + 1  # стартовый датасет + «Купить хлеб»
+    assert _count(db, user_id) == 1  # гость начинает с пустого календаря: только «Купить хлеб»
 
 
 async def test_user_id_not_uuid_400(client: httpx.AsyncClient) -> None:

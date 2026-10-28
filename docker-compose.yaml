@@ -36,6 +36,7 @@ services:
       STT_API_KEY: ${STT_API_KEY:-}
       STT_MODEL: ${STT_MODEL:-}
       STT_THINKING_LEVEL: ${STT_THINKING_LEVEL:-}
+      DEMO_ACCOUNTS: ${DEMO_ACCOUNTS:-}
       CORS_ORIGINS: ${CORS_ORIGINS:-}
     depends_on:
       postgres:

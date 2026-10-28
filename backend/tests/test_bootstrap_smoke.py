@@ -1,4 +1,8 @@
-"""Импорт датасета (backend-01b): смоук-тест на 5 строк фикстуры, полный CSV, блокировка."""
+"""Импорт датасета (backend-01b): смоук-тест на 5 строк фикстуры, полный CSV, блокировка.
+
+С backend-04 датасет загружается только демо-учёткам (`services/demo_accounts.py`, тесты —
+`test_backend04.py`); гостю и новой учётке — нет (`test_api_routes.py`).
+"""
 
 import csv
 import threading
@@ -122,7 +126,8 @@ def _lock_is_free(engine: Engine, user_id: UUID) -> bool:
 
 
 def test_bootstrap_concurrent_first_requests(engine: Engine) -> None:
-    """Одновременные первые запросы одного пользователя загружают датасет ровно один раз."""
+    """Одновременные загрузки одному пользователю (например, два старта бэкенда создают одну
+    демо-учётку) загружают датасет ровно один раз."""
     user_id = uuid4()
     workers = 4
     barrier = threading.Barrier(workers, timeout=30)

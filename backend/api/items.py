@@ -11,7 +11,7 @@ from db import get_session
 from schemas import ListRecords, Record, RecordType
 from services import list_records_for_period, list_undated_records
 
-from .deps import CurrentUser, bootstrap_if_new, get_current_user_id, parse_timezone
+from .deps import CurrentUser, get_current_user_id, parse_timezone
 
 router = APIRouter(prefix="/api", tags=["items"])
 
@@ -29,6 +29,7 @@ def _to_local(record: Record, tz: ZoneInfo) -> Record:
     response_model=list[Record],
     responses={
         400: {"description": "Заголовок X-User-Id не UUID"},
+        401: {"description": "Токен учётки недействителен"},
         422: {"description": "Неверные параметры или неизвестный часовой пояс"},
     },
 )
@@ -75,10 +76,6 @@ def list_items(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="Параметр `to` должен быть позже `from`.",
         )
-    # Импорт — после проверок: при ошибке клиент не получает X-User-Id,
-    # и загруженные новому пользователю записи остались бы ничьими.
-    bootstrap_if_new(db, user, zone.key)
-
     result = list_records_for_period(
         db, user.id, ListRecords(date_from=date_from, date_to=date_to, types=type)
     )
