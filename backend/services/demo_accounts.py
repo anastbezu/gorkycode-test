@@ -18,9 +18,10 @@ import json
 import logging
 import os
 from dataclasses import dataclass
+from uuid import UUID
 
 from pydantic import ValidationError
-from sqlalchemy import delete
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
 from db import models
@@ -43,6 +44,7 @@ class DemoAccountsError(ValueError):
 class EnsureResult:
     created: list[str]
     updated_password: list[str]
+    refilled: list[str]  # демо-учётка без записей — датасет загружен заново
     skipped: list[str]  # логин занят обычной учёткой — демо-учёткой её не делаем
 
 
@@ -84,8 +86,12 @@ def parse_demo_accounts(raw: str | None = None) -> dict[str, str]:
 
 
 def ensure_demo_accounts(db: Session, accounts: dict[str, str]) -> EnsureResult:
-    """Создать недостающие демо-учётки с датасетом. Повторный вызов ничего не дублирует."""
-    created, updated, skipped = [], [], []
+    """Создать недостающие демо-учётки с датасетом. Повторный вызов ничего не дублирует.
+
+    Демо-учётка без записей получает датасет заново: учётка коммитится раньше датасета, и если
+    загрузка упала, следующий старт её дозаполнит, а не оставит пустой до ручного сброса.
+    """
+    created, updated, refilled, skipped = [], [], [], []
     for login, password in accounts.items():
         user = find_account(db, login)
         if user is None:
@@ -93,14 +99,26 @@ def ensure_demo_accounts(db: Session, accounts: dict[str, str]) -> EnsureResult:
             db.commit()
             bootstrap_user_data(db, user.id, DEMO_TIMEZONE)  # коммитит сам
             created.append(login)
-        elif not user.is_demo:
+            continue
+        if not user.is_demo:
             log.warning("Демо-учётка «%s» не создана: логин занят обычной учёткой.", login)
             skipped.append(login)
-        elif not verify_password(user.password_hash or "", password):
+            continue
+        if not verify_password(user.password_hash or "", password):
             user.password_hash = hash_password(password)
             db.commit()
             updated.append(login)
-    return EnsureResult(created, updated, skipped)
+        if not _has_records(db, user.id):
+            bootstrap_user_data(db, user.id, DEMO_TIMEZONE)  # коммитит сам
+            refilled.append(login)
+    return EnsureResult(created, updated, refilled, skipped)
+
+
+def _has_records(db: Session, user_id: UUID) -> bool:
+    count = db.scalar(
+        select(func.count()).select_from(models.Record).where(models.Record.user_id == user_id)
+    )
+    return bool(count)
 
 
 def reset_demo_account(db: Session, login: str) -> int:

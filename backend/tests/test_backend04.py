@@ -15,7 +15,7 @@ from zoneinfo import ZoneInfo
 
 import httpx
 import pytest
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
 import api.stt as stt_route
@@ -204,6 +204,30 @@ async def test_failed_logins_limit_429(client: httpx.AsyncClient) -> None:
         json={"login": "anna", "password": PASSWORD},
     )
     assert elsewhere.status_code == 200
+
+
+
+async def test_auth_requests_limit_per_ip_429(
+    client: httpx.AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(auth_rate_limiter, "limit", 3)
+    noisy = {"X-Real-IP": "198.51.100.1"}
+    for i in range(3):
+        response = await client.post(
+            "/api/auth/login", headers=noisy, json={"login": f"bot{i}", "password": PASSWORD}
+        )
+        assert response.status_code == 401
+
+    limited = await client.post(
+        "/api/auth/register", headers=noisy, json={"login": "bot_new", "password": PASSWORD}
+    )
+    assert limited.status_code == 429  # вход и регистрация — один счётчик на адрес
+    assert int(limited.headers["Retry-After"]) > 0
+    # Предел — на адрес, а не на всех: поток с одного адреса не закрывает вход остальным
+    # (например жюри во время показа).
+    await _register(client, "anna")
+    response = await client.post("/api/auth/login", json={"login": "anna", "password": PASSWORD})
+    assert response.status_code == 200
 
 
 def test_failed_logins_window() -> None:
@@ -446,6 +470,21 @@ def test_ensure_demo_accounts_updates_changed_password(db: Session) -> None:
     result = ensure_demo_accounts(db, {"jury_t": "jury-pass-2"})
 
     assert result.updated_password == ["jury_t"]
+
+
+
+def test_ensure_demo_accounts_refills_empty_demo(db: Session) -> None:
+    ensure_demo_accounts(db, {"jury_t": "jury-pass-1"})
+    jury = db.scalar(select(models.User).where(models.User.login == "jury_t"))
+    # Как если бы загрузка датасета упала после того, как учётка закоммичена
+    db.execute(delete(models.Record).where(models.Record.user_id == jury.id))
+
+    result = ensure_demo_accounts(db, {"jury_t": "jury-pass-1"})
+
+    assert result.refilled == ["jury_t"]
+    assert result.created == result.updated_password == []
+    assert _record_count(db, jury.id) == 1000
+    assert ensure_demo_accounts(db, {"jury_t": "jury-pass-1"}).refilled == []
 
 
 async def test_demo_login_from_two_devices_sees_same_records(

@@ -56,6 +56,7 @@ def main(argv: list[str] | None = None) -> int:
 
     log.info("Созданы: %s", ", ".join(result.created) or "—")
     log.info("Обновлён пароль: %s", ", ".join(result.updated_password) or "—")
+    log.info("Датасет загружен заново (были без записей): %s", ", ".join(result.refilled) or "—")
     if result.skipped:
         log.warning("Пропущены (логин занят обычной учёткой): %s", ", ".join(result.skipped))
     return 0

@@ -40,9 +40,11 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 # Удачный вход счётчик сбрасывает.
 FAILED_LOGIN_LIMIT = 10
 FAILED_LOGIN_WINDOW_SECONDS = 15 * 60
-# Общий предел на вход и регистрацию всех вместе: хеш пароля нарочно медленный, поток таких
-# запросов занял бы единственное ядро сервера, а массовая регистрация засоряла бы базу.
-AUTH_REQUESTS_PER_MINUTE = 100
+# Предел на вход и регистрацию с одного IP: хеш пароля нарочно медленный, поток таких запросов
+# занял бы единственное ядро сервера, а массовая регистрация засоряла бы базу. Не на всех
+# вместе: общий счётчик дал бы любому, кто шлёт 100 запросов в минуту, закрыть вход всем —
+# и жюри во время показа.
+AUTH_REQUESTS_PER_MINUTE = 30
 
 WRONG_CREDENTIALS = "Неверный логин или пароль."
 LOGIN_RULES = "Логин — от 3 до 32 символов: латинские буквы, цифры, «_», «.» и «-»."
@@ -101,8 +103,8 @@ def _too_many(detail: str, retry_after: float) -> HTTPException:
     )
 
 
-def _check_global_limit() -> None:
-    retry_after = auth_rate_limiter.hit("all")
+def _check_ip_limit(request: Request) -> None:
+    retry_after = auth_rate_limiter.hit(client_ip(request))
     if retry_after is not None:
         raise _too_many("Слишком много попыток входа — подождите минуту и повторите.", retry_after)
 
@@ -156,10 +158,10 @@ def _token_or_401(authorization: str | None) -> str:
     },
 )
 def register_account(
-    body: Credentials, db: Annotated[Session, Depends(get_session)]
+    body: Credentials, request: Request, db: Annotated[Session, Depends(get_session)]
 ) -> AuthResponse:
     """Новая учётка без записей; сразу выполняется вход. Логин сравнивается без учёта регистра."""
-    _check_global_limit()
+    _check_ip_limit(request)
     try:
         user = register(db, body.login, body.password)
     except LoginTakenError as exc:
@@ -185,7 +187,7 @@ def login(
     body: Credentials, request: Request, db: Annotated[Session, Depends(get_session)]
 ) -> AuthResponse:
     """Вход по логину и паролю. Ошибка одна на оба случая: не подсказывает, что неверно."""
-    _check_global_limit()
+    _check_ip_limit(request)
     key = f"{body.login.lower()}|{client_ip(request)}"
     retry_after = failed_logins.retry_after(key)
     if retry_after is not None:

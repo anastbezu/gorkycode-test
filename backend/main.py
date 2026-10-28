@@ -53,11 +53,12 @@ def _ensure_demo_accounts() -> None:
             return
         with SessionLocal() as db:
             result = ensure_demo_accounts(db, accounts)
-        if result.created or result.updated_password:
+        if result.created or result.updated_password or result.refilled:
             log.info(
-                "Демо-учётки: созданы %s, обновлён пароль %s",
+                "Демо-учётки: созданы %s, обновлён пароль %s, датасет загружен заново %s",
                 result.created or "—",
                 result.updated_password or "—",
+                result.refilled or "—",
             )
     except Exception:
         log.exception("Демо-учётки не созданы")
