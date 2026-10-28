@@ -8,6 +8,10 @@
 
 Переменные: AGENT_SECTION — разделы через запятую; AGENT_PAUSE — пауза перед вызовом
 модели, с (по умолчанию 4); AGENT_MIN_RATE — минимальная доля прошедших, % (по умолчанию 0).
+
+С TEST_DATABASE_URL прогон идёт на тестовой базе (настоящие сервисы и состояние, всё в одной
+транзакции, которая откатывается): тогда проверяются и изменения записей (раздел 7), и
+пересечения (8.5, 8.7, 8.8). Без неё эти кейсы пропускаются с причиной.
 """
 
 import os
@@ -15,12 +19,12 @@ import os
 import pytest
 from dotenv import load_dotenv
 
-from tests.agent_live import Harness, render, select_cases
+from tests.agent_live import Harness, render, select_cases, skip_reason
 
 pytestmark = pytest.mark.live
 
 
-def test_live_reference_cases(monkeypatch, capsys):
+def test_live_reference_cases(monkeypatch, capsys, request):
     if os.environ.get("AGENT_LIVE") != "1":
         pytest.skip("живой прогон выключен: запуск — AGENT_LIVE=1 и ключ LLM, "
                     "см. docs/modules/agent.md, «Автотест»")
@@ -41,9 +45,12 @@ def test_live_reference_cases(monkeypatch, capsys):
 
     monkeypatch.setattr(agent_module, "make_client", make_client_with_timeout)
 
-    harness = Harness(monkeypatch, get_action, pause=float(os.environ.get("AGENT_PAUSE", "4")))
+    # Явный TEST_DATABASE_URL — прогон на базе (фикстура db: транзакция с откатом).
+    db = request.getfixturevalue("db") if os.environ.get("TEST_DATABASE_URL") else None
+    harness = Harness(monkeypatch, get_action, db=db,
+                      pause=float(os.environ.get("AGENT_PAUSE", "4")))
     cases = select_cases(os.environ.get("AGENT_SECTION"))
-    todo = [c for c in cases if c.skip is None]
+    todo = [c for c in cases if skip_reason(c, db is not None) is None]
     reports = []
     for number, case in enumerate(todo, 1):
         report = harness.run_case(case)
@@ -54,7 +61,7 @@ def test_live_reference_cases(monkeypatch, capsys):
         if harness.provider_failures >= 3:
             pytest.skip("живой прогон прерван: модель не ответила три кейса подряд "
                         "(таймаут или ошибка провайдера) — повторите позже")
-    text = render(reports, skipped=[c for c in cases if c.skip is not None])
+    text = render(reports, skipped=[c for c in cases if c not in todo])
     with capsys.disabled():
         print("\n" + text)
 

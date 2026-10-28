@@ -17,6 +17,9 @@
   (для `start` это ещё и «время не названо», time_given=false); NONE — поля нет;
 - `types` — типы списка (tuple), ALL — все типы (None или все три);
 - `kind` — у help: help / offtopic;
+- `status` — у set_status: done / cancelled / active; `replaces_last` — «нет, не этот, а тот»;
+- цель изменения (`target`): `target_index` — номер из «Показано», `target_focus` — «её»,
+  `target_all` — «все …» / «да» на подтверждение, `target_text` — основы слов описания;
 - `ok` — успешно ли исполнено действие; `awaiting` — ждёт ли ассистент ответа после реплики
   ("answer" или NONE). У `create(...)` по умолчанию ok=True и awaiting=NONE: положительный
   сценарий создания проходит, только если запись создана и уточнение завершено.
@@ -26,6 +29,10 @@ false (иначе запись станет «на весь день» или п
 
 Кейс пропускается с причиной (`skip`), если для него ещё нет действия или состояния
 разговора. Такие кейсы не удаляются и не переписываются под текущее поведение.
+
+Изменение записей (раздел 7) и пересечения (8.5, 8.7, 8.8) проверяются только с базой:
+`records` — записи пользователя до первой реплики (вместо стартового набора и предыдущих
+кейсов из колонки «Предусловие»), `awaiting="choice"` — ассистент ждёт выбора.
 """
 
 from dataclasses import dataclass, field
@@ -36,10 +43,8 @@ ALL = "all"
 NOW = "2026-10-21 10:00"
 TIMEZONE = "Europe/Moscow"
 
-NO_UPDATE = "нет действий update_record / set_status / undo_last (agent-07)"
 NO_STATE = "нужны отказ и смена темы в состоянии разговора (agent-06)"
-NO_CONFLICTS = "нет проверки конфликтов и дублей (backend-03)"
-NO_MULTI = "нет нескольких действий в одной реплике (agent-07)"
+NEEDS_DB = "нужна база: TEST_DATABASE_URL (изменения и пересечения проверяются на записях)"
 MANUAL = "проверяется руками в интерфейсе"
 
 
@@ -58,8 +63,24 @@ class Expect:
     query_from: str | None = None
     query_to: str | None = None
     kind: str | None = None
+    status: str | None = None
+    replaces_last: bool | None = None
+    target_index: int | None = None
+    target_focus: bool | None = None
+    target_all: bool | None = None
+    target_text: tuple[str, ...] = ()
     ok: bool | None = None
     awaiting: str | None = None
+
+
+@dataclass(frozen=True)
+class Seed:
+    """Запись пользователя до начала кейса; время — локальное, как в `Expect`."""
+
+    type: str
+    title: str
+    start: str | None = None
+    deadline: str | None = None
 
 
 @dataclass(frozen=True)
@@ -74,11 +95,17 @@ class Case:
     turns: tuple[Turn, ...]
     skip: str | None = None
     ref: str | None = None  # раздел 9: строка «Выражение» из таблицы
+    records: tuple[Seed, ...] = ()  # записи пользователя до первой реплики
+    db: bool = False  # проверяется только с базой (изменения, пересечения)
     note: str = field(default="", compare=False)
 
     @property
     def section(self) -> str:
         return self.id.split(".")[0].split(":")[0]
+
+    @property
+    def needs_db(self) -> bool:
+        return self.db or bool(self.records)
 
 
 def create(type_: str, title: tuple[str, ...] = (), *, ok: bool | None = True,
@@ -104,6 +131,38 @@ def one(id_: str, text: str, expect: Expect, **kwargs) -> Case:
 def dialog(id_: str, *turns: tuple[str, Expect], **kwargs) -> Case:
     return Case(id=id_, turns=tuple(Turn(t, e) for t, e in turns), **kwargs)
 
+
+def change(action: str, *, ok: bool | None = True, awaiting: str | None = NONE,
+           **fields) -> Expect:
+    """Изменение (update_record, set_status, undo_last); по умолчанию — исполнено сразу."""
+    return Expect(action=action, ok=ok, awaiting=awaiting, **fields)
+
+
+def choice(action: str, **fields) -> Expect:
+    """Цель неоднозначна или нужно подтверждение: ничего не изменено, ждём выбора."""
+    return Expect(action=action, ok=False, awaiting="choice", **fields)
+
+
+def seed(type_: str, title: str, start: str | None = None, **fields) -> Seed:
+    return Seed(type_, title, start, **fields)
+
+
+# Записи-предусловия раздела 7: то, что создают кейсы 1.4, 1.5, 2.1, 2.13, 2.14, 2.17,
+# и похожие записи из стартового набора.
+IVAN = seed("meeting", "Встреча с Иваном", "2026-10-22 15:00")
+TEAM = seed("meeting", "Встреча с командой", "2026-10-22 15:00")
+DESIGNER = seed("meeting", "Встреча с дизайнером", "2026-10-22 11:00")
+OLGA = seed("reminder", "Позвонить Ольге", "2026-10-22 09:00")
+ALFA = seed("meeting", "Созвон с Альфой по бюджету", "2026-10-22 12:00")
+NATALIA = seed("meeting", "Встреча с Натальей по презентации", "2026-10-27 16:30")
+VECTOR = seed("meeting", "Созвон с Вектором по интеграции", "2026-10-22 15:00")
+VECTOR_SITE = seed("meeting", "Созвон с Вектором по сайту", "2026-10-28 12:00")
+MAXIM = seed("task", "Подготовить вопросы для Максимом", "2026-10-22 09:15")
+REPORTS = (seed("task", "Подготовить отчёт по продажам", deadline="2026-10-23 23:59"),
+           seed("task", "Отправить отчёт Ольге", deadline="2026-10-24 23:59"))
+CONTRACTS = (seed("task", "Согласовать договор с Иваном", deadline="2026-10-25 23:59"),
+             seed("task", "Отправить договор Марии", deadline="2026-10-26 23:59"))
+TOMORROW = (MAXIM, ALFA, TEAM)  # «что у меня на завтра»: три записи, вторая — 12:00
 
 TASKS = ("task", "reminder")  # «задачи» в контракте — задачи и напоминания
 ASK = Expect(action="create_record|ask_user", awaiting="answer")  # шаг, после которого ждём ответа
@@ -139,7 +198,12 @@ CASES: tuple[Case, ...] = (
            ("Поставь встречу с Иваном завтра", ASK),
            ("в 15:00", create("meeting", ("Иван",), start="2026-10-22 15:00",
                               ok=True, awaiting=NONE))),
-    one("1.16", "А перенеси ее на завтра", Expect(action="update_record"), skip=NO_UPDATE),
+    dialog("1.16",
+           ("Встреча с Натальей по презентации во вторник в 16:30",
+            create("meeting", ("Натал",), start="2026-10-27 16:30")),
+           ("А перенеси ее на завтра",
+            change("update_record", target_focus=True, start="2026-10-22 16:30")),
+           db=True, note="сразу после 2.14"),
 
     # ── 2. Создание: задачи и напоминания ───────────────────────────────────
     one("2.1", "Напомни завтра в девять утра позвонить Ольге",
@@ -370,31 +434,98 @@ CASES: tuple[Case, ...] = (
         create("reminder", ("договор", "Иван"), start="2026-10-22 10:00")),
 
     # ── 7. Бонус: изменение, выполнение, отмена ─────────────────────────────
-    *(one(f"7.{n}", text, Expect(action="update_record|set_status|undo_last"), skip=NO_UPDATE)
-      for n, text in [
-          (1, "Перенеси встречу с Иваном на пятницу"),
-          (2, "Отметь задачу про отчёт выполненной"),
-          (3, "Отмени созвон с Вектором"),
-          (4, "А перенеси вторую на пятницу"),
-          (5, "Сдвинь её на час позже"),
-          (6, "Я уже позвонил Ольге"),
-          (7, "Отмени задачу про договор"),
-          (8, "ну это, отмени вот ту задачу про отчёт, не надо уже"),
-          (9, "отметь что я это уже сделал"),
-          (10, "не, стоп, отмени"),
-          (11, "Нет, не в 15, а в 16"),
-          (12, "Отмени встречу с дизайнером"),
-          (13, "Верни"),
-          (14, "Отмени созвон с Вектором по интеграции"),
-          (15, "Нет, не этот, а тот, что по сайту"),
-          (16, "Перенеси её на завтра"),
-          (17, "Перенеси встречу с Натальей на час позже"),
-          (18, "Верни как было"),
-          (19, "Отмени всё на завтра"),
-          (20, "Да"),
-          (21, "Верни"),
-          (22, "Отмени все созвоны на этой неделе"),
-      ]),
+    one("7.1", "Перенеси встречу с Иваном на пятницу",
+        change("update_record", target_text=("Иван",), start="2026-10-23 15:00"),
+        records=(IVAN,)),
+    dialog("7.2",
+           ("Отметь задачу про отчёт выполненной",
+            choice("set_status", status="done", target_text=("отч",))),
+           ("Первую", change("set_status", status="done", target_index=1)),
+           records=REPORTS),
+    dialog("7.3",
+           ("Отмени созвон с Вектором",
+            choice("set_status", status="cancelled", target_text=("Вектор",))),
+           ("Вторую", change("set_status", status="cancelled", target_index=2)),
+           records=(VECTOR, VECTOR_SITE)),
+    dialog("7.4",
+           ("Что у меня на завтра?", listing("2026-10-22 00:00", "2026-10-23 00:00")),
+           ("А перенеси вторую на пятницу",
+            change("update_record", target_index=2, start="2026-10-23 12:00")),
+           records=TOMORROW),
+    dialog("7.5",
+           ("Добавь встречу с командой завтра в 15:00",
+            create("meeting", ("команд",), start="2026-10-22 15:00")),
+           ("Сдвинь её на час позже",
+            change("update_record", target_focus=True, start="2026-10-22 16:00")),
+           db=True),
+    one("7.6", "Я уже позвонил Ольге",
+        change("set_status", status="done", target_text=("Ольг",)), records=(OLGA,)),
+    one("7.7", "Отмени задачу про договор",
+        choice("set_status", status="cancelled", target_text=("договор",)),
+        records=CONTRACTS),
+    one("7.8", "ну это, отмени вот ту задачу про отчёт, не надо уже",
+        choice("set_status", status="cancelled", target_text=("отч",)), records=REPORTS),
+    one("7.9", "отметь что я это уже сделал",
+        Expect(action="set_status|ask_user|help"), db=True,
+        note="новый разговор: ссылаться не на что — вопрос, ничего не изменено"),
+    dialog("7.10",
+           ("Напомни завтра в 10 позвонить в банк",
+            create("reminder", ("позвон", "банк"), start="2026-10-22 10:00")),
+           ("не, стоп, отмени", Expect(action="set_status|undo_last", ok=True)),
+           db=True),
+    dialog("7.11",
+           ("Добавь встречу с командой завтра в 15:00",
+            create("meeting", ("команд",), start="2026-10-22 15:00")),
+           ("Нет, не в 15, а в 16",
+            change("update_record", target_focus=True, start="2026-10-22 16:00")),
+           db=True),
+    one("7.12", "Отмени встречу с дизайнером",
+        change("set_status", status="cancelled", target_text=("дизайнер",)),
+        records=(DESIGNER,)),
+    dialog("7.13",
+           ("Отмени встречу с дизайнером",
+            change("set_status", status="cancelled", target_text=("дизайнер",))),
+           ("Верни", change("undo_last")),
+           records=(DESIGNER,)),
+    one("7.14", "Отмени созвон с Вектором по интеграции",
+        change("set_status", status="cancelled", target_text=("Вектор", "интеграц")),
+        records=(VECTOR, VECTOR_SITE)),
+    dialog("7.15",
+           ("Отмени созвон с Вектором по интеграции",
+            change("set_status", status="cancelled", target_text=("Вектор", "интеграц"))),
+           ("Нет, не этот, а тот, что по сайту",
+            change("set_status", status="cancelled", replaces_last=True,
+                   target_text=("сайт",))),
+           records=(VECTOR, VECTOR_SITE)),
+    dialog("7.16",
+           ("Что у меня на завтра?", listing("2026-10-22 00:00", "2026-10-23 00:00")),
+           ("Перенеси её на завтра", Expect(action="update_record|ask_user", ok=None)),
+           records=TOMORROW,
+           note="фокуса нет: ассистент спрашивает, какую из показанных"),
+    one("7.17", "Перенеси встречу с Натальей на час позже",
+        change("update_record", target_text=("Натал",), start="2026-10-27 17:30"),
+        records=(NATALIA,)),
+    dialog("7.18",
+           ("Перенеси встречу с Натальей на час позже",
+            change("update_record", target_text=("Натал",), start="2026-10-27 17:30")),
+           ("Верни как было", change("undo_last")),
+           records=(NATALIA,)),
+    one("7.19", "Отмени всё на завтра",
+        choice("set_status", status="cancelled", target_all=True), records=TOMORROW),
+    dialog("7.20",
+           ("Отмени всё на завтра",
+            choice("set_status", status="cancelled", target_all=True)),
+           ("Да", change("set_status", status="cancelled", target_all=True)),
+           records=TOMORROW),
+    dialog("7.21",
+           ("Отмени всё на завтра",
+            choice("set_status", status="cancelled", target_all=True)),
+           ("Да", change("set_status", status="cancelled", target_all=True)),
+           ("Верни", change("undo_last")),
+           records=TOMORROW),
+    one("7.22", "Отмени все созвоны на этой неделе",
+        choice("set_status", status="cancelled", target_all=True),
+        records=(ALFA, VECTOR, VECTOR_SITE)),
 
     # ── 8. Граничные случаи ─────────────────────────────────────────────────
     one("8.1", "Какая сегодня погода?", Expect(action="help", kind="offtopic")),
@@ -404,15 +535,17 @@ CASES: tuple[Case, ...] = (
     one("8.4", "Напомни вчера в 10 утра позвонить в банк",
         create("reminder", ("позвон", "банк"), start="2026-10-20 10:00", ok=False)),
     one("8.5", "Поставь встречу с Анной завтра в 12",
-        create("meeting", ("Анн",), start="2026-10-22 12:00"), skip=NO_CONFLICTS),
+        create("meeting", ("Анн",), start="2026-10-22 12:00"), records=(ALFA,)),
     one("8.6", "ну привет, э, как там у меня дела вообще",
         Expect(action="list_records|ask_user")),
     one("8.7", "Поставь встречу с Анной завтра в 12:30",
-        create("meeting", ("Анн",), start="2026-10-22 12:30"), skip=NO_CONFLICTS),
+        create("meeting", ("Анн",), start="2026-10-22 12:30"), records=(ALFA,)),
     one("8.8", "Поставь созвон с Альфой по бюджету завтра в 12",
-        create("meeting", ("Альф",), start="2026-10-22 12:00"), skip=NO_CONFLICTS),
+        create("meeting", ("Альф",), start="2026-10-22 12:00", ok=False, awaiting=None),
+        records=(ALFA,), note="точный дубль: запись не создана"),
     one("8.9", "запиши задачу подготовить акт и ещё поставь встречу с Максимом завтра в 16",
-        create("task", ("акт",)), skip=NO_MULTI),
+        create("task", ("акт",)),
+        note="Gemini отдаёт один вызов: создано первое, ответ просит второе отдельно"),
 
     # ── 9. Даты и время (номера нет — кейс ссылается на строку таблицы) ─────
     one("9:сегодня", "Напомни сегодня в 15 позвонить маме",

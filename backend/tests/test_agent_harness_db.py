@@ -123,3 +123,107 @@ def test_meeting_time_without_day_asks_day_3_8(db: Session, monkeypatch) -> None
     [row] = records(db, user_id)
     assert row.start == datetime(2026, 10, 22, 14, 45, tzinfo=TZ)
     assert row.all_day is False
+
+
+# --- Раздел 7 и пересечения: «идеальная модель» проходит кейсы на настоящем коде -----------
+# Если кейс здесь падает, расходятся ожидание в agent_cases.py и код агента, а не модель.
+
+def _ideal_model_actions() -> dict:
+    import pytest as _pytest  # noqa: F401  (только чтобы файл не терял импорты при правке)
+
+    from schemas import (
+        AskUser,
+        ListRecords,
+        SearchFilters,
+        SetStatus,
+        TargetRef,
+        UndoLast,
+        UpdateRecord,
+    )
+
+    def at(day, hour=0, minute=0):
+        return datetime(2026, 10, day, hour, minute, tzinfo=TZ)
+
+    def status(value, **target):
+        return SetStatus(target=TargetRef(**target), status=value)
+
+    def move(start, **target):
+        return UpdateRecord(target=TargetRef(**target), start=start, time_given=True)
+
+    def shift(minutes, **target):
+        return UpdateRecord(target=TargetRef(**target), shift_minutes=minutes)
+
+    tomorrow = ListRecords(date_from=at(22), date_to=at(23))
+    team = CreateRecord(type="meeting", title="встреча с командой", start=at(22, 15),
+                        time_given=True)
+    natalia = CreateRecord(type="meeting", title="встреча с Натальей по презентации",
+                           start=at(27, 16, 30), time_given=True)
+    bank = CreateRecord(type="reminder", title="позвонить в банк", start=at(22, 10),
+                        time_given=True)
+    vector = status("cancelled", text="созвон с Вектором по интеграции")
+    all_tomorrow = status("cancelled", all=True, filters=SearchFilters(
+        date_from=at(22), date_to=at(23)))
+    return {
+        "1.16": [natalia, move(at(22, 16, 30), focus=True)],
+        "7.1": [move(at(23, 15), text="встречу с Иваном")],
+        "7.2": [status("done", text="задачу про отчёт"), status("done", index=1)],
+        "7.3": [status("cancelled", text="созвон с Вектором"), status("cancelled", index=2)],
+        "7.4": [tomorrow, move(at(23, 12), index=2)],
+        "7.5": [team, shift(60, focus=True)],
+        "7.6": [status("done", text="позвонить Ольге")],
+        "7.7": [status("cancelled", text="задачу про договор")],
+        "7.8": [status("cancelled", text="задачу про отчёт")],
+        "7.9": [AskUser(question="Что отметить?", missing=["target"])],
+        "7.10": [bank, status("cancelled", focus=True)],
+        "7.11": [team, move(at(22, 16), focus=True)],
+        "7.12": [status("cancelled", text="встречу с дизайнером")],
+        "7.13": [status("cancelled", text="встречу с дизайнером"), UndoLast()],
+        "7.14": [vector],
+        "7.15": [vector, SetStatus(target=TargetRef(text="созвон по сайту"),
+                                   status="cancelled", replaces_last=True)],
+        "7.16": [tomorrow, move(at(22, 16), focus=True)],
+        "7.17": [shift(60, text="встречу с Натальей")],
+        "7.18": [shift(60, text="встречу с Натальей"), UndoLast()],
+        "7.19": [all_tomorrow],
+        "7.20": [all_tomorrow, status("cancelled", all=True)],
+        "7.21": [all_tomorrow, status("cancelled", all=True), UndoLast()],
+        "7.22": [status("cancelled", all=True, text="созвон", filters=SearchFilters(
+            types=["meeting"], date_from=at(19), date_to=at(26)))],
+        "8.5": [CreateRecord(type="meeting", title="встреча с Анной", start=at(22, 12),
+                             time_given=True)],
+        "8.7": [CreateRecord(type="meeting", title="встреча с Анной", start=at(22, 12, 30),
+                             time_given=True)],
+        "8.8": [CreateRecord(type="meeting", title="Созвон с Альфой по бюджету",
+                             start=at(22, 12), time_given=True)],
+    }
+
+
+def test_cases_with_records_pass_on_ideal_model(db: Session, monkeypatch) -> None:
+    ideal = _ideal_model_actions()
+    db_cases = [c for c in CASES if c.needs_db and c.skip is None]
+    assert sorted(c.id for c in db_cases) == sorted(ideal), "у кейса с базой нет сценария"
+    failed = {}
+    for case in db_cases:
+        harness = Harness(monkeypatch, scripted(*ideal[case.id]), db=db)
+        report = harness.run_case(case)
+        if not report.passed:
+            turn = report.turns[-1]
+            failed[case.id] = (turn.number, turn.reply, turn.problems)
+    assert failed == {}
+
+
+def test_harness_sees_applied_change_not_raw_model_answer(db: Session, monkeypatch) -> None:
+    """Живой прогон 27.10: модель ошиблась, код поправил — автотест сверяет исполненное."""
+    from schemas import TargetRef, UpdateRecord
+
+    def case(case_id):
+        return next(c for c in CASES if c.id == case_id)
+
+    midnight = UpdateRecord(target=TargetRef(text="встречу с Иваном"),
+                            start=datetime(2026, 10, 23, tzinfo=TZ))
+    report = Harness(monkeypatch, scripted(midnight), db=db).run_case(case("7.1"))
+    assert report.passed, report.turns[-1].problems
+
+    later = UpdateRecord(target=TargetRef(text="встречу с Натальей"), shift_minutes=60)
+    report = Harness(monkeypatch, scripted(later), db=db).run_case(case("7.17"))
+    assert report.passed, report.turns[-1].problems

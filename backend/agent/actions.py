@@ -12,6 +12,16 @@ from services import create_record, list_records_for_period
 from services.search_stub import search_by_substring  # TODO: заменить на search() из модуля Родиона
 
 
+class SearchResult(ActionResult):
+    """Результат поиска для ответа: `similar` — точных нет, это похожие (search.md).
+
+    Признак только для шаблона ответа: в `ChatResponse.result` поле объявлено как
+    `ActionResult`, поэтому наружу `similar` не уходит и контракт API не меняется.
+    """
+
+    similar: bool = False
+
+
 async def handle_create_record(
     db, user_id, action: CreateRecord, now: datetime | None = None
 ) -> ActionResult:
@@ -31,7 +41,10 @@ async def handle_search_records(
     hits = await asyncio.to_thread(
         search_by_substring, db, user_id, action.query, action.filters
     )
-    return ActionResult(action="search_records", ok=True, records=[hit.record for hit in hits])
+    similar = bool(hits) and all(hit.match == "similar" for hit in hits)
+    return SearchResult(
+        action="search_records", ok=True, records=[hit.record for hit in hits], similar=similar
+    )
 
 
 async def handle_help(db, user_id, action: Help, now: datetime | None = None) -> ActionResult:

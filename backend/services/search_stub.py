@@ -4,13 +4,14 @@
 плюс `db` первым аргументом, потому что заглушке нужна сессия базы.
 """
 
+from datetime import datetime
 from uuid import UUID
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from db import models
-from schemas import Record, RecordStatus, SearchFilters, SearchHit
+from schemas import Record, RecordStatus, SearchFilters, SearchHit, TargetMatch
 
 MIN_WORD_LEN = 2
 
@@ -52,3 +53,70 @@ def search_by_substring(
 
     stmt = stmt.order_by(when.desc()).limit(limit)
     return [SearchHit(record=Record.model_validate(r), score=1.0) for r in db.scalars(stmt).all()]
+
+
+def _narrow_by_when(records: list[Record], when: datetime) -> list[Record]:
+    """Сужение по названному времени: день и время → тот же день → то же время."""
+    def local(record: Record) -> datetime | None:
+        moment = record.start or record.deadline
+        return moment.astimezone(when.tzinfo) if moment is not None else None
+
+    day_only = (when.hour, when.minute) == (0, 0)
+    same_moment = [r for r in records if (m := local(r)) is not None
+                   and (m.date(), m.hour, m.minute) == (when.date(), when.hour, when.minute)]
+    same_day = [r for r in records if (m := local(r)) is not None and m.date() == when.date()]
+    same_time = [r for r in records if (m := local(r)) is not None
+                 and (m.hour, m.minute) == (when.hour, when.minute)]
+    tiers = [same_day] if day_only else [same_moment, same_day, same_time]
+    return next((tier for tier in tiers if tier), [])
+
+
+# Слова типа записи не обязаны быть в названии: «встречу с Иваном» ↔ «Созвон с Иваном» — нет,
+# но «встречу с Иваном» ↔ «Иван, обсудить бюджет» — да (search.md, «Точно»).
+TYPE_STEMS = ("встреч", "задач", "напомин")
+STOP_WORDS = {"для", "про", "под", "над", "все", "всё", "мою", "мой", "эту", "этот"}
+
+
+def target_stems(text: str) -> list[str]:
+    """Основы значимых слов: грубо отрезаем окончание, чтобы «Иваном» нашёл «Иван»."""
+    stems = []
+    for word in query_words(text.lower()):
+        word = word.strip(".,!?«»\"")
+        if word in STOP_WORDS or word.startswith(TYPE_STEMS):
+            continue
+        cut = 2 if len(word) >= 6 else 1 if len(word) == 5 else 0
+        stems.append(word[: len(word) - cut])
+    return stems
+
+
+def find_target(
+        db: Session, user_id: UUID, text: str | None, when: datetime | None,
+        filters: SearchFilters | None, statuses: list[RecordStatus], limit: int = 21,
+) -> TargetMatch:
+    """ВРЕМЕННАЯ заглушка find_target() из search.md: «точно» — основы всех значимых слов
+    описания есть в названии.
+
+    Похожих по смыслу заглушка не находит: `similar` — только точные по словам записи,
+    которые не подошли под названное время (как в контракте).
+    """
+    m = models.Record
+    stmt = select(m).where(m.user_id == user_id, m.status.in_(statuses))
+    for stem in target_stems(text or ""):
+        stmt = stmt.where(m.title.ilike(like_pattern(stem), escape="\\"))
+    if filters is not None:
+        if filters.types:
+            stmt = stmt.where(m.type.in_(filters.types))
+        moment = func.coalesce(m.start, m.deadline)
+        if filters.date_from is not None:
+            stmt = stmt.where(moment >= filters.date_from)
+        if filters.date_to is not None:
+            stmt = stmt.where(moment < filters.date_to)
+    order = func.coalesce(m.start, m.deadline)
+    stmt = stmt.order_by(order.is_(None), order, m.created_at)
+    records = [Record.model_validate(r) for r in db.scalars(stmt).all()]
+    if when is None:
+        return TargetMatch(exact=records[:limit])
+    exact = _narrow_by_when(records, when)
+    if exact or not text:
+        return TargetMatch(exact=exact[:limit])
+    return TargetMatch(similar=records[:3])

@@ -68,3 +68,44 @@ def test_repeated_title_is_grouped_with_latest_representative():
     ]
     reply = reply_for_search(records, "созвон юристы", TZ, NOW)
     assert "Созвон с юристами — 3 раза, последний 20.11.2026" in reply
+
+
+def test_similar_hits_say_not_found_exactly_and_list_similar(monkeypatch):
+    """agent-09: search() отдал только похожие — «Точно не нашёл …. Похожие: …»."""
+    import asyncio
+
+    from agent import actions as actions_module
+    from schemas import SearchFilters, SearchHit
+
+    lease = make("Договор поставки", start=datetime(2026, 10, 26, 15, 0, tzinfo=MSK))
+    monkeypatch.setattr(actions_module, "search_by_substring", lambda *args: [
+        SearchHit(record=lease, score=0.7, match="similar")])
+    action = SearchRecords(query="договор аренды", filters=SearchFilters())
+    result = asyncio.run(actions_module.execute(None, uuid4(), action, now=NOW))
+
+    assert result.records == [lease]
+    reply = reply_for_result(result, TZ, action=action, now=NOW)
+    assert reply == (
+        "Точно не нашёл «договор аренды». Похожие: «Договор поставки» — завтра, в 15:00."
+    )
+    # Наружу (ChatResponse.result: ActionResult) признак не уходит — контракт API прежний.
+    from schemas import ChatResponse
+
+    response = ChatResponse(conversation_id=uuid4(), reply=reply, result=result)
+    assert "similar" not in response.model_dump()["result"]
+    assert "similar" not in response.model_dump_json()
+
+
+def test_exact_hits_reply_as_before(monkeypatch):
+    import asyncio
+
+    from agent import actions as actions_module
+    from schemas import SearchFilters, SearchHit
+
+    record = make("Договор аренды", start=datetime(2026, 10, 26, 15, 0, tzinfo=MSK))
+    monkeypatch.setattr(actions_module, "search_by_substring", lambda *args: [
+        SearchHit(record=record, score=1.0)])
+    action = SearchRecords(query="договор аренды", filters=SearchFilters())
+    result = asyncio.run(actions_module.execute(None, uuid4(), action, now=NOW))
+    assert reply_for_result(result, TZ, action=action, now=NOW) == (
+        "«Договор аренды» — завтра, в 15:00.")

@@ -53,6 +53,9 @@ def reply_for_result(
         return f"Нашёл записей: {len(result.records)}."
     if result.action == "search_records":
         if isinstance(action, SearchRecords) and now is not None:
-            return reply_for_search(result.records, action.query, timezone_name, now)
+            return reply_for_search(
+                result.records, action.query, timezone_name, now,
+                similar=getattr(result, "similar", False),
+            )
         return f"Нашёл записей: {len(result.records)}." if result.records else "Ничего не нашлось."
     return "Готово."

@@ -1,5 +1,7 @@
 import json
+import re
 from asyncio import to_thread
+from contextvars import ContextVar
 from datetime import datetime
 from uuid import UUID
 from zoneinfo import ZoneInfo
@@ -7,7 +9,13 @@ from zoneinfo import ZoneInfo
 import openai
 from pydantic import ValidationError
 
-from schemas import AskUser, ChatResponse, CreateRecord, LLMAction, LLMConfig
+from schemas import (
+    AskUser,
+    ChatResponse,
+    CreateRecord,
+    LLMAction,
+    LLMConfig,
+)
 from services.conversation import (
     get_or_create_conversation_state,
     merge_pending,
@@ -16,6 +24,8 @@ from services.conversation import (
 from services.records import get_record
 
 from .actions import execute
+from .change_replies import reply_for_change
+from .changes import CHANGE_ACTIONS, execute_change
 from .context import build_state_context, record_summary
 from .llm import LLMConfigError, make_client
 from .presentation import MAX_SHOWN
@@ -36,6 +46,24 @@ class ActionParseError(Exception):
     """Модель вернула действие, которое не удалось разобрать."""
 
 
+# Несколько команд в одной фразе (agent-07). Проверка живым запросом (docs/modules/agent.md,
+# «Несколько команд»): Gemini при любых параметрах отдаёт один вызов. Поэтому исполняется
+# первое действие, а ответ просит сказать остальное отдельно — если модель всё же вернула
+# несколько вызовов или во фразе две команды подряд («запиши … и поставь …»).
+EXTRA_CALLS: ContextVar[int] = ContextVar("extra_calls", default=0)
+COMMAND = re.compile(
+    r"\b(?:запиши|запишите|поставь|поставьте|напомни|напомните|добавь|добавьте|создай|"
+    r"создайте|запланируй|отмени|отмените|перенеси|перенесите|сдвинь|отметь|удали)\b",
+    re.IGNORECASE,
+)
+SAY_REST = "Остальное скажите отдельно."
+
+
+def several_commands(text: str) -> bool:
+    """Во фразе не меньше двух глаголов-команд: «запиши задачу … и поставь встречу …»."""
+    return len(COMMAND.findall(text)) >= 2
+
+
 async def get_action(
     text: str,
     now: datetime,
@@ -50,21 +78,30 @@ async def get_action(
     if context:
         prompt += "\n" + context
     tools = localize_tools(get_agent_tools(), now)
-    response = await client.chat.completions.create(
-        model=model,
-        messages=[
-            {"role": "system", "content": prompt},
-            {"role": "user", "content": text},
-        ],
-        tools=tools,
-        tool_choice="required",
-    )
+    try:
+        response = await client.chat.completions.create(
+            model=model,
+            messages=[
+                {"role": "system", "content": prompt},
+                {"role": "user", "content": text},
+            ],
+            tools=tools,
+            tool_choice="required",
+        )
+    finally:
+        # Клиент создаётся на запрос: закрываем соединения сразу, а не сборщиком мусора
+        # после закрытия цикла событий («Event loop is closed» в живом прогоне на Windows).
+        close = getattr(client, "close", None)
+        if close is not None:
+            await close()
     if not response.choices:
         raise ActionParseError("модель вернула пустой ответ")
     message = response.choices[0].message
 
-    if not message.tool_calls or len(message.tool_calls) != 1:
-        raise ActionParseError("модель должна вернуть ровно одно действие")
+    if not message.tool_calls:
+        raise ActionParseError("модель не вернула действие")
+    # Несколько вызовов — исполняем первый, ответ попросит остальное отдельно.
+    EXTRA_CALLS.set(len(message.tool_calls) - 1)
 
     call = message.tool_calls[0]
     if call.function.name not in {tool["function"]["name"] for tool in tools}:
@@ -90,6 +127,7 @@ async def process_user_turn(
     # Готовый now подставляют автотесты (agent-08).
     zone = ZoneInfo(timezone_name)
     now = now.astimezone(zone) if now is not None else datetime.now(zone)
+    EXTRA_CALLS.set(0)
     state = await to_thread(get_or_create_conversation_state, db, conversation_id, user_id)
     if is_refusal(text, state):
         creating = state.pending is not None and isinstance(state.pending.root, CreateRecord)
@@ -170,12 +208,21 @@ async def process_user_turn(
         # Сохраняем ожидание до ответа сервиса (включая ошибки и дату без времени).
         action = state.pending.root
 
-    result = await execute(db, user_id, action, now=now)
+    change = None
+    if action.action in CHANGE_ACTIONS:
+        # Изменение, статус, откат: нужна цель из состояния и прежние значения для отката.
+        change = await execute_change(db, user_id, action, state, now=now)
+        action = change.applied or action
+        result = change.result
+    else:
+        result = await execute(db, user_id, action, now=now)
 
-    state = update_state(state, action, result)
+    state = update_state(state, action, result, before=change.before if change else None)
     await to_thread(save_conversation_state, db, state)
 
-    if result.candidates:
+    if change is not None:
+        reply = reply_for_change(change, action, timezone_name)
+    elif result.candidates:
         choices = "; ".join(
             f"{index}) {record_summary(record, timezone_name)}"
             for index, record in enumerate(result.candidates[:MAX_SHOWN], 1)
@@ -190,6 +237,9 @@ async def process_user_turn(
         title = getattr(pending, "title", None)
         reminder = f"Запись «{title}» ещё не создана." if title else "Действие ещё не завершено."
         reply += " " + reminder + " " + question_for_missing(state.missing)
+
+    if EXTRA_CALLS.get() or several_commands(text):
+        reply += " " + SAY_REST
 
     return ChatResponse(
         conversation_id=conversation_id,
