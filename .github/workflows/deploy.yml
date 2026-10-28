@@ -1,9 +1,17 @@
 name: CD (Deploy to VPS)
 
+# Деплой — только после зелёного CI на develop: сломанная сборка или тесты до сервера не доходят.
+# На сервер выкатывается ровно тот коммит, который проверил CI. Вручную — текущий develop
+# (например, после правки .env на сервере).
 on:
-  push:
+  workflow_run:
+    workflows:
+      - CI (Lint & Test)
+    types:
+      - completed
     branches:
       - develop
+  workflow_dispatch:
 
 # Деплои стенда идут строго по одному: следующий ждёт окончания текущего, не прерывая его.
 concurrency:
@@ -12,33 +20,44 @@ concurrency:
 
 jobs:
   deploy:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
     runs-on: ubuntu-latest
 
     steps:
       - name: Deploy application on VPS via SSH
         uses: appleboy/ssh-action@v1.2.5
+        env:
+          DEPLOY_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
         with:
           host: ${{ secrets.HOST }}
           username: ${{ secrets.USERNAME }}
           key: ${{ secrets.SSH_KEY }}
+          envs: DEPLOY_SHA
           command_timeout: 20m
           script: |
             set -eu
             cd /opt/gorkycode
-            git pull --ff-only origin develop
+            git fetch origin develop
+            # Проверенный CI коммит; если develop уже ушёл дальше, следующий деплой придёт со своим CI.
+            git merge --ff-only "$DEPLOY_SHA"
+            echo "Выкатываю $(git rev-parse --short HEAD)"
             docker compose up -d --build --remove-orphans
 
             # Стенд считается обновлённым, только когда бэкенд ответил на /health
-            # (миграции применяются при старте контейнера).
+            # (миграции применяются при старте контейнера) и nginx отдаёт страницу.
             ok=""
             for i in $(seq 1 30); do
-              if curl -fs http://127.0.0.1:8000/health; then ok=1; echo; break; fi
+              if curl -fs http://127.0.0.1:8000/health && curl -fs -o /dev/null http://127.0.0.1:3000/; then
+                ok=1; echo; break
+              fi
               sleep 2
             done
             if [ -z "$ok" ]; then
               # Логи сервисов сюда не выводим: логи Actions в публичном репозитории видны всем.
               docker compose ps
-              echo "Бэкенд не ответил на /health за 60 с. Логи: docker compose logs backend на сервере." >&2
+              echo "Бэкенд (/health) или фронтенд (/) не ответили за 60 с. Логи: docker compose logs на сервере." >&2
               exit 1
             fi
 
