@@ -14,6 +14,11 @@ dependencies = [
     "openai>=1.50.0",
     "python-dotenv>=1.0.0",
     "tzdata>=2024.1",
+    # Поиск (search-01): модель эмбеддингов, основы слов, нечёткое сравнение слов.
+    "sentence-transformers>=5.0.0",
+    "torch>=2.8.0",
+    "snowballstemmer>=3.0.0",
+    "rapidfuzz>=3.9.0",
 ]
 
 [dependency-groups]
@@ -25,6 +30,16 @@ dev = [
 
 [tool.uv]
 package = false
+
+# torch — только CPU-сборка: torch с PyPI под Linux тянет пакеты CUDA на гигабайты,
+# а видеокарты на сервере нет.
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.uv.sources]
+torch = { index = "pytorch-cpu" }
 
 [tool.ruff]
 line-length = 100

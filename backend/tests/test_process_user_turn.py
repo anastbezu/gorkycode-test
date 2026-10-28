@@ -38,7 +38,7 @@ def conversation_store(monkeypatch):
     monkeypatch.setattr(agent_module, "get_or_create_conversation_state", load)
     monkeypatch.setattr(agent_module, "save_conversation_state", save)
     monkeypatch.setattr(agent_module, "get_record", lambda *args: None)
-    monkeypatch.setattr(actions_module, "search_by_substring", lambda *args: [])
+    monkeypatch.setattr(actions_module, "search", lambda *args: [])
     return states
 
 
@@ -308,7 +308,7 @@ def test_help_does_not_list_or_create_records(monkeypatch, kind):
     monkeypatch.setattr(agent_module, "get_action", get_action)
     monkeypatch.setattr(actions_module, "create_record", unexpected)
     monkeypatch.setattr(actions_module, "list_records_for_period", unexpected)
-    monkeypatch.setattr(actions_module, "search_by_substring", unexpected)
+    monkeypatch.setattr(actions_module, "search", unexpected)
     _, result = turn("Привет")
     assert result.result.action == "help"
     assert result.result.ok
@@ -337,7 +337,7 @@ def test_list_search_preserve_draft_and_save_focus_once(
     )
     monkeypatch.setattr(agent_module, "get_action", AsyncMock(return_value=action))
     monkeypatch.setattr(agent_module, "get_record", lambda *args: old)
-    monkeypatch.setattr(actions_module, "search_by_substring", lambda *args: [
+    monkeypatch.setattr(actions_module, "search", lambda *args: [
         SearchHit(record=record, score=1.0) for record in records
     ])
     monkeypatch.setattr(actions_module, "list_records_for_period", lambda *args: ActionResult(
