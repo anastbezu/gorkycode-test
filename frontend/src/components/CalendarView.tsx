@@ -3,6 +3,7 @@
 // Данные — один GET /api/items на видимую сетку месяца, без записей «без даты»: у них нет дня.
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ApiError, fetchItems } from '../api/client';
+import type { Record } from '../api/types';
 import {
   addDaysToKey,
   dayKey,
@@ -18,7 +19,14 @@ import { groupByDay, TaskCard, type PanelState } from './TasksPanel';
 
 const WEEKDAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
 
-export function CalendarView({ tz }: { tz: string }) {
+interface Props {
+  tz: string;
+  reloadKey?: number;
+  onOpen?: (record: Record) => void;
+  onCreate?: (dayKey?: string) => void;
+}
+
+export function CalendarView({ tz, reloadKey, onOpen, onCreate }: Props) {
   const todayKey = dayKey(new Date(), tz);
   const [month, setMonth] = useState(() => ({ year: Number(todayKey.slice(0, 4)), month: Number(todayKey.slice(5, 7)) }));
   const [selected, setSelected] = useState(todayKey);
@@ -49,7 +57,7 @@ export function CalendarView({ tz }: { tz: string }) {
 
   useEffect(() => {
     void load();
-  }, [load]);
+  }, [load, reloadKey]);
 
   const { byDay } = groupByDay(state.records, tz);
   const dayRecords = byDay.get(selected) ?? [];
@@ -117,7 +125,18 @@ export function CalendarView({ tz }: { tz: string }) {
       </section>
 
       <section className="cal-day">
-        <h2 className="cal-day__title">{dayTitle(selected, todayKey)}</h2>
+        <div className="cal-day__head">
+          <h2 className="cal-day__title">{dayTitle(selected, todayKey)}</h2>
+          {onCreate && (
+            <button
+              type="button"
+              className="btn btn--glass cal-day__create-btn"
+              onClick={() => onCreate(selected)}
+            >
+              + Создать
+            </button>
+          )}
+        </div>
         {state.status === 'error' && (
           <div className="panel__note">
             <p>Не удалось загрузить дела. {state.message}</p>
@@ -129,7 +148,14 @@ export function CalendarView({ tz }: { tz: string }) {
         {state.status === 'loading' && <p className="panel__note">Загружаю дела…</p>}
         {state.status === 'ready' && dayRecords.length === 0 && <p className="panel__note">На этот день дел нет.</p>}
         {dayRecords.map((record) => (
-          <TaskCard key={record.id} record={record} tz={tz} now={new Date()} when={recordWhenInDay(record, tz)} />
+          <TaskCard
+            key={record.id}
+            record={record}
+            tz={tz}
+            now={new Date()}
+            when={recordWhenInDay(record, tz)}
+            onOpen={onOpen}
+          />
         ))}
       </section>
     </div>

@@ -5,9 +5,10 @@
 // localStorage бывает недоступен (приватный режим, запрет сайта) — тогда страница работает,
 // но ничего не переживает перезагрузку. Ошибки чтения не роняют страницу.
 
-import type { ActionResult, LLMConfig } from '../api/types';
+import type { ActionResult, AuthResponse, LLMConfig } from '../api/types';
 
 const KEY_USER = 'gorky.userId';
+const KEY_AUTH = 'gorky.auth';
 const KEY_CHAT = 'gorky.chat';
 const KEY_LLM = 'gorky.llm';
 
@@ -58,6 +59,14 @@ export function loadUserId(): string | null {
 
 export function saveUserId(id: string | null): void {
   write(KEY_USER, id);
+}
+
+export function loadAuth(): AuthResponse | null {
+  return read<AuthResponse>(KEY_AUTH);
+}
+
+export function saveAuth(auth: AuthResponse | null): void {
+  write(KEY_AUTH, auth);
 }
 
 export function loadChat(): StoredChat {

@@ -15,9 +15,10 @@ interface Props {
   result: ActionResult | null;
   awaiting: 'answer' | 'choice' | null;
   tz: string;
+  onOpen?: (record: Record) => void;
 }
 
-export function ResultView({ result, awaiting, tz }: Props) {
+export function ResultView({ result, awaiting, tz, onOpen }: Props) {
   if (!result || !result.ok || awaiting) return null;
   // Пересечения, кандидаты, откат, нехватка данных — их вид ещё не нарисован: только reply
   const hasUnsupported =
@@ -31,7 +32,18 @@ export function ResultView({ result, awaiting, tz }: Props) {
     return (
       <div className="result-created">
         {result.records.map((record) => (
-          <div key={record.id} className="card card--created">
+          <div
+            key={record.id}
+            className={`card card--created${onOpen ? ' card--clickable' : ''}`}
+            onClick={onOpen ? () => onOpen(record) : undefined}
+            role={onOpen ? 'button' : undefined}
+            tabIndex={onOpen ? 0 : undefined}
+            onKeyDown={
+              onOpen
+                ? (e) => (e.key === 'Enter' || e.key === ' ') && onOpen(record)
+                : undefined
+            }
+          >
             <span className="tag tag--success">{CREATED_TAG[record.type]}</span>
             <div className="card__title">{record.title}</div>
             <div className="card__when">{recordWhen(record, tz)}</div>
@@ -42,7 +54,7 @@ export function ResultView({ result, awaiting, tz }: Props) {
   }
 
   if ((result.action === 'list_records' || result.action === 'search_records') && result.records.length > 0) {
-    return <NumberedList records={result.records} tz={tz} />;
+    return <NumberedList records={result.records} tz={tz} onOpen={onOpen} />;
   }
 
   return null;
@@ -53,7 +65,15 @@ export function ResultView({ result, awaiting, tz }: Props) {
  * без пересортировки и свёртки. Заголовки дней — только если записи из разных дней;
  * тогда в строке остаётся время, а номера идут подряд через заголовки.
  */
-function NumberedList({ records, tz }: { records: Record[]; tz: string }) {
+function NumberedList({
+  records,
+  tz,
+  onOpen,
+}: {
+  records: Record[];
+  tz: string;
+  onOpen?: (record: Record) => void;
+}) {
   const now = new Date();
   const todayKey = dayKey(now, tz);
   const keyOf = (r: Record) => {
@@ -75,12 +95,26 @@ function NumberedList({ records, tz }: { records: Record[]; tz: string }) {
       prevKey = key;
     }
     const done = record.status === 'done';
+    const cancelled = record.status === 'cancelled';
+    const clickable = Boolean(onOpen);
     rows.push(
-      <div key={record.id + index} className={`list__row${done ? ' list__row--done' : ''}`}>
+      <div
+        key={record.id + index}
+        className={`list__row${done ? ' list__row--done' : ''}${cancelled ? ' list__row--cancelled' : ''}${clickable ? ' list__row--clickable' : ''}`}
+        onClick={clickable ? () => onOpen?.(record) : undefined}
+        role={clickable ? 'button' : undefined}
+        tabIndex={clickable ? 0 : undefined}
+        onKeyDown={
+          clickable
+            ? (e) => (e.key === 'Enter' || e.key === ' ') && onOpen?.(record)
+            : undefined
+        }
+      >
         <span className="list__num">{index + 1}.</span>
         <span className="list__title">
           {record.title}
           {done && <span className="tag tag--done list__done">выполнено</span>}
+          {cancelled && <span className="tag tag--cancelled list__cancelled">удалено</span>}
         </span>
         <span className="list__when">{multiDay ? recordWhenInDay(record, tz, now) : recordWhen(record, tz, now)}</span>
       </div>,

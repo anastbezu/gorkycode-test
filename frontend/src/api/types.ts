@@ -49,3 +49,40 @@ export interface ChatResponse {
   result: ActionResult | null;
   awaiting: 'answer' | 'choice' | null;
 }
+
+export interface Credentials {
+  login: string;
+  password: string;
+}
+
+export interface Account {
+  id: string;
+  login: string;
+  demo: boolean;
+}
+
+export interface AuthResponse {
+  token: string;
+  account: Account;
+}
+
+export interface CreateItem {
+  type: RecordType;
+  title: string;
+  start?: string | null;
+  end?: string | null;
+  time_given?: boolean;
+  deadline?: string | null;
+}
+
+export interface UpdateItem {
+  title?: string;
+  start?: string;
+  end?: string;
+  time_given?: boolean;
+  deadline?: string;
+}
+
+export interface SetItemStatus {
+  status: RecordStatus;
+}
