@@ -34,7 +34,7 @@
 - «В три», «в пять» без уточнения — 15:00 и 17:00, без вопроса — [`agent-tools.md`](../contracts/agent-tools.md), «Правила»; [`decisions.md`](../decisions.md), «Поведение в разговоре».
 - Встреча без названного окончания не получает окончания; при проверке пересечения считается часом — [`agent-tools.md`](../contracts/agent-tools.md), `CreateRecord.end`, «Проверки кода».
 - «Верни» после отмены или изменения — [`agent-tools.md`](../contracts/agent-tools.md), `UndoLast`; [`test-cases.md`](../test-cases.md) 7.13, 7.18, 7.21.
-- Повторы одного текста в ответе сворачиваются — [`test-cases.md`](../test-cases.md) 5.3, [`agent-07`](agent-07-izmenenie-status-otkat.md), «Повторы в ответах» (с учётом факта 2: только в тексте).
+- Повторы одного текста в ответе сворачиваются — [`test-cases.md`](../test-cases.md) 5.3, [`agent-07`](archive/agent-07-izmenenie-status-otkat.md), «Повторы в ответах» (с учётом факта 2: только в тексте).
 - Две команды в одной фразе — один ответ на обе; если выполнена только первая — ответ просит сказать вторую отдельно — [`agent-tools.md`](../contracts/agent-tools.md), «Несколько действий»; [`test-cases.md`](../test-cases.md) 8.9.
 - Точный дубль не создаётся, ответ говорит, что такая запись уже есть — [`agent-tools.md`](../contracts/agent-tools.md), «Проверки кода»; [`test-cases.md`](../test-cases.md) 8.8.
 - Не по теме и «что ты умеешь» — короткая справка с 2–3 примерами, ничего не создаётся — [`agent-tools.md`](../contracts/agent-tools.md), `Help`; [`test-cases.md`](../test-cases.md) 8.1, 8.2.
