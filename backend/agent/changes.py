@@ -111,15 +111,37 @@ async def undo(db, user_id: UUID, last: LastAction) -> tuple[list[Record], str |
     return restored, None
 
 
+class MassChangeError(RuntimeError):
+    """Массовое изменение не удалось ни довести, ни вернуть. Исключение уходит в маршрут
+    `/api/chat`, и тот откатывает всю транзакцию реплики — частичный результат не коммитится."""
+
+
 async def _revert(
     db, user_id: UUID, action: UpdateRecord | SetStatus, changed: list[Record],
     befores: list[dict[str, Any]],
 ) -> None:
+    """Вернуть уже изменённые записи прежними значениями (если нет точки сохранения)."""
     for record, before in zip(changed, befores, strict=True):
         if isinstance(action, UpdateRecord):
-            await to_thread(restore_record, db, user_id, record.id, before)
+            change = await to_thread(restore_record, db, user_id, record.id, before)
         elif "status" in before:
-            await to_thread(set_status, db, user_id, record.id, RecordStatus(before["status"]))
+            change = await to_thread(
+                set_status, db, user_id, record.id, RecordStatus(before["status"])
+            )
+        else:
+            continue  # статус не менялся
+        if not change.result.ok:
+            raise MassChangeError(
+                f"Не удалось вернуть запись {record.id} после ошибки массового изменения: "
+                f"{change.result.error}"
+            )
+
+
+async def _savepoint(db, records: list[Record]):
+    """Точка сохранения на массовое изменение: при ошибке откатывается вся операция разом."""
+    if len(records) < 2 or not hasattr(db, "begin_nested"):
+        return None
+    return await to_thread(db.begin_nested)
 
 
 async def _apply(
@@ -129,6 +151,7 @@ async def _apply(
     conflicts: list[Record] = []
     befores: list[dict[str, Any]] = []
     applied = action
+    savepoint = await _savepoint(db, records)
     for record in records:
         if isinstance(action, UpdateRecord):
             applied = keep_time(action, record, now.tzinfo)
@@ -136,13 +159,19 @@ async def _apply(
         else:
             change = await to_thread(set_status, db, user_id, record.id, action.status)
         if not change.result.ok:
-            # Массовое действие — всё или ничего: уже изменённые записи возвращаем, иначе
-            # маршрут закоммитит их без last_action, и «верни» их не откатит.
-            await _revert(db, user_id, action, changed, befores)
+            # Массовое действие — всё или ничего: иначе маршрут закоммитит часть изменений
+            # без last_action, и «верни» их не откатит. Не получилось вернуть — исключение,
+            # и маршрут откатит транзакцию реплики целиком.
+            if savepoint is not None:
+                await to_thread(savepoint.rollback)
+            else:
+                await _revert(db, user_id, action, changed, befores)
             return ChangeOutcome(change.result, applied=applied)
         changed.extend(change.result.records)
         conflicts.extend(change.result.conflicts)
         befores.append(change.before)
+    if savepoint is not None:
+        await to_thread(savepoint.commit)
     result = ActionResult(action=action.action, ok=True, records=changed, conflicts=conflicts)
     return ChangeOutcome(result, befores, applied=applied)
 
