@@ -4,6 +4,7 @@
 откатывается после теста. Без базы тесты пропускаются, как остальные тесты с БД.
 """
 
+import asyncio
 import hashlib
 import logging
 import struct
@@ -18,6 +19,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 import api.stt as stt_route
+import main
 from api.auth import auth_rate_limiter, failed_logins
 from db import get_session, models
 from main import app
@@ -572,3 +574,58 @@ def test_list_hides_cancelled_and_cleanup_removes_it_for_good(db: Session) -> No
         db, user_id, ListRecords(date_from=datetime(2000, 1, 1, tzinfo=MSK))
     )
     assert listed.records == []
+
+
+# --- запуск бэкенда -----------------------------------------------------------------------
+
+
+@pytest.fixture
+def startup_session(db: Session, monkeypatch: pytest.MonkeyPatch) -> Session:
+    """`main` открывает сессию сам (`SessionLocal`) — подставляем сессию теста."""
+
+    class _Same:
+        def __enter__(self) -> Session:
+            return db
+
+        def __exit__(self, *exc: object) -> None:
+            return None
+
+    monkeypatch.setattr(main, "SessionLocal", _Same)
+    return db
+
+
+def test_startup_creates_demo_accounts_from_env(
+    startup_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("DEMO_ACCOUNTS", '{"jury_s": "jury-pass-1"}')
+
+    main._ensure_demo_accounts()
+
+    jury = startup_session.scalar(select(models.User).where(models.User.login == "jury_s"))
+    assert jury is not None and jury.is_demo
+    assert _record_count(startup_session, jury.id) == 1000
+
+
+def test_startup_survives_broken_demo_accounts(
+    startup_session: Session, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    monkeypatch.setenv("DEMO_ACCOUNTS", '{"jury_s": "short"}')
+
+    main._ensure_demo_accounts()  # ошибка — в лог, сервер всё равно стартует
+
+    assert "DEMO_ACCOUNTS" in caplog.text
+    assert "short" not in caplog.text  # пароль в лог не попадает
+
+
+async def test_lifespan_runs_demo_accounts_and_cleanup(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[str] = []
+    monkeypatch.setattr(main, "_ensure_demo_accounts", lambda: calls.append("demo"))
+    monkeypatch.setattr(main, "_cleanup_once", lambda: calls.append("cleanup"))
+
+    async with main.lifespan(app):
+        for _ in range(50):  # чистка — фоновая задача: даём ей стартовать
+            if "cleanup" in calls:
+                break
+            await asyncio.sleep(0.01)
+
+    assert calls == ["demo", "cleanup"]
