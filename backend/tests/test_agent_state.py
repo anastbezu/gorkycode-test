@@ -193,7 +193,8 @@ def test_group_order_matches_state_reply_and_context(state, kind):
         else reply_for_search(records, "всё", "UTC", NOW)
     # Текст может свернуть повторы, но без номеров: они не совпали бы с экраном.
     # Список называет последний повтор, поиск — ближайший (порядок search.md).
-    repeat = "Созвон — 2 раза, последний 05.01.2030" if kind == "list_records"         else "Созвон — 2 раза, ближайший 01.01.2030"
+    repeat = ("Созвон — 2 раза, последний 05.01.2030" if kind == "list_records"
+              else "Созвон — 2 раза, ближайший 01.01.2030")
     assert repeat in reply and "1)" not in reply
     assert reply.casefold().index("созвон") < reply.casefold().index("отчёт")
     context = build_state_context(new, {r.id: r for r in records}, "UTC")
