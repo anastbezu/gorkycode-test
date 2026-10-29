@@ -258,7 +258,7 @@ def test_new_mass_request_during_choice_is_not_taken_as_confirmation(dialog) -> 
 
     response = dialog.say("Отмени все созвоны", cancel(all=True, text="созвоны"))
     # Новый массовый запрос: своё подтверждение по созвонам, ничего не изменено.
-    assert response.awaiting == "choice"
+    assert response.awaiting == "confirm"
     assert dialog.state().candidates == [c.id for c in calls]
     assert all(dialog.row(r).status == RecordStatus.ACTIVE for r in reports + calls)
 
@@ -272,7 +272,7 @@ def test_yes_to_other_mass_question_with_other_status_is_new_request(dialog) -> 
     dialog.say("Отмени все созвоны", cancel(all=True, text="созвоны"))
     done_all = SetStatus(target=TargetRef(all=True, text="созвоны"), status=RecordStatus.DONE)
     response = dialog.say("Нет, отметь все созвоны выполненными", done_all)
-    assert response.awaiting == "choice"  # новое подтверждение, а не отмена по старому
+    assert response.awaiting == "confirm"  # новое подтверждение, а не отмена по старому
     assert all(dialog.row(c).status == RecordStatus.ACTIVE for c in calls)
 
 

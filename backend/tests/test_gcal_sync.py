@@ -259,3 +259,39 @@ async def test_disconnected_account_is_not_synced(account, fake) -> None:
         type="meeting", title="встреча", start=soon(hour=12), time_given=True))
     assert len(fake.requests) == calls and NOT_SENT_TEXT not in body["reply"]
     assert account.record(body["result"]["records"][0]["id"]).google_sync is None
+
+
+# --- кнопки «Моих дел» (backend-05) -----------------------------------------------------------
+
+async def test_item_buttons_reach_google(account, fake) -> None:
+    start = soon(hour=11)
+    created = await account.client.post(
+        "/api/items", params={"tz": "Europe/Moscow"}, headers=account.headers,
+        json={"type": "meeting", "title": "Встреча с Анной", "start": start.isoformat()})
+    assert created.status_code == 201, created.text
+    record_id = created.json()["records"][0]["id"]
+    event_id = UUID(record_id).hex
+    assert fake.live()[event_id]["summary"] == "Встреча с Анной"
+
+    moved = await account.client.patch(
+        f"/api/items/{record_id}", params={"tz": "Europe/Moscow"}, headers=account.headers,
+        json={"start": (start + timedelta(hours=2)).isoformat()})
+    assert moved.status_code == 200, moved.text
+    assert fake.live()[event_id]["start"]["dateTime"] == (start + timedelta(hours=2)).isoformat()
+
+    for value, expected in [("cancelled", False), ("active", True)]:
+        response = await account.client.post(
+            f"/api/items/{record_id}/status", params={"tz": "Europe/Moscow"},
+            headers=account.headers, json={"status": value})
+        assert response.status_code == 200, response.text
+        assert (event_id in fake.live()) is expected  # «Удалить» и «Вернуть»
+    assert account.record(record_id).google_sync == "synced"
+
+
+async def test_item_button_with_google_down_still_saves(account, fake) -> None:
+    fake.down = True
+    created = await account.client.post(
+        "/api/items", params={"tz": "Europe/Moscow"}, headers=account.headers,
+        json={"type": "meeting", "title": "Встреча", "start": soon(hour=12).isoformat()})
+    assert created.status_code == 201
+    assert account.record(created.json()["records"][0]["id"]).google_sync == "pending"

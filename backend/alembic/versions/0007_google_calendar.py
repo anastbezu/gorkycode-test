@@ -1,7 +1,7 @@
 """Google Календарь: подключение у учётки и состояние синхронизации записи.
 
-Revision ID: 0006
-Revises: 0005
+Revision ID: 0007
+Revises: 0006
 Create Date: 2026-10-29
 
 calendar-01. `google_connections` — одно подключение на учётку (refresh-токен зашифрован,
@@ -16,8 +16,8 @@ from sqlalchemy.dialects import postgresql
 
 from alembic import op
 
-revision: str = "0006"
-down_revision: str | None = "0005"
+revision: str = "0007"
+down_revision: str | None = "0006"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

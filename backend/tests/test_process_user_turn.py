@@ -149,7 +149,7 @@ def test_slot_filling_preserves_draft_and_clears_only_after_success(
     assert created == []
     assert conversation_store[cid].pending.root.title == "встреча с Денисом"
     if date_only_step:
-        assert send("10 января").awaiting == "answer"
+        assert send("10 января").awaiting == "time"  # день назван — ждём время (agent-10)
         assert conversation_store[cid].missing == ["start"]
         assert conversation_store[cid].pending.root.start == start.replace(hour=0)
         assert created == []
@@ -291,7 +291,7 @@ def test_time_given_without_start_does_not_turn_draft_date_into_midnight(
 
     monkeypatch.setattr(agent_module, "get_action", get_action)
     result = asyncio.run(process_user_turn(None, uid, cid, "В 15:00", "UTC"))
-    assert result.awaiting == "answer"
+    assert result.awaiting == "time"  # день есть, время так и не названо (agent-10)
     assert result.result.missing == ["start"]
     assert conversation_store[cid].pending.root.start == midnight
     assert conversation_store[cid].pending.root.time_given is False
@@ -476,7 +476,7 @@ def test_interrupted_creation_resumes_once_then_expires(
     def send(text):
         return asyncio.run(process_user_turn(None, uid, cid, text, "UTC"))
 
-    assert send("Поставь встречу с Иваном завтра").awaiting == "answer"
+    assert send("Поставь встречу с Иваном завтра").awaiting == "time"
     detour = send("А что у меня завтра?")
     assert "ещё не создана" in detour.reply and "Встреча с Иваном" in detour.reply
     assert conversation_store[cid].pending_skipped

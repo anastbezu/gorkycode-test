@@ -10,6 +10,7 @@ import openai
 from pydantic import ValidationError
 
 from schemas import (
+    ActionResult,
     AskUser,
     ChatResponse,
     CreateRecord,
@@ -31,6 +32,8 @@ from .llm import LLMConfigError, make_client
 from .presentation import MAX_SHOWN
 from .replies import question_for_missing, reply_for_result
 from .state import (
+    choose_candidate,
+    chosen_number,
     complete_from_draft,
     continues_pending,
     is_refusal,
@@ -113,6 +116,67 @@ async def get_action(
         raise ActionParseError(str(e)) from e
 
 
+async def _model_action(
+    db,
+    user_id: UUID,
+    conversation_id: UUID,
+    state,
+    text: str,
+    now: datetime,
+    timezone_name: str,
+    llm_config: LLMConfig | None,
+):
+    """Действие от модели по реплике и контексту состояния; ошибка модели — готовый ответ.
+
+    Фокус, которого больше нет (запись удалена или чужая), снимается в `state` на месте.
+    """
+    # Один Session: чтения последовательные, все записи проверяются по user_id.
+    ids = list(state.shown[:MAX_SHOWN])
+    if state.focus_record_id is not None:
+        ids.append(state.focus_record_id)
+    if state.last_action is not None:
+        ids.extend(state.last_action.record_ids[:3])
+    records = {}
+    for rid in dict.fromkeys(ids):
+        record = await to_thread(get_record, db, user_id, rid)
+        if record is not None and record.user_id == user_id and record.id == rid:
+            records[rid] = record
+    if state.focus_record_id not in records:
+        state.focus_record_id = None
+    context = build_state_context(state, records, timezone_name)
+    try:
+        return await get_action(text, now, timezone_name, llm_config, context=context)
+    except LLMConfigError:
+        reply = (
+            "Ассистент не настроен: не указан ключ API или модель LLM. Задайте их в настройках."
+        )
+    except openai.APIError:
+        # таймаут, сеть, лимиты, 5xx
+        reply = "Сервис распознавания временно недоступен. Попробуйте ещё раз чуть позже."
+    except ActionParseError:
+        reply = "Не удалось разобрать запрос. Попробуйте сформулировать иначе."
+    return ChatResponse(conversation_id=conversation_id, reply=reply, awaiting=state.awaiting)
+
+
+async def _no_such_number(
+    db, user_id: UUID, conversation_id: UUID, state, number: int
+) -> ChatResponse:
+    """«номер 5», а кандидатов три: ничего не меняем, ожидание остаётся. Кандидаты — снова в
+    ответе, чтобы интерфейс показал тот же список и чипы."""
+    candidates = []
+    for record_id in state.candidates:
+        record = await to_thread(get_record, db, user_id, record_id)
+        if record is not None:
+            candidates.append(record)
+    reply = f"Нет записи под номером {number}."
+    result = ActionResult(
+        action=state.pending.root.action, ok=False, error=reply, candidates=candidates
+    )
+    return ChatResponse(
+        conversation_id=conversation_id, reply=reply, result=result, awaiting=state.awaiting
+    )
+
+
 async def process_user_turn(
     db,
     user_id: UUID,
@@ -138,44 +202,22 @@ async def process_user_turn(
             reply="Хорошо, не ставлю." if creating else "Хорошо, ничего не меняю.",
         )
 
-    # Один Session: чтения последовательные, все записи проверяются по user_id.
-    ids = list(state.shown[:MAX_SHOWN])
-    if state.focus_record_id is not None:
-        ids.append(state.focus_record_id)
-    if state.last_action is not None:
-        ids.extend(state.last_action.record_ids[:3])
-    records = {}
-    for rid in dict.fromkeys(ids):
-        record = await to_thread(get_record, db, user_id, rid)
-        if record is not None and record.user_id == user_id and record.id == rid:
-            records[rid] = record
-    if state.focus_record_id not in records:
-        state.focus_record_id = None
-    context = build_state_context(state, records, timezone_name)
-    try:
-        action = await get_action(
-            text, now, timezone_name, llm_config, context=context
+    # «номер N» на выбор или подтверждение (чип быстрого ответа) — без модели: отложенное
+    # действие над N-й записью из кандидатов.
+    number = chosen_number(text, state)
+    target_state = state
+    if number is not None:
+        if not 1 <= number <= len(state.candidates):
+            return await _no_such_number(db, user_id, conversation_id, state, number)
+        action = choose_candidate(state, number)
+        # Номер — N-я запись кандидатов, как в чипе, даже если экран с тех пор сменился.
+        target_state = state.model_copy(update={"shown": list(state.candidates)})
+    else:
+        action = await _model_action(
+            db, user_id, conversation_id, state, text, now, timezone_name, llm_config
         )
-    except LLMConfigError:
-        return ChatResponse(
-            conversation_id=conversation_id,
-            reply="Ассистент не настроен: не указан ключ API или модель LLM. "
-            "Задайте их в настройках.",
-            awaiting=state.awaiting,
-        )
-    except openai.APIError:
-        # таймаут, сеть, лимиты, 5xx
-        return ChatResponse(
-            conversation_id=conversation_id,
-            reply="Сервис распознавания временно недоступен. Попробуйте ещё раз чуть позже.",
-            awaiting=state.awaiting,
-        )
-    except ActionParseError:
-        return ChatResponse(
-            conversation_id=conversation_id,
-            reply="Не удалось разобрать запрос. Попробуйте сформулировать иначе.",
-            awaiting=state.awaiting,
-        )
+        if isinstance(action, ChatResponse):
+            return action
 
     if isinstance(action, AskUser):
         state = update_state(state, action, None)
@@ -211,7 +253,7 @@ async def process_user_turn(
     change = None
     if action.action in CHANGE_ACTIONS:
         # Изменение, статус, откат: нужна цель из состояния и прежние значения для отката.
-        change = await execute_change(db, user_id, action, state, now=now)
+        change = await execute_change(db, user_id, action, target_state, now=now)
         action = change.applied or action
         result = change.result
     else:

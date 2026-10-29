@@ -166,7 +166,8 @@ class ConversationState(Base):
 
     __table_args__ = (
         CheckConstraint(
-            "awaiting IS NULL OR awaiting IN ('answer', 'choice')", name="awaiting_values"
+            "awaiting IS NULL OR awaiting IN ('answer', 'choice', 'confirm', 'time')",
+            name="awaiting_values",
         ),
     )
 

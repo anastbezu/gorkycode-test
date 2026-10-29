@@ -86,7 +86,7 @@ def confirming(state: ConversationState, action: UpdateRecord | SetStatus) -> li
     """Кандидаты, если это ответ на «Отменить N записей?» тем же массовым действием."""
     pending = state.pending.root if state.pending is not None else None
     same = (
-        state.awaiting == "choice" and state.candidates
+        state.awaiting == "confirm" and state.candidates
         and isinstance(action, SetStatus) and action.target.all
         and isinstance(pending, SetStatus) and pending.target.all
         and pending.status == action.status
