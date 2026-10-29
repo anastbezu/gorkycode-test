@@ -25,16 +25,23 @@ jobs:
       (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
     runs-on: ubuntu-latest
 
+    # Токен задачи даёт серверу скачать образы из GHCR и истекает с её окончанием.
+    permissions:
+      packages: read
+
     steps:
       - name: Deploy application on VPS via SSH
         uses: appleboy/ssh-action@v1.2.5
         env:
           DEPLOY_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+          REGISTRY_USER: ${{ github.actor }}
+          REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          IMAGES: ghcr.io/${{ github.repository }}
         with:
           host: ${{ secrets.HOST }}
           username: ${{ secrets.USERNAME }}
           key: ${{ secrets.SSH_KEY }}
-          envs: DEPLOY_SHA
+          envs: DEPLOY_SHA,REGISTRY_USER,REGISTRY_TOKEN,IMAGES
           command_timeout: 20m
           script: |
             set -eu
@@ -43,7 +50,23 @@ jobs:
             # Проверенный CI коммит; если develop уже ушёл дальше, следующий деплой придёт со своим CI.
             git merge --ff-only "$DEPLOY_SHA"
             echo "Выкатываю $(git rev-parse --short HEAD)"
-            docker compose up -d --build --remove-orphans
+
+            # На сервере образы не собираются (диск 10 ГБ): CI опубликовал их с тегом-коммитом.
+            # Скачанный образ получает тег latest — его берёт docker-compose.yaml, так что
+            # ручной `docker compose up -d` на сервере поднимает выкаченную версию.
+            # Неиспользуемые образы удаляются при любом исходе, в том числе при падении.
+            cleanup() {
+              docker logout ghcr.io >/dev/null || true
+              docker image prune -af || true
+              df -h /
+            }
+            trap cleanup EXIT
+            echo "$REGISTRY_TOKEN" | docker login ghcr.io -u "$REGISTRY_USER" --password-stdin
+            for service in backend frontend; do
+              docker pull "$IMAGES/$service:$DEPLOY_SHA"
+              docker tag "$IMAGES/$service:$DEPLOY_SHA" "$IMAGES/$service:latest"
+            done
+            docker compose up -d --no-build --remove-orphans
 
             # Стенд считается обновлённым, только когда бэкенд ответил на /health
             # (миграции применяются при старте контейнера) и nginx отдаёт страницу.
@@ -60,7 +83,3 @@ jobs:
               echo "Бэкенд (/health) или фронтенд (/) не ответили за 60 с. Логи: docker compose logs на сервере." >&2
               exit 1
             fi
-
-            # Диск 10 ГБ: удаляем образы, оставшиеся от прошлых сборок, и старый кэш сборки.
-            docker image prune -f
-            docker builder prune -f --filter until=72h
