@@ -21,10 +21,14 @@ from .actions import (
 from .api import ChatRequest, ChatResponse, LLMConfig, STTResponse
 from .auth import Account, AuthResponse, Credentials
 from .conversation import ConversationState, LastAction
+from .items import CreateItem, SetItemStatus, UpdateItem
 from .record import Record, RecordStatus, RecordType
 from .search import SearchHit, TargetMatch
 
 __all__ = [
+    "CreateItem",
+    "SetItemStatus",
+    "UpdateItem",
     "Account",
     "AuthResponse",
     "Credentials",

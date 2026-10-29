@@ -15,7 +15,7 @@ from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 
-from api import auth, chat, health, items, stt
+from api import auth, chat, errors, health, items, stt
 from api.deps import USER_ID_HEADER
 from db import SessionLocal
 from search.warmup import warm_up
@@ -124,7 +124,7 @@ app = FastAPI(
     ),
     lifespan=lifespan,
 )
-app.add_exception_handler(RequestValidationError, auth.credentials_validation_handler)
+app.add_exception_handler(RequestValidationError, errors.validation_handler)
 
 app.add_middleware(
     CORSMiddleware,
