@@ -69,7 +69,7 @@ class ConversationState(BaseModel):
     pending_skipped: bool = False         # прошлая реплика была не про черновик
     candidates: list[UUID] = []           # ждём выбора из нескольких записей
     missing: list[str] = []               # каких полей не хватает для pending
-    awaiting: Literal["answer", "choice"] | None = None  # ассистент ждёт ответа или выбора
+    awaiting: Literal["answer", "choice", "confirm", "time"] | None = None  # чего ждёт ассистент (api.md, «Правила»)
 ```
 
 ### Правила состояния

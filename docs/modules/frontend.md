@@ -1,6 +1,6 @@
 # Фронтенд
 
-Страница ассистента: чат, панель «Мои дела», календарь, настройки LLM, голос. Постановки — [frontend-01](../tasks/frontend-01-stranitsa-chata.md), [frontend-02](../tasks/frontend-02-golos-na-stranitse.md), поля — только из [контрактов](../contracts/api.md).
+Страница ассистента: чат, панель «Мои дела», календарь, настройки LLM, голос. Постановки — [frontend-01](../tasks/archive/frontend-01-stranitsa-chata.md), [frontend-02](../tasks/archive/frontend-02-golos-na-stranitse.md), поля — только из [контрактов](../contracts/api.md).
 
 ## Стек
 - **React + TypeScript**, сборка **Vite**, тесты **Vitest**. Библиотек дат и UI-китов нет: даты — встроенный `Intl`, вёрстка — свой CSS по макету.
