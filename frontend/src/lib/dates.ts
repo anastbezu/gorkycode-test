@@ -12,6 +12,10 @@ const MONTHS_GENITIVE = [
   'января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
   'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря',
 ];
+export const MONTHS_SHORT = [
+  'янв', 'фев', 'мар', 'апр', 'май', 'июн',
+  'июл', 'авг', 'сен', 'окт', 'ноя', 'дек',
+];
 const WEEKDAYS_SHORT = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
 
 /** Пояс браузера, IANA-имя (`Europe/Moscow`). Уходит в `timezone` и `tz`. */
@@ -58,6 +62,33 @@ export function addDaysToKey(key: string, days: number): string {
   return `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())}`;
 }
 
+/**
+ * Подпись диапазона дней (по умолчанию 5 дней):
+ * «25–29 окт», через месяц — «30 окт – 3 ноя», через год — «29 дек 2026 – 2 янв 2027».
+ */
+export function formatDaysRange(startKey: string, count = 5, referenceYear?: number): string {
+  const endKey = addDaysToKey(startKey, count - 1);
+  const [startY, startM, startD] = startKey.split('-').map(Number);
+  const [endY, endM, endD] = endKey.split('-').map(Number);
+
+  const startMonthStr = MONTHS_SHORT[startM - 1];
+  const endMonthStr = MONTHS_SHORT[endM - 1];
+
+  const currentYear = referenceYear ?? startY;
+
+  if (startY !== endY) {
+    return `${startD} ${startMonthStr} ${startY} – ${endD} ${endMonthStr} ${endY}`;
+  }
+
+  const yearSuffix = startY !== currentYear ? ` ${startY}` : '';
+
+  if (startM === endM) {
+    return `${startD}–${endD} ${startMonthStr}${yearSuffix}`;
+  }
+
+  return `${startD} ${startMonthStr} – ${endD} ${endMonthStr}${yearSuffix}`;
+}
+
 /** День недели по ключу дня: 0 — воскресенье. */
 export function weekdayOfKey(key: string): number {
   const [y, m, d] = key.split('-').map(Number);
@@ -82,10 +113,20 @@ function isEndOfDay(w: WallTime): boolean {
 }
 
 /** «26 октября», для другого года — «26 октября 2027». */
-function dateText(key: string, todayKey: string): string {
+export function dateText(key: string, todayKey: string): string {
   const [y, m, d] = key.split('-').map(Number);
   const sameYear = y === Number(todayKey.slice(0, 4));
   return `${d} ${MONTHS_GENITIVE[m - 1]}${sameYear ? '' : ` ${y}`}`;
+}
+
+/**
+ * Заголовок дня в списке чата: «Сегодня, 25 октября», «Завтра, 26 октября»,
+ * «Среда, 28 октября», «Воскресенье, 1 ноября».
+ */
+export function listDayHeader(key: string, todayKey: string): string {
+  if (key === todayKey) return `Сегодня, ${dateText(key, todayKey)}`;
+  if (key === addDaysToKey(todayKey, 1)) return `Завтра, ${dateText(key, todayKey)}`;
+  return dayTitle(key, todayKey);
 }
 
 /**
