@@ -2,9 +2,9 @@
 
 from datetime import datetime
 
+from eval.cases import CASES, Case, Expect, Turn
+from eval.harness import TZ, Harness, render, select_cases, skip_reason
 from schemas import AskUser, CreateRecord, ListRecords
-from tests.agent_cases import CASES, Case, Expect, Turn
-from tests.agent_live import TZ, Harness, render, select_cases, skip_reason
 
 
 def case(id_: str) -> Case:

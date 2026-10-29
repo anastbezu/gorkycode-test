@@ -3,9 +3,9 @@
 from datetime import UTC, datetime
 from zoneinfo import ZoneInfo
 
+from eval.cases import ALL, NONE, Expect
+from eval.compare import Observed, compare, describe
 from schemas import AskUser, CreateRecord, Help, ListRecords, SearchFilters, SearchRecords
-from tests.agent_cases import ALL, NONE, Expect
-from tests.agent_compare import Observed, compare, describe
 
 MSK = ZoneInfo("Europe/Moscow")
 
@@ -116,7 +116,7 @@ def test_explicit_time_requires_time_given():
 
 
 def test_positive_creation_requires_success_and_no_pending_question():
-    from tests.agent_cases import CASES
+    from eval.cases import CASES
 
     expect = next(c for c in CASES if c.id == "1.1").turns[0].expect
     action = CreateRecord(type="reminder", title="позвонить Ивану",

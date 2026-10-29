@@ -26,7 +26,7 @@ from schemas import Record, RecordStatus, RecordType, SearchFilters, SearchHit, 
 from . import embeddings, vectors
 from .text import QueryWords, TitleWords, is_exact
 
-# Порог уровня «похожие» — косинус frida, снят на проверочном наборе (scripts/search_eval.py)
+# Порог уровня «похожие» — косинус frida, снят на проверочном наборе (eval/search_eval.py)
 # 2026-10-27. У запросов, которые не нашлись «точно», но ответ в данных есть, лучший результат —
 # от 0,485 («мобилка» → «…по мобильному приложению») до 0,82; у запросов без ответа — до 0,464
 # («встреча с дизайнером»). Порог взят ниже обоих: пропустить настоящую похожую запись хуже,

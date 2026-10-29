@@ -9,11 +9,11 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from db import models
+from eval.cases import CASES
+from eval.compare import compare
+from eval.harness import TZ, Harness
 from schemas import CreateRecord
 from services import get_conversation_state
-from tests.agent_cases import CASES
-from tests.agent_compare import compare
-from tests.agent_live import TZ, Harness
 
 
 def scripted(*actions):
@@ -126,7 +126,7 @@ def test_meeting_time_without_day_asks_day_3_8(db: Session, monkeypatch) -> None
 
 
 # --- Раздел 7 и пересечения: «идеальная модель» проходит кейсы на настоящем коде -----------
-# Если кейс здесь падает, расходятся ожидание в agent_cases.py и код агента, а не модель.
+# Если кейс здесь падает, расходятся ожидание в наборе test-cases.json и код агента, а не модель.
 
 def _ideal_model_actions() -> dict:
     import pytest as _pytest  # noqa: F401  (только чтобы файл не терял импорты при правке)

@@ -32,6 +32,10 @@ dev = [
     "httpx>=0.27.0",
     "ruff>=0.6.0",
 ]
+eval = [
+    "matplotlib>=3.11.2",
+    "seaborn>=0.13.2",
+]
 
 [tool.uv]
 package = false

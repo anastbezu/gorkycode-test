@@ -1,0 +1,3724 @@
+{
+  "dataset": "test-cases",
+  "source": "docs/test-cases.md",
+  "author": "Маша (product-02), кейсы кодом — Илья (agent-08); в JSON — 2026-10-29",
+  "now": "2026-10-21 10:00",
+  "timezone": "Europe/Moscow",
+  "cases": [
+    {
+      "id": "1.1",
+      "category": "примеры из задания",
+      "turns": [
+        {
+          "text": "Напомни мне завтра в 10 утра позвонить Ивану",
+          "expect": {
+            "action": "create_record",
+            "type": "reminder",
+            "title": [
+              "позвон",
+              "Иван"
+            ],
+            "start": "2026-10-22 10:00",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "1.2",
+      "category": "примеры из задания",
+      "turns": [
+        {
+          "text": "В пятницу нужно отправить отчет",
+          "expect": {
+            "action": "create_record",
+            "type": "task",
+            "title": [
+              "отправ",
+              "отч"
+            ],
+            "start": "2026-10-23",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "1.3",
+      "category": "примеры из задания",
+      "turns": [
+        {
+          "text": "Поставь задачу купить билеты до конца недели",
+          "expect": {
+            "action": "create_record",
+            "type": "task",
+            "title": [
+              "куп",
+              "билет"
+            ],
+            "start": "none",
+            "deadline": "2026-10-25 23:59",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "1.4",
+      "category": "примеры из задания",
+      "turns": [
+        {
+          "text": "Добавь встречу с командой завтра в 15:00",
+          "expect": {
+            "action": "create_record",
+            "type": "meeting",
+            "title": [
+              "команд"
+            ],
+            "start": "2026-10-22 15:00",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "1.5",
+      "category": "примеры из задания",
+      "turns": [
+        {
+          "text": "В четверг в 11 у меня встреча с дизайнером",
+          "expect": {
+            "action": "create_record",
+            "type": "meeting",
+            "title": [
+              "дизайнер"
+            ],
+            "start": "2026-10-22 11:00",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "1.6",
+      "category": "примеры из задания",
+      "turns": [
+        {
+          "text": "Что у меня сегодня?",
+          "expect": {
+            "action": "list_records",
+            "date_from": "2026-10-21 00:00",
+            "date_to": "2026-10-22 00:00",
+            "types": "all"
+          }
+        }
+      ]
+    },
+    {
+      "id": "1.7",
+      "category": "примеры из задания",
+      "turns": [
+        {
+          "text": "Какие планы на сегодня?",
+          "expect": {
+            "action": "list_records",
+            "date_from": "2026-10-21 00:00",
+            "date_to": "2026-10-22 00:00",
+            "types": "all"
+          }
+        }
+      ]
+    },
+    {
+      "id": "1.8",
+      "category": "примеры из задания",
+      "turns": [
+        {
+          "text": "Покажи мои встречи на сегодня",
+          "expect": {
+            "action": "list_records",
+            "date_from": "2026-10-21 00:00",
+            "date_to": "2026-10-22 00:00",
+            "types": [
+              "meeting"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "1.9",
+      "category": "примеры из задания",
+      "turns": [
+        {
+          "text": "Есть ли у меня встречи сегодня?",
+          "expect": {
+            "action": "list_records",
+            "date_from": "2026-10-21 00:00",
+            "date_to": "2026-10-22 00:00",
+            "types": [
+              "meeting"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "1.10",
+      "category": "примеры из задания",
+      "turns": [
+        {
+          "text": "Какие задачи у меня на завтра?",
+          "expect": {
+            "action": "list_records",
+            "date_from": "2026-10-22 00:00",
+            "date_to": "2026-10-23 00:00",
+            "types": [
+              "task",
+              "reminder"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "1.11",
+      "category": "примеры из задания",
+      "turns": [
+        {
+          "text": "Что запланировано на эту неделю?",
+          "expect": {
+            "action": "list_records",
+            "date_from": "2026-10-19 00:00",
+            "date_to": "2026-10-26 00:00",
+            "types": "all"
+          }
+        }
+      ]
+    },
+    {
+      "id": "1.12",
+      "category": "примеры из задания",
+      "turns": [
+        {
+          "text": "Найди задачу про презентацию",
+          "expect": {
+            "action": "search_records",
+            "query": [
+              "презентац"
+            ],
+            "query_from": "none",
+            "query_to": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "1.13",
+      "category": "примеры из задания",
+      "turns": [
+        {
+          "text": "Когда у меня была встреча с Иваном?",
+          "expect": {
+            "action": "search_records",
+            "query": [
+              "Иван"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "1.14",
+      "category": "примеры из задания",
+      "turns": [
+        {
+          "text": "Я когда-то ставил задачу по договору, найди ее",
+          "expect": {
+            "action": "search_records",
+            "query": [
+              "договор"
+            ],
+            "query_from": "none",
+            "query_to": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "1.15",
+      "category": "примеры из задания",
+      "turns": [
+        {
+          "text": "Поставь встречу с Иваном завтра",
+          "expect": {
+            "action": "create_record|ask_user",
+            "awaiting": "time"
+          }
+        },
+        {
+          "text": "в 15:00",
+          "expect": {
+            "action": "create_record",
+            "type": "meeting",
+            "title": [
+              "Иван"
+            ],
+            "start": "2026-10-22 15:00",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "1.16",
+      "category": "примеры из задания",
+      "turns": [
+        {
+          "text": "Встреча с Натальей по презентации во вторник в 16:30",
+          "expect": {
+            "action": "create_record",
+            "type": "meeting",
+            "title": [
+              "Натал"
+            ],
+            "start": "2026-10-27 16:30",
+            "ok": true,
+            "awaiting": "none"
+          }
+        },
+        {
+          "text": "А перенеси ее на завтра",
+          "expect": {
+            "action": "update_record",
+            "start": "2026-10-22 16:30",
+            "target_focus": true,
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ],
+      "db": true,
+      "note": "сразу после 2.14"
+    },
+    {
+      "id": "2.1",
+      "category": "создание",
+      "turns": [
+        {
+          "text": "Напомни завтра в девять утра позвонить Ольге",
+          "expect": {
+            "action": "create_record",
+            "type": "reminder",
+            "title": [
+              "позвон",
+              "Ольг"
+            ],
+            "start": "2026-10-22 09:00",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "2.2",
+      "category": "создание",
+      "turns": [
+        {
+          "text": "Поставь задачу подготовить коммерческое предложение до пятницы",
+          "expect": {
+            "action": "create_record",
+            "type": "task",
+            "title": [
+              "подготов",
+              "коммерческ"
+            ],
+            "deadline": "2026-10-23",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "2.3",
+      "category": "создание",
+      "turns": [
+        {
+          "text": "Надо отправить смету Анне в понедельник",
+          "expect": {
+            "action": "create_record",
+            "type": "task",
+            "title": [
+              "смет",
+              "Анн"
+            ],
+            "start": "2026-10-26",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "2.4",
+      "category": "создание",
+      "turns": [
+        {
+          "text": "Не забудь согласовать договор с Иваном до конца недели",
+          "expect": {
+            "action": "create_record",
+            "type": "task",
+            "title": [
+              "согласов",
+              "договор",
+              "Иван"
+            ],
+            "start": "none",
+            "deadline": "2026-10-25 23:59",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "2.5",
+      "category": "создание",
+      "turns": [
+        {
+          "text": "Напомни через два часа проверить сроки по сайту",
+          "expect": {
+            "action": "create_record",
+            "type": "reminder",
+            "title": [
+              "срок",
+              "сайт"
+            ],
+            "start": "2026-10-21 12:00",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "2.6",
+      "category": "создание",
+      "turns": [
+        {
+          "text": "Запиши задачу: собрать обратную связь по новому продукту",
+          "expect": {
+            "action": "create_record",
+            "type": "task",
+            "title": [
+              "обратн",
+              "связ"
+            ],
+            "start": "none",
+            "deadline": "none",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "2.7",
+      "category": "создание",
+      "turns": [
+        {
+          "text": "Завтра нужно обновить материалы по CRM",
+          "expect": {
+            "action": "create_record",
+            "type": "task",
+            "title": [
+              "материал",
+              "CRM"
+            ],
+            "start": "2026-10-22",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "2.8",
+      "category": "создание",
+      "turns": [
+        {
+          "text": "Напомни послезавтра в 17:30 отправить отчёт Дмитрию",
+          "expect": {
+            "action": "create_record",
+            "type": "reminder",
+            "title": [
+              "отч",
+              "Дмитри"
+            ],
+            "start": "2026-10-23 17:30",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "2.9",
+      "category": "создание",
+      "turns": [
+        {
+          "text": "Напомни в субботу в 11 передать протокол на согласование",
+          "expect": {
+            "action": "create_record",
+            "type": "reminder",
+            "title": [
+              "протокол"
+            ],
+            "start": "2026-10-24 11:00",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "2.10",
+      "category": "создание",
+      "turns": [
+        {
+          "text": "Добавь дело: проверить техническое задание по аналитике",
+          "expect": {
+            "action": "create_record",
+            "type": "task",
+            "title": [
+              "техническ",
+              "задани"
+            ],
+            "start": "none",
+            "deadline": "none",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "2.11",
+      "category": "создание",
+      "turns": [
+        {
+          "text": "Через полчаса напомни позвонить Максиму",
+          "expect": {
+            "action": "create_record",
+            "type": "reminder",
+            "title": [
+              "позвон",
+              "Максим"
+            ],
+            "start": "2026-10-21 10:30",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "2.12",
+      "category": "создание",
+      "turns": [
+        {
+          "text": "Напомни 31 декабря в полдень поздравить команду",
+          "expect": {
+            "action": "create_record",
+            "type": "reminder",
+            "title": [
+              "поздрав",
+              "команд"
+            ],
+            "start": "2026-12-31 12:00",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "2.12а",
+      "category": "создание",
+      "turns": [
+        {
+          "text": "Напомни купить молоко",
+          "expect": {
+            "action": "create_record",
+            "type": "reminder",
+            "title": [
+              "куп",
+              "молок"
+            ],
+            "start": "none",
+            "deadline": "none",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "2.12б",
+      "category": "создание",
+      "turns": [
+        {
+          "text": "Мне надо подготовить акт на следующей неделе",
+          "expect": {
+            "action": "create_record",
+            "type": "task",
+            "title": [
+              "подготов",
+              "акт"
+            ],
+            "start": "none",
+            "deadline": "2026-11-01 23:59",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "2.12в",
+      "category": "создание",
+      "turns": [
+        {
+          "text": "На выходных разобрать почту",
+          "expect": {
+            "action": "create_record",
+            "type": "task",
+            "title": [
+              "разобр",
+              "почт"
+            ],
+            "start": "2026-10-24",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "2.12г",
+      "category": "создание",
+      "turns": [
+        {
+          "text": "В конце месяца сдать отчёт",
+          "expect": {
+            "action": "create_record",
+            "type": "task",
+            "title": [
+              "сда",
+              "отч"
+            ],
+            "start": "2026-10-31",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "2.13",
+      "category": "создание",
+      "turns": [
+        {
+          "text": "Поставь созвон с Альфой по бюджету завтра в 12",
+          "expect": {
+            "action": "create_record",
+            "type": "meeting",
+            "title": [
+              "Альф",
+              "бюджет"
+            ],
+            "start": "2026-10-22 12:00",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "2.14",
+      "category": "создание",
+      "turns": [
+        {
+          "text": "Встреча с Натальей по презентации во вторник в 16:30",
+          "expect": {
+            "action": "create_record",
+            "type": "meeting",
+            "title": [
+              "Натал"
+            ],
+            "start": "2026-10-27 16:30",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "2.15",
+      "category": "создание",
+      "turns": [
+        {
+          "text": "Запланируй демо проекта по сайту в четверг в 14:00",
+          "expect": {
+            "action": "create_record",
+            "type": "meeting",
+            "title": [
+              "демо",
+              "сайт"
+            ],
+            "start": "2026-10-22 14:00",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "2.16",
+      "category": "создание",
+      "turns": [
+        {
+          "text": "Назначь планёрку по CRM послезавтра в 10",
+          "expect": {
+            "action": "create_record",
+            "type": "meeting",
+            "title": [
+              "планёрк|планерк",
+              "CRM"
+            ],
+            "start": "2026-10-23 10:00",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "2.17",
+      "category": "создание",
+      "turns": [
+        {
+          "text": "Завтра в 15 созвон с Вектором по интеграции",
+          "expect": {
+            "action": "create_record",
+            "type": "meeting",
+            "title": [
+              "Вектор"
+            ],
+            "start": "2026-10-22 15:00",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "2.18",
+      "category": "создание",
+      "turns": [
+        {
+          "text": "Встреча с Сергеем по договору в понедельник в 9:30",
+          "expect": {
+            "action": "create_record",
+            "type": "meeting",
+            "title": [
+              "Серге"
+            ],
+            "start": "2026-10-26 09:30",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "2.19",
+      "category": "создание",
+      "turns": [
+        {
+          "text": "Забронируй встречу с Еленой по новому продукту на пятницу в 11",
+          "expect": {
+            "action": "create_record",
+            "type": "meeting",
+            "title": [
+              "Елен"
+            ],
+            "start": "2026-10-23 11:00",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "2.20",
+      "category": "создание",
+      "turns": [
+        {
+          "text": "Добавь в календарь созвон с Марией в среду на следующей неделе в 13:15",
+          "expect": {
+            "action": "create_record",
+            "type": "meeting",
+            "title": [
+              "Мари"
+            ],
+            "start": "2026-10-28 13:15",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "2.21",
+      "category": "создание",
+      "turns": [
+        {
+          "text": "Сегодня в 18 встреча с партнёром по аналитике",
+          "expect": {
+            "action": "create_record",
+            "type": "meeting",
+            "title": [
+              "партн"
+            ],
+            "start": "2026-10-21 18:00",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "2.22",
+      "category": "создание",
+      "turns": [
+        {
+          "text": "Поставь встречу с Иваном и Ольгой по бюджету на четверг в 17:00 на полтора часа",
+          "expect": {
+            "action": "create_record",
+            "type": "meeting",
+            "title": [
+              "Иван",
+              "Ольг"
+            ],
+            "start": "2026-10-22 17:00",
+            "end": "2026-10-22 18:30",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "2.23",
+      "category": "создание",
+      "turns": [
+        {
+          "text": "Завтра в 18:00 встреча с Марией до 19:30",
+          "expect": {
+            "action": "create_record",
+            "type": "meeting",
+            "title": [
+              "Мари"
+            ],
+            "start": "2026-10-22 18:00",
+            "end": "2026-10-22 19:30",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "2.23а",
+      "category": "создание",
+      "turns": [
+        {
+          "text": "Завтра в 3 созвон с Маяком",
+          "expect": {
+            "action": "create_record",
+            "type": "meeting",
+            "title": [
+              "Маяк"
+            ],
+            "start": "2026-10-22 15:00",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "2.23б",
+      "category": "создание",
+      "turns": [
+        {
+          "text": "Без пятнадцати три завтра встреча с Сергеем",
+          "expect": {
+            "action": "create_record",
+            "type": "meeting",
+            "title": [
+              "Серге"
+            ],
+            "start": "2026-10-22 14:45",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "2.23в",
+      "category": "создание",
+      "turns": [
+        {
+          "text": "Завтра в 7 утра пробежка с Ольгой",
+          "expect": {
+            "action": "create_record",
+            "type": "meeting",
+            "title": [
+              "пробежк",
+              "Ольг"
+            ],
+            "start": "2026-10-22 07:00",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "2.23г",
+      "category": "создание",
+      "turns": [
+        {
+          "text": "Поставь встречу с Ольгой послезавтра вечером",
+          "expect": {
+            "action": "create_record",
+            "type": "meeting",
+            "title": [
+              "Ольг"
+            ],
+            "start": "2026-10-23 18:00",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "2.23д",
+      "category": "создание",
+      "turns": [
+        {
+          "text": "Завтра в обед встреча с Анной",
+          "expect": {
+            "action": "create_record",
+            "type": "meeting",
+            "title": [
+              "Анн"
+            ],
+            "start": "2026-10-22 13:00",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "2.23е",
+      "category": "создание",
+      "turns": [
+        {
+          "text": "В следующую пятницу встреча с Сергеем в 11",
+          "expect": {
+            "action": "create_record",
+            "type": "meeting",
+            "title": [
+              "Серге"
+            ],
+            "start": "2026-10-30 11:00",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "2.23ж",
+      "category": "создание",
+      "turns": [
+        {
+          "text": "В среду в 16 планёрка по сайту",
+          "expect": {
+            "action": "create_record",
+            "type": "meeting",
+            "title": [
+              "планёрк|планерк",
+              "сайт"
+            ],
+            "start": "2026-10-28 16:00",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "2.24",
+      "category": "создание",
+      "turns": [
+        {
+          "text": "Обновить страницу после 2.1–2.23",
+          "expect": {
+            "action": "none"
+          }
+        }
+      ],
+      "skip": "проверяется руками в интерфейсе"
+    },
+    {
+      "id": "3.1",
+      "category": "уточнение",
+      "turns": [
+        {
+          "text": "Поставь встречу с Дмитрием по бюджету",
+          "expect": {
+            "action": "create_record|ask_user",
+            "awaiting": "answer"
+          }
+        },
+        {
+          "text": "Завтра в 14",
+          "expect": {
+            "action": "create_record",
+            "type": "meeting",
+            "title": [
+              "Дмитри",
+              "бюджет"
+            ],
+            "start": "2026-10-22 14:00",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "3.2",
+      "category": "уточнение",
+      "turns": [
+        {
+          "text": "Добавь созвон с Севером в пятницу",
+          "expect": {
+            "action": "create_record|ask_user",
+            "awaiting": "time"
+          }
+        },
+        {
+          "text": "В одиннадцать тридцать",
+          "expect": {
+            "action": "create_record",
+            "type": "meeting",
+            "title": [
+              "Север"
+            ],
+            "start": "2026-10-23 11:30",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "3.3",
+      "category": "уточнение",
+      "turns": [
+        {
+          "text": "Создай встречу с Иваном",
+          "expect": {
+            "action": "create_record|ask_user",
+            "awaiting": "answer"
+          }
+        },
+        {
+          "text": "Завтра в 12",
+          "expect": {
+            "action": "create_record",
+            "type": "meeting",
+            "title": [
+              "Иван"
+            ],
+            "start": "2026-10-22 12:00",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "3.4",
+      "category": "уточнение",
+      "turns": [
+        {
+          "text": "Добавь встречу",
+          "expect": {
+            "action": "ask_user",
+            "awaiting": "answer"
+          }
+        },
+        {
+          "text": "С Петей в четверг в 16",
+          "expect": {
+            "action": "create_record",
+            "type": "meeting",
+            "title": [
+              "Пет"
+            ],
+            "start": "2026-10-22 16:00",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "3.5",
+      "category": "уточнение",
+      "turns": [
+        {
+          "text": "Напомни завтра в 10",
+          "expect": {
+            "action": "ask_user",
+            "awaiting": "answer"
+          }
+        },
+        {
+          "text": "Позвонить маме",
+          "expect": {
+            "action": "create_record",
+            "type": "reminder",
+            "title": [
+              "позвон",
+              "мам"
+            ],
+            "start": "2026-10-22 10:00",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "3.6",
+      "category": "уточнение",
+      "turns": [
+        {
+          "text": "Запланируй созвон с Альфой на послезавтра",
+          "expect": {
+            "action": "create_record|ask_user",
+            "awaiting": "time"
+          }
+        },
+        {
+          "text": "Утром",
+          "expect": {
+            "action": "create_record",
+            "type": "meeting",
+            "title": [
+              "Альф"
+            ],
+            "start": "2026-10-23 09:00",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "3.7",
+      "category": "уточнение",
+      "turns": [
+        {
+          "text": "Поставь встречу с командой на следующий вторник",
+          "expect": {
+            "action": "create_record|ask_user",
+            "awaiting": "time"
+          }
+        },
+        {
+          "text": "В 14:30",
+          "expect": {
+            "action": "create_record",
+            "type": "meeting",
+            "title": [
+              "команд"
+            ],
+            "start": "2026-10-27 14:30",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "3.8",
+      "category": "уточнение",
+      "turns": [
+        {
+          "text": "Встреча с Сергеем в 14:45",
+          "expect": {
+            "action": "create_record|ask_user",
+            "awaiting": "answer"
+          }
+        },
+        {
+          "text": "Завтра",
+          "expect": {
+            "action": "create_record",
+            "type": "meeting",
+            "title": [
+              "Серге"
+            ],
+            "start": "2026-10-22 14:45",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "3.9",
+      "category": "уточнение",
+      "turns": [
+        {
+          "text": "Поставь встречу с Иваном завтра",
+          "expect": {
+            "action": "create_record|ask_user",
+            "awaiting": "time"
+          }
+        },
+        {
+          "text": "15:00",
+          "expect": {
+            "action": "create_record",
+            "type": "meeting",
+            "title": [
+              "Иван"
+            ],
+            "start": "2026-10-22 15:00",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ],
+      "note": "ответ чипом приходит тем же текстом, что и голосом"
+    },
+    {
+      "id": "3.10",
+      "category": "уточнение",
+      "turns": [
+        {
+          "text": "Поставь встречу с Ольгой сегодня",
+          "expect": {
+            "action": "create_record|ask_user",
+            "awaiting": "time"
+          }
+        },
+        {
+          "text": "В 9 утра",
+          "expect": {
+            "action": "create_record",
+            "type": "meeting",
+            "title": [
+              "Ольг"
+            ],
+            "start": "2026-10-21 09:00",
+            "ok": false
+          }
+        }
+      ]
+    },
+    {
+      "id": "3.11",
+      "category": "уточнение",
+      "turns": [
+        {
+          "text": "Поставь встречу с Иваном завтра",
+          "expect": {
+            "action": "create_record|ask_user",
+            "awaiting": "time"
+          }
+        },
+        {
+          "text": "Не надо",
+          "expect": {
+            "action": "none",
+            "awaiting": "none"
+          }
+        }
+      ],
+      "skip": "нужны отказ и смена темы в состоянии разговора (agent-06)"
+    },
+    {
+      "id": "3.12",
+      "category": "уточнение",
+      "turns": [
+        {
+          "text": "Поставь задачу подготовить смету",
+          "expect": {
+            "action": "create_record",
+            "type": "task",
+            "title": [
+              "подготов",
+              "смет"
+            ],
+            "start": "none",
+            "deadline": "none",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "3.13",
+      "category": "уточнение",
+      "turns": [
+        {
+          "text": "Поставь встречу с Иваном завтра",
+          "expect": {
+            "action": "create_record|ask_user",
+            "awaiting": "time"
+          }
+        },
+        {
+          "text": "А что у меня завтра?",
+          "expect": {
+            "action": "list_records",
+            "date_from": "2026-10-22 00:00",
+            "date_to": "2026-10-23 00:00",
+            "types": "all"
+          }
+        }
+      ],
+      "skip": "нужны отказ и смена темы в состоянии разговора (agent-06)"
+    },
+    {
+      "id": "3.14",
+      "category": "уточнение",
+      "turns": [
+        {
+          "text": "Поставь встречу с Иваном завтра",
+          "expect": {
+            "action": "create_record|ask_user",
+            "awaiting": "time"
+          }
+        },
+        {
+          "text": "А что у меня завтра?",
+          "expect": {
+            "action": "list_records",
+            "date_from": "2026-10-22 00:00",
+            "date_to": "2026-10-23 00:00",
+            "types": "all"
+          }
+        },
+        {
+          "text": "В 16",
+          "expect": {
+            "action": "create_record",
+            "type": "meeting",
+            "title": [
+              "Иван"
+            ],
+            "start": "2026-10-22 16:00",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ],
+      "skip": "нужны отказ и смена темы в состоянии разговора (agent-06)"
+    },
+    {
+      "id": "3.15",
+      "category": "уточнение",
+      "turns": [
+        {
+          "text": "Поставь встречу с Иваном завтра",
+          "expect": {
+            "action": "create_record|ask_user",
+            "awaiting": "time"
+          }
+        },
+        {
+          "text": "А что у меня завтра?",
+          "expect": {
+            "action": "list_records",
+            "date_from": "2026-10-22 00:00",
+            "date_to": "2026-10-23 00:00",
+            "types": "all"
+          }
+        },
+        {
+          "text": "Что у меня в пятницу?",
+          "expect": {
+            "action": "list_records",
+            "date_from": "2026-10-23 00:00",
+            "date_to": "2026-10-24 00:00",
+            "types": "all"
+          }
+        },
+        {
+          "text": "В 16",
+          "expect": {
+            "action": "ask_user",
+            "awaiting": "answer"
+          }
+        }
+      ],
+      "skip": "нужны отказ и смена темы в состоянии разговора (agent-06)"
+    },
+    {
+      "id": "4.1",
+      "category": "список за период",
+      "turns": [
+        {
+          "text": "Что у меня на завтра?",
+          "expect": {
+            "action": "list_records",
+            "date_from": "2026-10-22 00:00",
+            "date_to": "2026-10-23 00:00",
+            "types": "all"
+          }
+        }
+      ]
+    },
+    {
+      "id": "4.2",
+      "category": "список за период",
+      "turns": [
+        {
+          "text": "Покажи задачи на сегодня",
+          "expect": {
+            "action": "list_records",
+            "date_from": "2026-10-21 00:00",
+            "date_to": "2026-10-22 00:00",
+            "types": [
+              "task",
+              "reminder"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "4.3",
+      "category": "список за период",
+      "turns": [
+        {
+          "text": "Какие встречи у меня на этой неделе?",
+          "expect": {
+            "action": "list_records",
+            "date_from": "2026-10-19 00:00",
+            "date_to": "2026-10-26 00:00",
+            "types": [
+              "meeting"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "4.4",
+      "category": "список за период",
+      "turns": [
+        {
+          "text": "Что мне нужно сделать до конца недели?",
+          "expect": {
+            "action": "list_records",
+            "date_from": "2026-10-21",
+            "date_to": "2026-10-26 00:00",
+            "types": [
+              "task",
+              "reminder"
+            ]
+          }
+        }
+      ],
+      "note": "в таблице начало периода без времени: «с текущего момента» тоже верно"
+    },
+    {
+      "id": "4.5",
+      "category": "список за период",
+      "turns": [
+        {
+          "text": "Что у меня на следующей неделе?",
+          "expect": {
+            "action": "list_records",
+            "date_from": "2026-10-26 00:00",
+            "date_to": "2026-11-02 00:00",
+            "types": "all"
+          }
+        }
+      ]
+    },
+    {
+      "id": "4.6",
+      "category": "список за период",
+      "turns": [
+        {
+          "text": "Какие напоминания на послезавтра?",
+          "expect": {
+            "action": "list_records",
+            "date_from": "2026-10-23 00:00",
+            "date_to": "2026-10-24 00:00",
+            "types": [
+              "reminder"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "4.7",
+      "category": "список за период",
+      "turns": [
+        {
+          "text": "Что у меня в пятницу?",
+          "expect": {
+            "action": "list_records",
+            "date_from": "2026-10-23 00:00",
+            "date_to": "2026-10-24 00:00",
+            "types": "all"
+          }
+        }
+      ]
+    },
+    {
+      "id": "4.8",
+      "category": "список за период",
+      "turns": [
+        {
+          "text": "Есть ли что-то на выходные?",
+          "expect": {
+            "action": "list_records",
+            "date_from": "2026-10-24 00:00",
+            "date_to": "2026-10-26 00:00",
+            "types": "all"
+          }
+        }
+      ]
+    },
+    {
+      "id": "4.9",
+      "category": "список за период",
+      "turns": [
+        {
+          "text": "Что было вчера?",
+          "expect": {
+            "action": "list_records",
+            "date_from": "2026-10-20 00:00",
+            "date_to": "2026-10-21 00:00",
+            "types": "all"
+          }
+        }
+      ]
+    },
+    {
+      "id": "4.10",
+      "category": "список за период",
+      "turns": [
+        {
+          "text": "Что у меня 31 декабря?",
+          "expect": {
+            "action": "list_records",
+            "date_from": "2026-12-31 00:00",
+            "date_to": "2027-01-01 00:00",
+            "types": "all"
+          }
+        }
+      ]
+    },
+    {
+      "id": "4.11",
+      "category": "список за период",
+      "turns": [
+        {
+          "text": "Что у меня 31 октября?",
+          "expect": {
+            "action": "list_records",
+            "date_from": "2026-10-31 00:00",
+            "date_to": "2026-11-01 00:00",
+            "types": "all"
+          }
+        }
+      ]
+    },
+    {
+      "id": "4.12",
+      "category": "список за период",
+      "turns": [
+        {
+          "text": "чё у меня там сегодня",
+          "expect": {
+            "action": "list_records",
+            "date_from": "2026-10-21 00:00",
+            "date_to": "2026-10-22 00:00",
+            "types": "all"
+          }
+        }
+      ]
+    },
+    {
+      "id": "4.13",
+      "category": "список за период",
+      "turns": [
+        {
+          "text": "а на завтра чё есть",
+          "expect": {
+            "action": "list_records",
+            "date_from": "2026-10-22 00:00",
+            "date_to": "2026-10-23 00:00",
+            "types": "all"
+          }
+        }
+      ]
+    },
+    {
+      "id": "4.14",
+      "category": "список за период",
+      "turns": [
+        {
+          "text": "покажь встречи на неделю",
+          "expect": {
+            "action": "list_records",
+            "date_from": "2026-10-19 00:00",
+            "date_to": "2026-10-26 00:00",
+            "types": [
+              "meeting"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "4.15",
+      "category": "список за период",
+      "turns": [
+        {
+          "text": "чё по задачам на выходные",
+          "expect": {
+            "action": "list_records",
+            "date_from": "2026-10-24 00:00",
+            "date_to": "2026-10-26 00:00",
+            "types": [
+              "task",
+              "reminder"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "4.16",
+      "category": "список за период",
+      "turns": [
+        {
+          "text": "Какие у меня задачи?",
+          "expect": {
+            "action": "list_records",
+            "date_from": "2026-10-21 00:00",
+            "date_to": "none",
+            "types": [
+              "task",
+              "reminder"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "4.17",
+      "category": "список за период",
+      "turns": [
+        {
+          "text": "Какие у меня дела на завтра?",
+          "expect": {
+            "action": "list_records",
+            "date_from": "2026-10-22 00:00",
+            "date_to": "2026-10-23 00:00",
+            "types": "all"
+          }
+        }
+      ]
+    },
+    {
+      "id": "4.18",
+      "category": "список за период",
+      "turns": [
+        {
+          "text": "Что у меня сегодня вечером?",
+          "expect": {
+            "action": "list_records",
+            "date_from": "2026-10-21 18:00",
+            "date_to": "2026-10-22 00:00",
+            "types": "all"
+          }
+        }
+      ]
+    },
+    {
+      "id": "4.19",
+      "category": "список за период",
+      "turns": [
+        {
+          "text": "Что у меня на следующей неделе?",
+          "expect": {
+            "action": "list_records",
+            "date_from": "2026-10-26 00:00",
+            "date_to": "2026-11-02 00:00",
+            "types": "all"
+          }
+        }
+      ],
+      "note": "в таблице — после 2.12б; на действие модели это не влияет"
+    },
+    {
+      "id": "5.1",
+      "category": "поиск",
+      "turns": [
+        {
+          "text": "Когда у меня была встреча с Марией по хакатону?",
+          "expect": {
+            "action": "search_records",
+            "query": [
+              "Мари",
+              "хакатон"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "5.2",
+      "category": "поиск",
+      "turns": [
+        {
+          "text": "Найди задачу про смету для Максима",
+          "expect": {
+            "action": "search_records",
+            "query": [
+              "смет",
+              "Максим"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "5.3",
+      "category": "поиск",
+      "turns": [
+        {
+          "text": "Когда мы созванивались с Севером?",
+          "expect": {
+            "action": "search_records",
+            "query": [
+              "Север"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "5.4",
+      "category": "поиск",
+      "turns": [
+        {
+          "text": "Покажи все демо по мобильному приложению",
+          "expect": {
+            "action": "search_records",
+            "query": [
+              "демо",
+              "мобильн"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "5.5",
+      "category": "поиск",
+      "turns": [
+        {
+          "text": "Что я должен был отправить Ольге?",
+          "expect": {
+            "action": "search_records",
+            "query": [
+              "Ольг"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "5.6",
+      "category": "поиск",
+      "turns": [
+        {
+          "text": "Была ли планёрка по CRM на прошлой неделе?",
+          "expect": {
+            "action": "search_records",
+            "query": [
+              "CRM"
+            ],
+            "query_from": "2026-10-12 00:00",
+            "query_to": "2026-10-19 00:00"
+          }
+        }
+      ]
+    },
+    {
+      "id": "5.7",
+      "category": "поиск",
+      "turns": [
+        {
+          "text": "Что у меня было по коммерческому предложению?",
+          "expect": {
+            "action": "search_records",
+            "query": [
+              "коммерческ"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "5.8",
+      "category": "поиск",
+      "turns": [
+        {
+          "text": "Когда я в последний раз звонил Дмитрию?",
+          "expect": {
+            "action": "search_records",
+            "query": [
+              "Дмитри"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "5.9",
+      "category": "поиск",
+      "turns": [
+        {
+          "text": "найди эту, ну как её, задачу про смету",
+          "expect": {
+            "action": "search_records",
+            "query": [
+              "смет"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "5.10",
+      "category": "поиск",
+      "turns": [
+        {
+          "text": "когда там была встреча с этим, с Дмитрием по бюджету",
+          "expect": {
+            "action": "search_records",
+            "query": [
+              "Дмитри",
+              "бюджет"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "5.11",
+      "category": "поиск",
+      "turns": [
+        {
+          "text": "короче с кем у меня созвон был по хакатону",
+          "expect": {
+            "action": "search_records",
+            "query": [
+              "хакатон"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "5.12",
+      "category": "поиск",
+      "turns": [
+        {
+          "text": "Найди всё про КП",
+          "expect": {
+            "action": "search_records",
+            "query": [
+              "КП|коммерческ"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "5.13",
+      "category": "поиск",
+      "turns": [
+        {
+          "text": "Найди встречу по мобилке",
+          "expect": {
+            "action": "search_records",
+            "query": [
+              "мобил"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "5.14",
+      "category": "поиск",
+      "turns": [
+        {
+          "text": "Найди созвон с Пульсом",
+          "expect": {
+            "action": "search_records",
+            "query": [
+              "Пульс"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "5.15",
+      "category": "поиск",
+      "turns": [
+        {
+          "text": "Что я должен был купить?",
+          "expect": {
+            "action": "search_records",
+            "query": [
+              "куп|покуп"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "5.16",
+      "category": "поиск",
+      "turns": [
+        {
+          "text": "Найди задачу про аквапарк",
+          "expect": {
+            "action": "search_records",
+            "query": [
+              "аквапарк"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "5.17",
+      "category": "поиск",
+      "turns": [
+        {
+          "text": "Когда созвон с юристами?",
+          "expect": {
+            "action": "search_records",
+            "query": [
+              "юрист"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "6.1",
+      "category": "разговорные фразы",
+      "turns": [
+        {
+          "text": "ну короче надо в пятницу отчёт отправить",
+          "expect": {
+            "action": "create_record",
+            "type": "task",
+            "title": [
+              "отправ",
+              "отч"
+            ],
+            "start": "2026-10-23",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "6.2",
+      "category": "разговорные фразы",
+      "turns": [
+        {
+          "text": "э-э напомни мне это... завтра часов в десять Ивану позвонить",
+          "expect": {
+            "action": "create_record",
+            "type": "reminder",
+            "title": [
+              "позвон",
+              "Иван"
+            ],
+            "start": "2026-10-22 10:00",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "6.3",
+      "category": "разговорные фразы",
+      "turns": [
+        {
+          "text": "так, ну, запиши: завтра созвон с командой в три",
+          "expect": {
+            "action": "create_record",
+            "type": "meeting",
+            "title": [
+              "команд"
+            ],
+            "start": "2026-10-22 15:00",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "6.4",
+      "category": "разговорные фразы",
+      "turns": [
+        {
+          "text": "слушай, а можешь напомнить про договор, ну в понедельник где-то",
+          "expect": {
+            "action": "create_record",
+            "type": "reminder",
+            "title": [
+              "договор"
+            ],
+            "start": "2026-10-26",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "6.5",
+      "category": "разговорные фразы",
+      "turns": [
+        {
+          "text": "мне бы встречу с Анной на пятницу утром поставить",
+          "expect": {
+            "action": "create_record",
+            "type": "meeting",
+            "title": [
+              "Анн"
+            ],
+            "start": "2026-10-23 09:00",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "6.6",
+      "category": "разговорные фразы",
+      "turns": [
+        {
+          "text": "в пятницу, нет, в четверг в одиннадцать встреча с дизайнером",
+          "expect": {
+            "action": "create_record",
+            "type": "meeting",
+            "title": [
+              "дизайнер"
+            ],
+            "start": "2026-10-22 11:00",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "6.7",
+      "category": "разговорные фразы",
+      "turns": [
+        {
+          "text": "напомни завтра в десять утра... нет, в одиннадцать... позвонить в банк",
+          "expect": {
+            "action": "create_record",
+            "type": "reminder",
+            "title": [
+              "позвон",
+              "банк"
+            ],
+            "start": "2026-10-22 11:00",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "6.8",
+      "category": "разговорные фразы",
+      "turns": [
+        {
+          "text": "поставь встречу с Ольгой на послезавтра, да, на послезавтра вечером",
+          "expect": {
+            "action": "create_record",
+            "type": "meeting",
+            "title": [
+              "Ольг"
+            ],
+            "start": "2026-10-23 18:00",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "6.9",
+      "category": "разговорные фразы",
+      "turns": [
+        {
+          "text": "встреча встреча с Иваном завтра в в два",
+          "expect": {
+            "action": "create_record",
+            "type": "meeting",
+            "title": [
+              "Иван"
+            ],
+            "start": "2026-10-22 14:00",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "6.10",
+      "category": "разговорные фразы",
+      "turns": [
+        {
+          "text": "напомни в пол десятого вечера лекарство выпить",
+          "expect": {
+            "action": "create_record",
+            "type": "reminder",
+            "title": [
+              "лекарств"
+            ],
+            "start": "2026-10-21 21:30",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "6.11",
+      "category": "разговорные фразы",
+      "turns": [
+        {
+          "text": "часиков в пять созвон с Орбитой завтра",
+          "expect": {
+            "action": "create_record",
+            "type": "meeting",
+            "title": [
+              "Орбит"
+            ],
+            "start": "2026-10-22 17:00",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "6.12",
+      "category": "разговорные фразы",
+      "turns": [
+        {
+          "text": "забей на завтра планёрку по сайту на девять тридцать",
+          "expect": {
+            "action": "create_record",
+            "type": "meeting",
+            "title": [
+              "планёрк|планерк",
+              "сайт"
+            ],
+            "start": "2026-10-22 09:30",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "6.13",
+      "category": "разговорные фразы",
+      "turns": [
+        {
+          "text": "напомни через пару часов отправить протокол",
+          "expect": {
+            "action": "create_record",
+            "type": "reminder",
+            "title": [
+              "протокол"
+            ],
+            "start": "2026-10-21 12:00",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "6.14",
+      "category": "разговорные фразы",
+      "turns": [
+        {
+          "text": "в 5 вечера завтра созвон со Стартом",
+          "expect": {
+            "action": "create_record",
+            "type": "meeting",
+            "title": [
+              "Старт"
+            ],
+            "start": "2026-10-22 17:00",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "6.15",
+      "category": "разговорные фразы",
+      "turns": [
+        {
+          "text": "ой, забыл, надо ещё смету Анне отправить, ну до завтра",
+          "expect": {
+            "action": "create_record",
+            "type": "task",
+            "title": [
+              "смет",
+              "Анн"
+            ],
+            "deadline": "2026-10-22",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "6.16",
+      "category": "разговорные фразы",
+      "turns": [
+        {
+          "text": "накидай задачку: позвонить Марии по договору",
+          "expect": {
+            "action": "create_record",
+            "type": "task",
+            "title": [
+              "позвон",
+              "Мари",
+              "договор"
+            ],
+            "start": "none",
+            "deadline": "none",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "6.17",
+      "category": "разговорные фразы",
+      "turns": [
+        {
+          "text": "напомни завтра десять ноль ноль отправить договор иван",
+          "expect": {
+            "action": "create_record",
+            "type": "reminder",
+            "title": [
+              "договор",
+              "Иван"
+            ],
+            "start": "2026-10-22 10:00",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "7.1",
+      "category": "изменение, статус, откат",
+      "turns": [
+        {
+          "text": "Перенеси встречу с Иваном на пятницу",
+          "expect": {
+            "action": "update_record",
+            "start": "2026-10-23 15:00",
+            "target_text": [
+              "Иван"
+            ],
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ],
+      "records": [
+        {
+          "type": "meeting",
+          "title": "Встреча с Иваном",
+          "start": "2026-10-22 15:00"
+        }
+      ]
+    },
+    {
+      "id": "7.2",
+      "category": "изменение, статус, откат",
+      "turns": [
+        {
+          "text": "Отметь задачу про отчёт выполненной",
+          "expect": {
+            "action": "set_status",
+            "status": "done",
+            "target_text": [
+              "отч"
+            ],
+            "ok": false,
+            "awaiting": "choice"
+          }
+        },
+        {
+          "text": "Первую",
+          "expect": {
+            "action": "set_status",
+            "status": "done",
+            "target_index": 1,
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ],
+      "records": [
+        {
+          "type": "task",
+          "title": "Подготовить отчёт по продажам",
+          "deadline": "2026-10-23 23:59"
+        },
+        {
+          "type": "task",
+          "title": "Отправить отчёт Ольге",
+          "deadline": "2026-10-24 23:59"
+        }
+      ]
+    },
+    {
+      "id": "7.3",
+      "category": "изменение, статус, откат",
+      "turns": [
+        {
+          "text": "Отмени созвон с Вектором",
+          "expect": {
+            "action": "set_status",
+            "status": "cancelled",
+            "target_text": [
+              "Вектор"
+            ],
+            "ok": false,
+            "awaiting": "choice"
+          }
+        },
+        {
+          "text": "Вторую",
+          "expect": {
+            "action": "set_status",
+            "status": "cancelled",
+            "target_index": 2,
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ],
+      "records": [
+        {
+          "type": "meeting",
+          "title": "Созвон с Вектором по интеграции",
+          "start": "2026-10-22 15:00"
+        },
+        {
+          "type": "meeting",
+          "title": "Созвон с Вектором по сайту",
+          "start": "2026-10-28 12:00"
+        }
+      ]
+    },
+    {
+      "id": "7.4",
+      "category": "изменение, статус, откат",
+      "turns": [
+        {
+          "text": "Что у меня на завтра?",
+          "expect": {
+            "action": "list_records",
+            "date_from": "2026-10-22 00:00",
+            "date_to": "2026-10-23 00:00",
+            "types": "all"
+          }
+        },
+        {
+          "text": "А перенеси вторую на пятницу",
+          "expect": {
+            "action": "update_record",
+            "start": "2026-10-23 12:00",
+            "target_index": 2,
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ],
+      "records": [
+        {
+          "type": "task",
+          "title": "Подготовить вопросы для Максимом",
+          "start": "2026-10-22 09:15"
+        },
+        {
+          "type": "meeting",
+          "title": "Созвон с Альфой по бюджету",
+          "start": "2026-10-22 12:00"
+        },
+        {
+          "type": "meeting",
+          "title": "Встреча с командой",
+          "start": "2026-10-22 15:00"
+        }
+      ]
+    },
+    {
+      "id": "7.5",
+      "category": "изменение, статус, откат",
+      "turns": [
+        {
+          "text": "Добавь встречу с командой завтра в 15:00",
+          "expect": {
+            "action": "create_record",
+            "type": "meeting",
+            "title": [
+              "команд"
+            ],
+            "start": "2026-10-22 15:00",
+            "ok": true,
+            "awaiting": "none"
+          }
+        },
+        {
+          "text": "Сдвинь её на час позже",
+          "expect": {
+            "action": "update_record",
+            "start": "2026-10-22 16:00",
+            "target_focus": true,
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ],
+      "db": true
+    },
+    {
+      "id": "7.6",
+      "category": "изменение, статус, откат",
+      "turns": [
+        {
+          "text": "Я уже позвонил Ольге",
+          "expect": {
+            "action": "set_status",
+            "status": "done",
+            "target_text": [
+              "Ольг"
+            ],
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ],
+      "records": [
+        {
+          "type": "reminder",
+          "title": "Позвонить Ольге",
+          "start": "2026-10-22 09:00"
+        }
+      ]
+    },
+    {
+      "id": "7.7",
+      "category": "изменение, статус, откат",
+      "turns": [
+        {
+          "text": "Отмени задачу про договор",
+          "expect": {
+            "action": "set_status",
+            "status": "cancelled",
+            "target_text": [
+              "договор"
+            ],
+            "ok": false,
+            "awaiting": "choice"
+          }
+        }
+      ],
+      "records": [
+        {
+          "type": "task",
+          "title": "Согласовать договор с Иваном",
+          "deadline": "2026-10-25 23:59"
+        },
+        {
+          "type": "task",
+          "title": "Отправить договор Марии",
+          "deadline": "2026-10-26 23:59"
+        }
+      ]
+    },
+    {
+      "id": "7.8",
+      "category": "изменение, статус, откат",
+      "turns": [
+        {
+          "text": "ну это, отмени вот ту задачу про отчёт, не надо уже",
+          "expect": {
+            "action": "set_status",
+            "status": "cancelled",
+            "target_text": [
+              "отч"
+            ],
+            "ok": false,
+            "awaiting": "choice"
+          }
+        }
+      ],
+      "records": [
+        {
+          "type": "task",
+          "title": "Подготовить отчёт по продажам",
+          "deadline": "2026-10-23 23:59"
+        },
+        {
+          "type": "task",
+          "title": "Отправить отчёт Ольге",
+          "deadline": "2026-10-24 23:59"
+        }
+      ]
+    },
+    {
+      "id": "7.9",
+      "category": "изменение, статус, откат",
+      "turns": [
+        {
+          "text": "отметь что я это уже сделал",
+          "expect": {
+            "action": "set_status|ask_user|help"
+          }
+        }
+      ],
+      "db": true,
+      "note": "новый разговор: ссылаться не на что — вопрос, ничего не изменено"
+    },
+    {
+      "id": "7.10",
+      "category": "изменение, статус, откат",
+      "turns": [
+        {
+          "text": "Напомни завтра в 10 позвонить в банк",
+          "expect": {
+            "action": "create_record",
+            "type": "reminder",
+            "title": [
+              "позвон",
+              "банк"
+            ],
+            "start": "2026-10-22 10:00",
+            "ok": true,
+            "awaiting": "none"
+          }
+        },
+        {
+          "text": "не, стоп, отмени",
+          "expect": {
+            "action": "set_status|undo_last",
+            "ok": true
+          }
+        }
+      ],
+      "db": true
+    },
+    {
+      "id": "7.11",
+      "category": "изменение, статус, откат",
+      "turns": [
+        {
+          "text": "Добавь встречу с командой завтра в 15:00",
+          "expect": {
+            "action": "create_record",
+            "type": "meeting",
+            "title": [
+              "команд"
+            ],
+            "start": "2026-10-22 15:00",
+            "ok": true,
+            "awaiting": "none"
+          }
+        },
+        {
+          "text": "Нет, не в 15, а в 16",
+          "expect": {
+            "action": "update_record",
+            "start": "2026-10-22 16:00",
+            "target_focus": true,
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ],
+      "db": true
+    },
+    {
+      "id": "7.12",
+      "category": "изменение, статус, откат",
+      "turns": [
+        {
+          "text": "Отмени встречу с дизайнером",
+          "expect": {
+            "action": "set_status",
+            "status": "cancelled",
+            "target_text": [
+              "дизайнер"
+            ],
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ],
+      "records": [
+        {
+          "type": "meeting",
+          "title": "Встреча с дизайнером",
+          "start": "2026-10-22 11:00"
+        }
+      ]
+    },
+    {
+      "id": "7.13",
+      "category": "изменение, статус, откат",
+      "turns": [
+        {
+          "text": "Отмени встречу с дизайнером",
+          "expect": {
+            "action": "set_status",
+            "status": "cancelled",
+            "target_text": [
+              "дизайнер"
+            ],
+            "ok": true,
+            "awaiting": "none"
+          }
+        },
+        {
+          "text": "Верни",
+          "expect": {
+            "action": "undo_last",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ],
+      "records": [
+        {
+          "type": "meeting",
+          "title": "Встреча с дизайнером",
+          "start": "2026-10-22 11:00"
+        }
+      ]
+    },
+    {
+      "id": "7.14",
+      "category": "изменение, статус, откат",
+      "turns": [
+        {
+          "text": "Отмени созвон с Вектором по интеграции",
+          "expect": {
+            "action": "set_status",
+            "status": "cancelled",
+            "target_text": [
+              "Вектор",
+              "интеграц"
+            ],
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ],
+      "records": [
+        {
+          "type": "meeting",
+          "title": "Созвон с Вектором по интеграции",
+          "start": "2026-10-22 15:00"
+        },
+        {
+          "type": "meeting",
+          "title": "Созвон с Вектором по сайту",
+          "start": "2026-10-28 12:00"
+        }
+      ]
+    },
+    {
+      "id": "7.15",
+      "category": "изменение, статус, откат",
+      "turns": [
+        {
+          "text": "Отмени созвон с Вектором по интеграции",
+          "expect": {
+            "action": "set_status",
+            "status": "cancelled",
+            "target_text": [
+              "Вектор",
+              "интеграц"
+            ],
+            "ok": true,
+            "awaiting": "none"
+          }
+        },
+        {
+          "text": "Нет, не этот, а тот, что по сайту",
+          "expect": {
+            "action": "set_status",
+            "status": "cancelled",
+            "replaces_last": true,
+            "target_text": [
+              "сайт"
+            ],
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ],
+      "records": [
+        {
+          "type": "meeting",
+          "title": "Созвон с Вектором по интеграции",
+          "start": "2026-10-22 15:00"
+        },
+        {
+          "type": "meeting",
+          "title": "Созвон с Вектором по сайту",
+          "start": "2026-10-28 12:00"
+        }
+      ]
+    },
+    {
+      "id": "7.16",
+      "category": "изменение, статус, откат",
+      "turns": [
+        {
+          "text": "Что у меня на завтра?",
+          "expect": {
+            "action": "list_records",
+            "date_from": "2026-10-22 00:00",
+            "date_to": "2026-10-23 00:00",
+            "types": "all"
+          }
+        },
+        {
+          "text": "Перенеси её на завтра",
+          "expect": {
+            "action": "update_record|ask_user"
+          }
+        }
+      ],
+      "records": [
+        {
+          "type": "task",
+          "title": "Подготовить вопросы для Максимом",
+          "start": "2026-10-22 09:15"
+        },
+        {
+          "type": "meeting",
+          "title": "Созвон с Альфой по бюджету",
+          "start": "2026-10-22 12:00"
+        },
+        {
+          "type": "meeting",
+          "title": "Встреча с командой",
+          "start": "2026-10-22 15:00"
+        }
+      ],
+      "note": "фокуса нет: ассистент спрашивает, какую из показанных"
+    },
+    {
+      "id": "7.17",
+      "category": "изменение, статус, откат",
+      "turns": [
+        {
+          "text": "Перенеси встречу с Натальей на час позже",
+          "expect": {
+            "action": "update_record",
+            "start": "2026-10-27 17:30",
+            "target_text": [
+              "Натал"
+            ],
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ],
+      "records": [
+        {
+          "type": "meeting",
+          "title": "Встреча с Натальей по презентации",
+          "start": "2026-10-27 16:30"
+        }
+      ]
+    },
+    {
+      "id": "7.18",
+      "category": "изменение, статус, откат",
+      "turns": [
+        {
+          "text": "Перенеси встречу с Натальей на час позже",
+          "expect": {
+            "action": "update_record",
+            "start": "2026-10-27 17:30",
+            "target_text": [
+              "Натал"
+            ],
+            "ok": true,
+            "awaiting": "none"
+          }
+        },
+        {
+          "text": "Верни как было",
+          "expect": {
+            "action": "undo_last",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ],
+      "records": [
+        {
+          "type": "meeting",
+          "title": "Встреча с Натальей по презентации",
+          "start": "2026-10-27 16:30"
+        }
+      ]
+    },
+    {
+      "id": "7.19",
+      "category": "изменение, статус, откат",
+      "turns": [
+        {
+          "text": "Отмени всё на завтра",
+          "expect": {
+            "action": "set_status",
+            "status": "cancelled",
+            "target_all": true,
+            "ok": false,
+            "awaiting": "confirm"
+          }
+        }
+      ],
+      "records": [
+        {
+          "type": "task",
+          "title": "Подготовить вопросы для Максимом",
+          "start": "2026-10-22 09:15"
+        },
+        {
+          "type": "meeting",
+          "title": "Созвон с Альфой по бюджету",
+          "start": "2026-10-22 12:00"
+        },
+        {
+          "type": "meeting",
+          "title": "Встреча с командой",
+          "start": "2026-10-22 15:00"
+        }
+      ]
+    },
+    {
+      "id": "7.20",
+      "category": "изменение, статус, откат",
+      "turns": [
+        {
+          "text": "Отмени всё на завтра",
+          "expect": {
+            "action": "set_status",
+            "status": "cancelled",
+            "target_all": true,
+            "ok": false,
+            "awaiting": "confirm"
+          }
+        },
+        {
+          "text": "Да",
+          "expect": {
+            "action": "set_status",
+            "status": "cancelled",
+            "target_all": true,
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ],
+      "records": [
+        {
+          "type": "task",
+          "title": "Подготовить вопросы для Максимом",
+          "start": "2026-10-22 09:15"
+        },
+        {
+          "type": "meeting",
+          "title": "Созвон с Альфой по бюджету",
+          "start": "2026-10-22 12:00"
+        },
+        {
+          "type": "meeting",
+          "title": "Встреча с командой",
+          "start": "2026-10-22 15:00"
+        }
+      ]
+    },
+    {
+      "id": "7.21",
+      "category": "изменение, статус, откат",
+      "turns": [
+        {
+          "text": "Отмени всё на завтра",
+          "expect": {
+            "action": "set_status",
+            "status": "cancelled",
+            "target_all": true,
+            "ok": false,
+            "awaiting": "confirm"
+          }
+        },
+        {
+          "text": "Да",
+          "expect": {
+            "action": "set_status",
+            "status": "cancelled",
+            "target_all": true,
+            "ok": true,
+            "awaiting": "none"
+          }
+        },
+        {
+          "text": "Верни",
+          "expect": {
+            "action": "undo_last",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ],
+      "records": [
+        {
+          "type": "task",
+          "title": "Подготовить вопросы для Максимом",
+          "start": "2026-10-22 09:15"
+        },
+        {
+          "type": "meeting",
+          "title": "Созвон с Альфой по бюджету",
+          "start": "2026-10-22 12:00"
+        },
+        {
+          "type": "meeting",
+          "title": "Встреча с командой",
+          "start": "2026-10-22 15:00"
+        }
+      ]
+    },
+    {
+      "id": "7.22",
+      "category": "изменение, статус, откат",
+      "turns": [
+        {
+          "text": "Отмени все созвоны на этой неделе",
+          "expect": {
+            "action": "set_status",
+            "status": "cancelled",
+            "target_all": true,
+            "ok": false,
+            "awaiting": "confirm"
+          }
+        }
+      ],
+      "records": [
+        {
+          "type": "meeting",
+          "title": "Созвон с Альфой по бюджету",
+          "start": "2026-10-22 12:00"
+        },
+        {
+          "type": "meeting",
+          "title": "Созвон с Вектором по интеграции",
+          "start": "2026-10-22 15:00"
+        },
+        {
+          "type": "meeting",
+          "title": "Созвон с Вектором по сайту",
+          "start": "2026-10-28 12:00"
+        }
+      ]
+    },
+    {
+      "id": "8.1",
+      "category": "граничные случаи",
+      "turns": [
+        {
+          "text": "Какая сегодня погода?",
+          "expect": {
+            "action": "help",
+            "kind": "offtopic"
+          }
+        }
+      ]
+    },
+    {
+      "id": "8.2",
+      "category": "граничные случаи",
+      "turns": [
+        {
+          "text": "Привет, что ты умеешь?",
+          "expect": {
+            "action": "help",
+            "kind": "help"
+          }
+        }
+      ]
+    },
+    {
+      "id": "8.3",
+      "category": "граничные случаи",
+      "turns": [
+        {
+          "text": "Напомни вчера позвонить Ивану",
+          "expect": {
+            "action": "create_record",
+            "type": "reminder",
+            "title": [
+              "позвон",
+              "Иван"
+            ],
+            "start": "2026-10-20",
+            "ok": false,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "8.4",
+      "category": "граничные случаи",
+      "turns": [
+        {
+          "text": "Напомни вчера в 10 утра позвонить в банк",
+          "expect": {
+            "action": "create_record",
+            "type": "reminder",
+            "title": [
+              "позвон",
+              "банк"
+            ],
+            "start": "2026-10-20 10:00",
+            "ok": false,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "8.5",
+      "category": "граничные случаи",
+      "turns": [
+        {
+          "text": "Поставь встречу с Анной завтра в 12",
+          "expect": {
+            "action": "create_record",
+            "type": "meeting",
+            "title": [
+              "Анн"
+            ],
+            "start": "2026-10-22 12:00",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ],
+      "records": [
+        {
+          "type": "meeting",
+          "title": "Созвон с Альфой по бюджету",
+          "start": "2026-10-22 12:00"
+        }
+      ]
+    },
+    {
+      "id": "8.6",
+      "category": "граничные случаи",
+      "turns": [
+        {
+          "text": "ну привет, э, как там у меня дела вообще",
+          "expect": {
+            "action": "list_records|ask_user"
+          }
+        }
+      ]
+    },
+    {
+      "id": "8.7",
+      "category": "граничные случаи",
+      "turns": [
+        {
+          "text": "Поставь встречу с Анной завтра в 12:30",
+          "expect": {
+            "action": "create_record",
+            "type": "meeting",
+            "title": [
+              "Анн"
+            ],
+            "start": "2026-10-22 12:30",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ],
+      "records": [
+        {
+          "type": "meeting",
+          "title": "Созвон с Альфой по бюджету",
+          "start": "2026-10-22 12:00"
+        }
+      ]
+    },
+    {
+      "id": "8.8",
+      "category": "граничные случаи",
+      "turns": [
+        {
+          "text": "Поставь созвон с Альфой по бюджету завтра в 12",
+          "expect": {
+            "action": "create_record",
+            "type": "meeting",
+            "title": [
+              "Альф"
+            ],
+            "start": "2026-10-22 12:00",
+            "ok": false
+          }
+        }
+      ],
+      "records": [
+        {
+          "type": "meeting",
+          "title": "Созвон с Альфой по бюджету",
+          "start": "2026-10-22 12:00"
+        }
+      ],
+      "note": "точный дубль: запись не создана"
+    },
+    {
+      "id": "8.9",
+      "category": "граничные случаи",
+      "turns": [
+        {
+          "text": "запиши задачу подготовить акт и ещё поставь встречу с Максимом завтра в 16",
+          "expect": {
+            "action": "create_record",
+            "type": "task",
+            "title": [
+              "акт"
+            ],
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ],
+      "note": "Gemini отдаёт один вызов: создано первое, ответ просит второе отдельно"
+    },
+    {
+      "id": "9:сегодня",
+      "category": "даты и время",
+      "turns": [
+        {
+          "text": "Напомни сегодня в 15 позвонить маме",
+          "expect": {
+            "action": "create_record",
+            "type": "reminder",
+            "start": "2026-10-21 15:00",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ],
+      "ref": "сегодня / завтра / послезавтра"
+    },
+    {
+      "id": "9:завтра",
+      "category": "даты и время",
+      "turns": [
+        {
+          "text": "Напомни завтра в 15 позвонить маме",
+          "expect": {
+            "action": "create_record",
+            "type": "reminder",
+            "start": "2026-10-22 15:00",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ],
+      "ref": "сегодня / завтра / послезавтра"
+    },
+    {
+      "id": "9:послезавтра",
+      "category": "даты и время",
+      "turns": [
+        {
+          "text": "Напомни послезавтра в 15 позвонить маме",
+          "expect": {
+            "action": "create_record",
+            "type": "reminder",
+            "start": "2026-10-23 15:00",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ],
+      "ref": "сегодня / завтра / послезавтра"
+    },
+    {
+      "id": "9:в пятницу",
+      "category": "даты и время",
+      "turns": [
+        {
+          "text": "Напомни в пятницу в 12 оплатить счёт",
+          "expect": {
+            "action": "create_record",
+            "type": "reminder",
+            "start": "2026-10-23 12:00",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ],
+      "ref": "в пятницу"
+    },
+    {
+      "id": "9:в субботу",
+      "category": "даты и время",
+      "turns": [
+        {
+          "text": "Напомни в субботу в 12 оплатить счёт",
+          "expect": {
+            "action": "create_record",
+            "type": "reminder",
+            "start": "2026-10-24 12:00",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ],
+      "ref": "в субботу"
+    },
+    {
+      "id": "9:через два часа",
+      "category": "даты и время",
+      "turns": [
+        {
+          "text": "Напомни через два часа выключить духовку",
+          "expect": {
+            "action": "create_record",
+            "type": "reminder",
+            "start": "2026-10-21 12:00",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ],
+      "ref": "через два часа / через 15 минут / через полчаса"
+    },
+    {
+      "id": "9:через 15 минут",
+      "category": "даты и время",
+      "turns": [
+        {
+          "text": "Напомни через 15 минут выключить духовку",
+          "expect": {
+            "action": "create_record",
+            "type": "reminder",
+            "start": "2026-10-21 10:15",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ],
+      "ref": "через два часа / через 15 минут / через полчаса"
+    },
+    {
+      "id": "9:через полчаса",
+      "category": "даты и время",
+      "turns": [
+        {
+          "text": "Напомни через полчаса выключить духовку",
+          "expect": {
+            "action": "create_record",
+            "type": "reminder",
+            "start": "2026-10-21 10:30",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ],
+      "ref": "через два часа / через 15 минут / через полчаса"
+    },
+    {
+      "id": "9:через три дня",
+      "category": "даты и время",
+      "turns": [
+        {
+          "text": "Напомни через три дня в 12 оплатить счёт",
+          "expect": {
+            "action": "create_record",
+            "type": "reminder",
+            "start": "2026-10-24 12:00",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ],
+      "ref": "через три дня"
+    },
+    {
+      "id": "9:на следующей неделе (в списке)",
+      "category": "даты и время",
+      "turns": [
+        {
+          "text": "Что у меня на следующей неделе?",
+          "expect": {
+            "action": "list_records",
+            "date_from": "2026-10-26 00:00",
+            "date_to": "2026-11-02 00:00",
+            "types": "all"
+          }
+        }
+      ],
+      "ref": "на следующей неделе (в списке)"
+    },
+    {
+      "id": "9:на выходных (в списке)",
+      "category": "даты и время",
+      "turns": [
+        {
+          "text": "Что у меня на выходных?",
+          "expect": {
+            "action": "list_records",
+            "date_from": "2026-10-24 00:00",
+            "date_to": "2026-10-26 00:00",
+            "types": "all"
+          }
+        }
+      ],
+      "ref": "на выходных (в списке)"
+    },
+    {
+      "id": "9:до конца недели (срок)",
+      "category": "даты и время",
+      "turns": [
+        {
+          "text": "Поставь задачу оплатить счёт до конца недели",
+          "expect": {
+            "action": "create_record",
+            "type": "task",
+            "start": "none",
+            "deadline": "2026-10-25 23:59",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ],
+      "ref": "до конца недели (срок)"
+    },
+    {
+      "id": "9:утром",
+      "category": "даты и время",
+      "turns": [
+        {
+          "text": "Напомни завтра утром позвонить маме",
+          "expect": {
+            "action": "create_record",
+            "type": "reminder",
+            "start": "2026-10-22 09:00",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ],
+      "ref": "утром"
+    },
+    {
+      "id": "9:в 11",
+      "category": "даты и время",
+      "turns": [
+        {
+          "text": "Напомни завтра в 11 позвонить маме",
+          "expect": {
+            "action": "create_record",
+            "type": "reminder",
+            "start": "2026-10-22 11:00",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ],
+      "ref": "в 11 / в 9:30"
+    },
+    {
+      "id": "9:в 9:30",
+      "category": "даты и время",
+      "turns": [
+        {
+          "text": "Напомни завтра в 9:30 позвонить маме",
+          "expect": {
+            "action": "create_record",
+            "type": "reminder",
+            "start": "2026-10-22 09:30",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ],
+      "ref": "в 11 / в 9:30"
+    },
+    {
+      "id": "9:в 3",
+      "category": "даты и время",
+      "turns": [
+        {
+          "text": "Напомни завтра в 3 позвонить маме",
+          "expect": {
+            "action": "create_record",
+            "type": "reminder",
+            "start": "2026-10-22 15:00",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ],
+      "ref": "в 3 / в два / без пятнадцати три"
+    },
+    {
+      "id": "9:в два",
+      "category": "даты и время",
+      "turns": [
+        {
+          "text": "Напомни завтра в два позвонить маме",
+          "expect": {
+            "action": "create_record",
+            "type": "reminder",
+            "start": "2026-10-22 14:00",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ],
+      "ref": "в 3 / в два / без пятнадцати три"
+    },
+    {
+      "id": "9:без пятнадцати три",
+      "category": "даты и время",
+      "turns": [
+        {
+          "text": "Напомни завтра без пятнадцати три позвонить маме",
+          "expect": {
+            "action": "create_record",
+            "type": "reminder",
+            "start": "2026-10-22 14:45",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ],
+      "ref": "в 3 / в два / без пятнадцати три"
+    },
+    {
+      "id": "9:в 7 утра",
+      "category": "даты и время",
+      "turns": [
+        {
+          "text": "Напомни завтра в 7 утра позвонить маме",
+          "expect": {
+            "action": "create_record",
+            "type": "reminder",
+            "start": "2026-10-22 07:00",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ],
+      "ref": "в 7 утра / в 3 ночи"
+    },
+    {
+      "id": "9:в 3 ночи",
+      "category": "даты и время",
+      "turns": [
+        {
+          "text": "Напомни завтра в 3 ночи позвонить маме",
+          "expect": {
+            "action": "create_record",
+            "type": "reminder",
+            "start": "2026-10-22 03:00",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ],
+      "ref": "в 7 утра / в 3 ночи"
+    },
+    {
+      "id": "9:днём",
+      "category": "даты и время",
+      "turns": [
+        {
+          "text": "Напомни завтра днём позвонить маме",
+          "expect": {
+            "action": "create_record",
+            "type": "reminder",
+            "start": "2026-10-22 15:00",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ],
+      "ref": "днём / в обед / вечером / ночью"
+    },
+    {
+      "id": "9:в обед",
+      "category": "даты и время",
+      "turns": [
+        {
+          "text": "Напомни завтра в обед позвонить маме",
+          "expect": {
+            "action": "create_record",
+            "type": "reminder",
+            "start": "2026-10-22 13:00",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ],
+      "ref": "днём / в обед / вечером / ночью"
+    },
+    {
+      "id": "9:вечером",
+      "category": "даты и время",
+      "turns": [
+        {
+          "text": "Напомни завтра вечером позвонить маме",
+          "expect": {
+            "action": "create_record",
+            "type": "reminder",
+            "start": "2026-10-22 18:00",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ],
+      "ref": "днём / в обед / вечером / ночью"
+    },
+    {
+      "id": "9:ночью",
+      "category": "даты и время",
+      "turns": [
+        {
+          "text": "Напомни завтра ночью позвонить маме",
+          "expect": {
+            "action": "create_record",
+            "type": "reminder",
+            "start": "2026-10-22 22:00",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ],
+      "ref": "днём / в обед / вечером / ночью"
+    },
+    {
+      "id": "9:в следующую пятницу",
+      "category": "даты и время",
+      "turns": [
+        {
+          "text": "Напомни в следующую пятницу в 12 оплатить счёт",
+          "expect": {
+            "action": "create_record",
+            "type": "reminder",
+            "start": "2026-10-30 12:00",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ],
+      "ref": "в следующую пятницу"
+    },
+    {
+      "id": "9:в среду",
+      "category": "даты и время",
+      "turns": [
+        {
+          "text": "Напомни в среду в 12 оплатить счёт",
+          "expect": {
+            "action": "create_record",
+            "type": "reminder",
+            "start": "2026-10-28 12:00",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ],
+      "ref": "в среду (сказано в среду)"
+    },
+    {
+      "id": "9:эта неделя (в списке)",
+      "category": "даты и время",
+      "turns": [
+        {
+          "text": "Что у меня на этой неделе?",
+          "expect": {
+            "action": "list_records",
+            "date_from": "2026-10-19 00:00",
+            "date_to": "2026-10-26 00:00",
+            "types": "all"
+          }
+        }
+      ],
+      "ref": "эта неделя (в списке)"
+    },
+    {
+      "id": "9:на следующей неделе (задача без дня)",
+      "category": "даты и время",
+      "turns": [
+        {
+          "text": "Поставь задачу подготовить акт на следующей неделе",
+          "expect": {
+            "action": "create_record",
+            "type": "task",
+            "start": "none",
+            "deadline": "2026-11-01 23:59",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ],
+      "ref": "на следующей неделе (задача без дня)"
+    },
+    {
+      "id": "9:в конце месяца",
+      "category": "даты и время",
+      "turns": [
+        {
+          "text": "В конце месяца сдать отчёт",
+          "expect": {
+            "action": "create_record",
+            "type": "task",
+            "start": "2026-10-31",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ],
+      "ref": "в конце месяца"
+    },
+    {
+      "id": "9:в 5 вечера",
+      "category": "даты и время",
+      "turns": [
+        {
+          "text": "Напомни завтра в 5 вечера позвонить маме",
+          "expect": {
+            "action": "create_record",
+            "type": "reminder",
+            "start": "2026-10-22 17:00",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ],
+      "ref": "в 5 вечера / в пол десятого вечера"
+    },
+    {
+      "id": "9:в пол десятого вечера",
+      "category": "даты и время",
+      "turns": [
+        {
+          "text": "Напомни в пол десятого вечера позвонить маме",
+          "expect": {
+            "action": "create_record",
+            "type": "reminder",
+            "start": "2026-10-21 21:30",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ],
+      "ref": "в 5 вечера / в пол десятого вечера"
+    }
+  ]
+}

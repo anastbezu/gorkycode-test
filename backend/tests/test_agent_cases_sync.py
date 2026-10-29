@@ -1,4 +1,4 @@
-"""Файл кейсов `tests/agent_cases.py` и таблицы `docs/test-cases.md` не расходятся.
+"""Набор `eval/datasets/agent/test-cases.json` и таблица `docs/test-cases.md` не расходятся.
 
 Маша поменяла таблицу — этот тест подскажет, что файл кейсов отстал (и наоборот).
 Разделы 10 и 11 — справка и демо руками, в файл не входят.
@@ -7,7 +7,7 @@
 import re
 from pathlib import Path
 
-from tests.agent_cases import CASES
+from eval.cases import CASES
 
 TEST_CASES_MD = Path(__file__).resolve().parents[2] / "docs" / "test-cases.md"
 

@@ -11,6 +11,7 @@
 """
 
 import asyncio
+import time
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -22,10 +23,10 @@ import openai
 
 from agent import agent as agent_module
 from db import models
+from eval.cases import CASES, NEEDS_DB, NOW, TIMEZONE, Case, Expect
+from eval.compare import Observed, compare, describe
 from schemas import ActionResult, ConversationState, Record
 from services.records import validate_create
-from tests.agent_cases import CASES, NEEDS_DB, NOW, TIMEZONE, Case, Expect
-from tests.agent_compare import Observed, compare, describe
 
 TZ = ZoneInfo(TIMEZONE)
 FIXED_NOW = datetime.strptime(NOW, "%Y-%m-%d %H:%M").replace(tzinfo=TZ)
@@ -41,6 +42,7 @@ class TurnReport:
     observed: Observed
     reply: str
     problems: list[str]
+    latency_ms: float = 0.0  # вся реплика: состояние, модель, исполнение, ответ
 
 
 @dataclass
@@ -67,6 +69,7 @@ class Harness:
         self.executed: Any = None
         self.result: ActionResult | None = None
         self.provider_failures = 0  # кейсы подряд, где модель не ответила
+        self.last_latency_ms = 0.0
 
         if db is None:
             monkeypatch.setattr(agent_module, "get_or_create_conversation_state", self._load)
@@ -130,9 +133,11 @@ class Harness:
     def run_turn(self, text: str, user_id, conversation_id) -> tuple[Observed, str]:
         """Одна реплика в разговоре: что дошло до исполнения и текст ответа."""
         self.raw = self.executed = self.result = None
+        started = time.perf_counter()
         response = asyncio.run(agent_module.process_user_turn(
             self.db, user_id, conversation_id, text, TIMEZONE, now=FIXED_NOW,
         ))
+        self.last_latency_ms = (time.perf_counter() - started) * 1000
         # До исполнения доходит действие с дописанным черновиком — его и сверяем;
         # если исполнения не было (вопрос, ошибка) — то, что вернула модель.
         observed = Observed(
@@ -163,7 +168,7 @@ class Harness:
             observed, reply = self.run_turn(turn.text, user_id, conversation_id)
             problems = compare(turn.expect, observed, TZ)
             report.turns.append(TurnReport(number, turn.text, turn.expect, observed, reply,
-                                           problems))
+                                           problems, latency_ms=self.last_latency_ms))
             if problems:
                 break  # дальше по диалогу проверять бессмысленно
         return report
