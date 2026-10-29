@@ -33,35 +33,29 @@
 - Данные базы — в томе Docker `postgres_data`, переживают пересборку и перезапуск контейнеров.
 
 ### Nginx
-В `server`-блоке `gorky.bond` с `listen 443 ssl` (его создал certbot) вместо стандартного `location /` поставить:
+В `server`-блоке `gorky.bond` с `listen 443 ssl` (его создал certbot):
 
 ```nginx
-location /api/ {
+# Бэкенд: API, документация и проверка здоровья
+location ~ ^/(api|health|docs|openapi.json) {
+    client_max_body_size 5m;
     proxy_pass http://127.0.0.1:8000;
-    include proxy_params;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
 }
 
-location = /health {
-    proxy_pass http://127.0.0.1:8000;
-    include proxy_params;
-}
-
-location /docs {
-    proxy_pass http://127.0.0.1:8000;
-    include proxy_params;
-}
-
-location = /openapi.json {
-    proxy_pass http://127.0.0.1:8000;
-    include proxy_params;
-}
-
+# Фронтенд: всё остальное
 location / {
     proxy_pass http://127.0.0.1:3000;
-    include proxy_params;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
 }
 ```
-`proxy_params` (поставляется с nginx в Ubuntu) передаёт `Host`, `X-Real-IP`, `X-Forwarded-For` и `X-Forwarded-Proto`; бэкенд доверяет этим заголовкам, поэтому его редиректы ведут на `https://`. После правки: `sudo nginx -t && sudo systemctl reload nginx`. Порты `8000` и `3000` — значения по умолчанию `BACKEND_PORT` и `FRONTEND_PORT`; на сервере их не меняют, иначе нужно менять и Nginx.
+Директива `client_max_body_size 5m;` пропускает аудиозаписи до 5 МБ в `/api/stt` с запасом под 30 секунд речи (по умолчанию у Nginx лимит 1 МБ). Заголовки `proxy_set_header` передают `Host`, `X-Real-IP`, `X-Forwarded-For` и `X-Forwarded-Proto`; бэкенд доверяет этим заголовкам, поэтому его редиректы ведут на `https://`. После правки: `sudo nginx -t && sudo systemctl reload nginx`. Порты `8000` и `3000` — значения по умолчанию `BACKEND_PORT` и `FRONTEND_PORT`; на сервере их не меняют, иначе нужно менять и Nginx.
 
 ### Проект на сервере
 - Клон репозитория — `/opt/gorkycode`, ветка `develop`. Пользователь из секрета `USERNAME` — владелец каталога, состоит в группе `docker`.
@@ -80,11 +74,19 @@ location / {
 | `USERNAME` | пользователь на сервере, под которым идёт деплой |
 | `SSH_KEY` | приватный SSH-ключ этого пользователя (ключ только для деплоя; публичная часть — в `~/.ssh/authorized_keys` на сервере) |
 
+### Что проверяет CI
+`.github/workflows/ci.yml` — на каждый PR в `develop` и `main`, на каждый push в `develop` и вручную. Три независимые задачи:
+- **Backend** — Ruff и Pytest на Postgres с pgvector;
+- **Frontend** — `npm ci`, Vitest и `npm run build` (`tsc -b` + Vite — та же команда, что собирает образ на сервере);
+- **Docker** — сборка образов `backend` и `frontend` без публикации: поломка Dockerfile видна в PR, а не на сервере.
+
+Новый пуш в PR отменяет устаревшую проверку.
+
 ### Как CD обновляет стенд
-`.github/workflows/deploy.yml` срабатывает на каждый push в `develop` (в том числе мерж PR). Деплои идут по одному. По SSH на сервере:
-1. `git pull --ff-only origin develop` в `/opt/gorkycode`;
+`.github/workflows/deploy.yml` запускается, когда CI на push в `develop` (в том числе мерж PR) закончился **успешно**. Красный CI — деплоя нет, на стенде остаётся прошлая версия. Вручную (Actions → CD → Run workflow) выкатывается текущий `develop` без ожидания CI — например, после правки `.env` на сервере. Деплои идут по одному. По SSH на сервере:
+1. `git fetch` и перемотка `/opt/gorkycode` ровно на коммит, который проверил CI;
 2. `docker compose up -d --build --remove-orphans` — пересобираются изменившиеся образы, контейнеры перезапускаются;
-3. ожидание ответа `GET /health` от бэкенда (до 60 с) — не ответил, деплой помечается упавшим;
+3. ожидание ответа `GET /health` от бэкенда и страницы от фронтенда (до 60 с) — не ответили, деплой помечается упавшим;
 4. очистка неиспользуемых образов и кэша сборки старше 3 суток — на диске 10 ГБ.
 
 Любая ошибка останавливает скрипт, и workflow становится красным. Логи сервисов в лог Actions не выводятся (репозиторий публичный) — смотреть на сервере: `docker compose logs backend`.

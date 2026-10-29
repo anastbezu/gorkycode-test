@@ -32,3 +32,9 @@ def test_nothing_found_gives_no_focus():
 def test_list_with_one_record_becomes_focus():
     result = ActionResult(action="list_records", ok=True, records=[make("Купить хлеб")])
     assert focus_record_id(result) == result.records[0].id
+
+
+def test_compatibility_import_uses_common_state_logic():
+    from agent.state import focus_record_id as common
+
+    assert focus_record_id is common

@@ -3,11 +3,8 @@ from zoneinfo import ZoneInfo
 
 from schemas import Record
 
-from .list_replies import day_words, plural
-
-
-def record_moment(record: Record) -> datetime:
-    return record.start or record.deadline or record.created_at
+from .list_replies import MAX_SPOKEN, day_words, group_phrase, plural
+from .presentation import group_records, record_moment
 
 
 def when_phrase(record: Record, tz: ZoneInfo, today: date) -> str:
@@ -18,27 +15,41 @@ def when_phrase(record: Record, tz: ZoneInfo, today: date) -> str:
     return day
 
 
-def pick_highlight(records: list[Record], now: datetime) -> tuple[Record, str]:
-    """Какую запись назвать: ближайшую будущую, а если будущих нет — последнюю прошедшую."""
-    upcoming = [r for r in records if record_moment(r) >= now]
-    if upcoming:
-        return min(upcoming, key=record_moment), "Ближайшая"
-    return max(records, key=record_moment), "Последняя"
+def reply_for_search(
+    records: list[Record], query: str, timezone_name: str, now: datetime, *,
+    similar: bool = False,
+) -> str:
+    """Порядок групп совпадает с shown; представитель повторов — последний по дате.
 
-
-def reply_for_search(records: list[Record], query: str, timezone_name: str, now: datetime) -> str:
-    """Короткий ответ на поиск. От порядка выдачи не зависит: запись выбираем по дате."""
+    similar — точных нет, это похожие по смыслу (search.md): «Точно не нашёл …. Похожие: …».
+    """
     if not records:
         return f"По запросу «{query}» ничего не нашлось. Попробуйте другие слова."
 
     tz = ZoneInfo(timezone_name)
     today = now.astimezone(tz).date()
 
+    if similar:
+        phrases = [
+            f"«{record.title}» — {when_phrase(record, tz, today)}"
+            for record in records[:MAX_SPOKEN]
+        ]
+        tail = " Остальные на экране." if len(records) > MAX_SPOKEN else ""
+        return f"Точно не нашёл «{query}». Похожие: {'; '.join(phrases)}.{tail}"
+
     if len(records) == 1:
         record = records[0]
         return f"«{record.title}» — {when_phrase(record, tz, today)}."
 
-    record, label = pick_highlight(records, now)
     n = len(records)
     noun = plural(n, "запись", "записи", "записей")
-    return f"Нашёл {n} {noun}. {label} — {when_phrase(record, tz, today)}: «{record.title}»."
+    groups = group_records(records)
+    phrases = [
+        group_phrase(group, tz) if group.count > 1
+        else f"«{group.record.title}» — {when_phrase(group.record, tz, today)}"
+        for group in groups[:MAX_SPOKEN]
+    ]
+    # Без номеров: группы повторов не совпадают с номерами на экране (api.md)
+    items = "; ".join(phrases)
+    tail = " Остальные на экране." if len(groups) > MAX_SPOKEN else ""
+    return f"Нашёл {n} {noun}. {items}.{tail}"

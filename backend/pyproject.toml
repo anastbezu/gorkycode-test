@@ -14,11 +14,16 @@ dependencies = [
     "openai>=1.50.0",
     "python-dotenv>=1.0.0",
     "tzdata>=2024.1",
-    # Поиск (search-01): модель эмбеддингов, основы слов, нечёткое сравнение слов.
+    "python-multipart>=0.0.9",
+    "httpx>=0.27.0",
+    "argon2-cffi>=23.1.0",
+    # Поиск (search-01): модель эмбеддингов, основы слов, нечёткое сравнение слов,
+    # словарные формы слов (падежи имён: «Сергею» ↔ «Сергеем»).
     "sentence-transformers>=5.0.0",
     "torch>=2.8.0",
     "snowballstemmer>=3.0.0",
     "rapidfuzz>=3.9.0",
+    "pymorphy3>=2.0.0",
 ]
 
 [dependency-groups]
@@ -51,3 +56,7 @@ select = ["E", "F", "I", "UP"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+markers = [
+    "live: живой прогон через настоящую LLM (agent-08), включается AGENT_LIVE=1",
+    "search_model: настоящая модель поиска вместо подмены из conftest (нужны её файлы)",
+]

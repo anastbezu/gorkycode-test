@@ -19,12 +19,13 @@ class SearchFilters(BaseModel):
     types: list[RecordType] | None = Field(default=None, description=TYPES_HINT)
     date_from: AwareDatetime | None = Field(
         default=None,
-        description="Необязательно. Начало периода, ISO 8601 со смещением: {ISO_EXAMPLE}",
+        description="Начало включительно: {ISO_EXAMPLE}. Для целых дней — 00:00 первого дня. "
+        "Не задано — null.",
     )
     date_to: AwareDatetime | None = Field(
         default=None,
-        description="Необязательно. Конец периода, не включается, ISO 8601 со смещением: "
-        "{ISO_EXAMPLE}",
+        description="Конец не включается: {ISO_EXAMPLE}. Для целых дней — 00:00 дня "
+        "после последнего, не 23:59. Не задан — null.",
     )
     status: list[RecordStatus] | None = None
 
@@ -44,6 +45,8 @@ class CreateRecord(BaseModel):
         "{ISO_EXAMPLE}. «В N» без «утра», «вечера», «ночи»: 1–7 — N+12 («в 3» = 15:00), "
         "8–12 — как сказано. Утром 09:00, в обед 13:00, днём 15:00, вечером 18:00, "
         "ночью 22:00. "
+        "«Следующий <день недели>» — на следующей календарной неделе. "
+        "«На выходных» — суббота; «в конце месяца» — последний день. "
         "Дата без времени — начало указанного дня (00:00:00) в поясе пользователя, "
         "time_given=false, включая встречи. start=null только без даты начала.",
     )
@@ -70,13 +73,16 @@ class ListRecords(BaseModel):
 
     action: Literal["list_records"] = "list_records"
     date_from: AwareDatetime = Field(
-        description="Начало интервала, ISO 8601 со смещением: {ISO_EXAMPLE}. "
-        "Период не назван — начало сегодняшнего дня."
+        description="Начало включительно: {ISO_EXAMPLE}. Для целых дней — 00:00, не сейчас. "
+        "«На неделю»/«эта неделя» — с текущего понедельника; «следующая неделя» — "
+        "со следующего; выходные — с субботы. «До конца недели» или без периода — "
+        "сегодня 00:00. Явное время учитывай; вечером — с 18:00."
     )
     date_to: AwareDatetime | None = Field(
         default=None,
-        description="Конец интервала, не включается: «сегодня» — до 00:00 следующего дня. "
-        "Период не назван («какие у меня задачи») — null. ISO 8601 со смещением: {ISO_EXAMPLE}",
+        description="Конец не включается: {ISO_EXAMPLE}. Для целых дней — 00:00 дня "
+        "после последнего, не 23:59; неделя/выходные — до понедельника после них. "
+        "Вечером — до 00:00 следующего дня. Явное время учитывай. Без периода — null.",
     )
     types: list[RecordType] | None = Field(default=None, description=TYPES_HINT)
 
@@ -139,6 +145,12 @@ class UpdateRecord(BaseModel):
     end: AwareDatetime | None = None
     time_given: bool | None = None
     deadline: AwareDatetime | None = None
+    shift_minutes: int | None = Field(
+        default=None,
+        description="Сдвиг от текущего времени записи в минутах, когда новое время не названо: "
+        "«на час позже» = 60, «на полчаса раньше» = -30, «на день позже» = 1440. "
+        "Время записи считает код — start тогда не заполняй.",
+    )
     replaces_last: bool = Field(
         default=False,
         description="true — «нет, не эту, а ту»: прошлое действие применено не к той записи",
@@ -166,12 +178,37 @@ class UndoLast(BaseModel):
     action: Literal["undo_last"] = "undo_last"
 
 
+class AskDraft(BaseModel):
+    """Что уже известно для создания записи, пока не хватает других данных."""
+
+    type: RecordType | None = None
+    title: str | None = Field(default=None, description="Суть, если названа: «позвонить маме»")
+    start: AwareDatetime | None = Field(
+        default=None,
+        description="Названные дата и время начала, ISO 8601 со смещением: {ISO_EXAMPLE}. "
+        "Только дата — начало дня и time_given=false.",
+    )
+    end: AwareDatetime | None = None
+    deadline: AwareDatetime | None = None
+    time_given: bool | None = None
+    time: str | None = Field(
+        default=None,
+        pattern=r"^([01]\d|2[0-3]):[0-5]\d$",
+        description="Время без даты, ЧЧ:ММ: «встреча с Сергеем в 14:45» — 14:45, день спросить.",
+    )
+
+
 class AskUser(BaseModel):
     """Спросить, если для действия не хватает данных."""
 
     action: Literal["ask_user"] = "ask_user"
     question: str
-    missing: list[str] = Field(description="Каких полей не хватает: start, type …")
+    missing: list[str] = Field(description="Каких полей не хватает: start, type, title …")
+    draft: AskDraft | None = Field(
+        default=None,
+        description="Для создания: что пользователь уже назвал (тип, суть, дата, время), "
+        "чтобы следующий ответ дополнил, а не заменил. Не для изменения записей.",
+    )
 
 
 class Help(BaseModel):

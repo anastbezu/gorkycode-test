@@ -62,9 +62,20 @@ interface Props {
   onSelectDay: (index: number) => void;
   onRetry: () => void;
   onClose: () => void;
+  onOpen?: (record: Record) => void;
+  onCreate?: (dayKey?: string) => void;
 }
 
-export function TasksPanel({ state, tz, selectedDay, onSelectDay, onRetry, onClose }: Props) {
+export function TasksPanel({
+  state,
+  tz,
+  selectedDay,
+  onSelectDay,
+  onRetry,
+  onClose,
+  onOpen,
+  onCreate,
+}: Props) {
   const now = new Date();
   const keys = panelDayKeys(tz, now);
   const { byDay, undated } = groupByDay(state.records, tz);
@@ -76,9 +87,20 @@ export function TasksPanel({ state, tz, selectedDay, onSelectDay, onRetry, onClo
       <div className="panel__handle" onClick={onClose} aria-hidden />
       <div className="panel__head">
         <h2 className="panel__title">Мои дела</h2>
-        <button type="button" className="icon-btn panel__close" onClick={onClose} aria-label="Закрыть">
-          <CloseIcon />
-        </button>
+        <div className="panel__head-actions">
+          {onCreate && (
+            <button
+              type="button"
+              className="btn btn--glass panel__create-btn"
+              onClick={() => onCreate(keys[selectedDay])}
+            >
+              + Создать
+            </button>
+          )}
+          <button type="button" className="icon-btn panel__close" onClick={onClose} aria-label="Закрыть">
+            <CloseIcon />
+          </button>
+        </div>
       </div>
 
       <div className="days" role="tablist">
@@ -111,14 +133,14 @@ export function TasksPanel({ state, tz, selectedDay, onSelectDay, onRetry, onClo
         {loaded && dayRecords.length === 0 && <p className="panel__note">На этот день дел нет.</p>}
 
         {dayRecords.map((record) => (
-          <TaskCard key={record.id} record={record} tz={tz} now={now} />
+          <TaskCard key={record.id} record={record} tz={tz} now={now} onOpen={onOpen} />
         ))}
 
         {undated.length > 0 && (
           <>
             <h3 className="panel__section">Без срока</h3>
             {undated.map((record) => (
-              <TaskCard key={record.id} record={record} tz={tz} now={now} />
+              <TaskCard key={record.id} record={record} tz={tz} now={now} onOpen={onOpen} />
             ))}
           </>
         )}
@@ -128,10 +150,33 @@ export function TasksPanel({ state, tz, selectedDay, onSelectDay, onRetry, onClo
 }
 
 /** Компонент «Карточка дела». `when` — своя подпись времени (в календаре — без даты: она в заголовке дня). */
-export function TaskCard({ record, tz, now, when }: { record: Record; tz: string; now: Date; when?: string }) {
+export function TaskCard({
+  record,
+  tz,
+  now,
+  when,
+  onOpen,
+}: {
+  record: Record;
+  tz: string;
+  now: Date;
+  when?: string;
+  onOpen?: (record: Record) => void;
+}) {
   const done = record.status === 'done';
+  const clickable = Boolean(onOpen);
   return (
-    <div className={`card${done ? ' card--done' : ''}`}>
+    <div
+      className={`card${done ? ' card--done' : ''}${clickable ? ' card--clickable' : ''}`}
+      onClick={clickable ? () => onOpen?.(record) : undefined}
+      role={clickable ? 'button' : undefined}
+      tabIndex={clickable ? 0 : undefined}
+      onKeyDown={
+        clickable
+          ? (e) => (e.key === 'Enter' || e.key === ' ') && onOpen?.(record)
+          : undefined
+      }
+    >
       <span className={`tag ${done ? 'tag--done' : 'tag--type'}`}>
         {TYPE_TAG[record.type]}
         {done ? ' · выполнено' : ''}

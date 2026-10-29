@@ -235,6 +235,14 @@ def test_target_when_compared_in_users_timezone(db, user):
     assert ids(match.exact) == [early.id]
 
 
+def test_target_day_only_when_matches_day_not_midnight_elsewhere(db, user):
+    # «Отмени созвон в пятницу»: день без времени приходит как 00:00 — сравнивается только день.
+    friday = add(db, user, "Созвон с Севером", at(6, 15), type=RecordType.MEETING)
+    add(db, user, "Созвон с Севером", at(9, 0), type=RecordType.MEETING)  # 00:00 другого дня
+    match = find_target(db, user, "созвон с Севером", at(6, 0), None, ACTIVE)
+    assert ids(match.exact) == [friday.id]
+
+
 def test_target_all_day_record_has_no_time(db, user):
     # «Весь день» хранится как 00:00 — по времени «в 00:00 другого дня» он не совпадает.
     add(db, user, "Сдать смету", at(9, 0), all_day=True)

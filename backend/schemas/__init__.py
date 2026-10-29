@@ -5,6 +5,7 @@ from schemas import Record, ChatRequest, ActionResult
 
 from .actions import (
     ActionResult,
+    AskDraft,
     AskUser,
     CreateRecord,
     Help,
@@ -17,18 +18,24 @@ from .actions import (
     UndoLast,
     UpdateRecord,
 )
-from .api import ChatRequest, ChatResponse, LLMConfig
+from .api import ChatRequest, ChatResponse, LLMConfig, STTResponse
+from .auth import Account, AuthResponse, Credentials
 from .conversation import ConversationState, LastAction
 from .record import Record, RecordStatus, RecordType
 from .search import SearchHit, TargetMatch
 
 __all__ = [
+    "Account",
+    "AuthResponse",
+    "Credentials",
     "UpdateRecord",
     "UndoLast",
     "SetStatus",
+    "STTResponse",
     "LastAction",
     "Help",
     "ActionResult",
+    "AskDraft",
     "AskUser",
     "ChatRequest",
     "ChatResponse",

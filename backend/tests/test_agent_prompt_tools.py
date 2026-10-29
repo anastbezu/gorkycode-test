@@ -16,7 +16,7 @@ def test_prompt_calendar_and_timezone():
     now = datetime(2026, 10, 25, 20, 0, tzinfo=ZoneInfo("UTC"))
     prompt = build_compact_system_prompt(now, "Asia/Tokyo")
 
-    assert len(prompt.splitlines()) <= 15
+    assert len(prompt.splitlines()) <= 16
     assert "2026-10-26T05:00:00+09:00 (понедельник)" in prompt
     assert "2026-10-26T15:00:00+09:00" in prompt
     for day in range(14):
@@ -76,6 +76,9 @@ def test_shared_create_record_json_and_tool_export():
         "create_record",
         "list_records",
         "search_records",
+        "update_record",
+        "set_status",
+        "undo_last",
         "ask_user",
         "help",
     }

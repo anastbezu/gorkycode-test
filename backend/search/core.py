@@ -151,9 +151,14 @@ def _narrow_by_when(rows: list[models.Record], when: datetime) -> list[models.Re
     """Сужение по названному времени: тот же день и время → тот же день → то же время.
 
     День и время сравниваются в поясе `when` — это пояс пользователя.
+    `when` ровно в 00:00 — назван только день («в пятницу»): так агент передаёт день без
+    времени (как `start` дня без времени, agent-tools.md), и сравнивается только день —
+    иначе «в пятницу» нашло бы записи в 00:00 других дней.
     Подошла ступень — остаются только её записи; не подошла ни одна — пусто.
     """
     dated = [row for row in rows if _record_date(row) is not None]
+    if (when.hour, when.minute) == (0, 0):
+        return [row for row in dated if _same_day(row, when)]
     for matches in (
         lambda r: _same_day(r, when) and _same_time(r, when),
         lambda r: _same_day(r, when),

@@ -3,6 +3,8 @@ from zoneinfo import ZoneInfo
 
 from schemas import ListRecords, Record
 
+from .presentation import RecordGroup, group_records, record_moment
+
 MAX_SPOKEN = 3
 
 MONTHS = ["января", "февраля", "марта", "апреля", "мая", "июня",
@@ -77,6 +79,15 @@ def item_phrase(record: Record, tz: ZoneInfo, today: date, with_day: bool) -> st
     return title
 
 
+def group_phrase(group: RecordGroup, tz: ZoneInfo) -> str:
+    last = record_moment(group.record).astimezone(tz)
+    count = group.count
+    return (
+        f"{group.record.title} — {count} {plural(count, 'раз', 'раза', 'раз')}, "
+        f"последний {last:%d.%m.%Y}"
+    )
+
+
 def reply_for_list(records: list[Record], action: ListRecords,
                    timezone_name: str, now: datetime) -> str:
     """Короткий ответ на слух. Полный список интерфейс берёт из result.records."""
@@ -89,11 +100,18 @@ def reply_for_list(records: list[Record], action: ListRecords,
         return f"{lead} ничего не запланировано."
 
     n = len(records)
-    items = "; ".join(item_phrase(r, tz, today, multi_day) for r in records[:MAX_SPOKEN])
+    groups = group_records(records)
+    phrases = [
+        group_phrase(group, tz) if group.count > 1
+        else item_phrase(group.record, tz, today, multi_day)
+        for group in groups[:MAX_SPOKEN]
+    ]
+    # Без номеров: группы повторов не совпадают с номерами на экране (api.md)
+    items = "; ".join(phrases)
 
     if n == 1:
         return f"{lead} одно дело: {items}."
     head = f"{lead} {n} {plural(n, 'дело', 'дела', 'дел')}"
-    if n <= MAX_SPOKEN:
+    if len(groups) <= MAX_SPOKEN:
         return f"{head}: {items}."
     return f"{head}. Ближайшие: {items}. Остальные на экране."

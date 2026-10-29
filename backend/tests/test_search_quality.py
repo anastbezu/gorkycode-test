@@ -13,8 +13,10 @@ from pathlib import Path
 
 import pytest
 
-from scripts.search_eval import WRONG_RECORD, report, run_eval
+from scripts.search_eval import WRONG_RECORD, report, report_extended, run_eval, run_extended
 from search import embeddings
+
+pytestmark = pytest.mark.search_model
 
 
 @pytest.fixture(scope="module")
@@ -33,6 +35,17 @@ def test_check_set(db, model_available):
     assert result.exact_without_answer == 0, details
     assert result.wrong_exact == [], details
     assert result.target_outcomes()[WRONG_RECORD] == 0, details
+
+
+def test_extended_set_safety(db, model_available):
+    # Расширенный набор (scripts/search_cases.py): сотни запросов и целей. Здесь — только то,
+    # что нельзя нарушать никогда: чужая запись при изменении и «точно» там, где ответа нет.
+    # Остальные метрики — в отчёте `uv run python -m scripts.search_eval --extended`.
+    result = run_extended(db)
+    details = report_extended(result)
+
+    assert result.wrong_records == [], details
+    assert result.false_exact_without_answer == [], details
 
 
 def test_start_dataset_vectors_are_not_recomputed(db, model_available):

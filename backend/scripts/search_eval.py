@@ -1,9 +1,11 @@
 """Проверочный набор поиска (search-01): `search()` и `find_target()` на стартовом датасете.
 
-Базовый набор — из замера техлида при выборе подхода: 30 запросов с ответом (примеры из задания, `docs/test-cases.md`
-раздел 5 и свои — с другими формами слов, сокращениями, «е» вместо «ё»), 6 без ответа
-и 24 цели изменения (однозначные, неоднозначные, без подходящей). Эталон — регулярные выражения
-по названию: запись подходит, если в её названии (нижний регистр) находятся все.
+Два набора:
+- базовый — из замера техлида при выборе подхода: 30 запросов с ответом (примеры из задания,
+  `docs/test-cases.md` раздел 5 и свои — другие формы слов, сокращения, «е» вместо «ё»),
+  6 без ответа и 24 цели изменения. Эталон — регулярные выражения по названию;
+- расширенный (`scripts/search_cases.py`) — сотни запросов и целей по группам граничных
+  случаев; эталон — понятия, разобранные из названий по шаблонам датасета.
 
 Данные: стартовый набор нового пользователя (`bootstrap_user_data`), пояс Europe/Moscow,
 «сейчас» = 21.10.2026 12:00, как в `docs/test-cases.md`.
@@ -16,7 +18,8 @@
   которой быть не должно), «какую?» с верными кандидатами, лишний переспрос, «не нашёл».
 
 Запуск (нужны PostgreSQL с pgvector и модель в кэше Hugging Face):
-    cd backend && uv run python -m scripts.search_eval
+    cd backend && uv run python -m scripts.search_eval              # базовый набор
+    cd backend && uv run python -m scripts.search_eval --extended   # оба набора
 Данные пишутся в транзакции, которая откатывается: база не меняется.
 """
 
@@ -302,9 +305,199 @@ def report(result: EvalResult) -> str:
     return "\n".join(lines)
 
 
+# ---------- расширенный набор ----------
+
+# Сколько записей агент просит у search() (agent/actions.py — значение по умолчанию).
+AGENT_SEARCH_LIMIT = 10
+MAX_EXAMPLES = 6  # примеров ошибок на группу в отчёте
+
+
+@dataclass
+class ExtSearchRow:
+    group: str
+    query: str
+    relevant: int  # сколько записей подходят по эталону
+    level: str  # exact / similar / пусто
+    hit: bool  # среди результатов есть подходящая
+    wrong_exact: list[str]  # «точные» результаты, которые не подходят
+    titles: list[str]
+
+
+@dataclass
+class ExtTargetRow:
+    group: str
+    text: str | None
+    when: datetime | None
+    gold: int
+    outcome: str
+    exact: list[str]
+    similar: list[str]
+
+
+@dataclass
+class ExtendedResult:
+    search: list[ExtSearchRow] = field(default_factory=list)
+    targets: list[ExtTargetRow] = field(default_factory=list)
+
+    @property
+    def false_exact_without_answer(self) -> list[ExtSearchRow]:
+        return [r for r in self.search if not r.relevant and r.level == "exact"]
+
+    @property
+    def wrong_records(self) -> list[ExtTargetRow]:
+        return [r for r in self.targets if r.outcome == WRONG_RECORD]
+
+
+def _in_filters(record, filters: SearchFilters, default_statuses) -> bool:
+    """Те же фильтры, что обещает контракт: статус, тип, период по дате записи."""
+    statuses = filters.status or default_statuses
+    if record.status not in statuses:
+        return False
+    if filters.types and record.type not in filters.types:
+        return False
+    moment = record.start or record.deadline
+    if filters.date_from is not None and (moment is None or moment < filters.date_from):
+        return False
+    return not (filters.date_to is not None and (moment is None or moment >= filters.date_to))
+
+
+def _narrow_gold(rows, when: datetime | None, kind: str | None):
+    if when is None:
+        return rows
+    local = [(r, r.start.astimezone(when.tzinfo)) for r in rows if r.start is not None]
+    if kind == "datetime":
+        return [r for r, m in local if (m.date(), m.hour, m.minute)
+                == (when.date(), when.hour, when.minute)]
+    return [r for r, m in local if m.date() == when.date()]
+
+
+def run_extended(db: Session, user_id: UUID | None = None) -> ExtendedResult:
+    """Стартовый набор новому пользователю, затем все случаи `scripts/search_cases.py`."""
+    from schemas import Record
+    from scripts.search_cases import parse_title, search_cases, target_cases
+    from search import find_target, search
+    from search.core import DEFAULT_SEARCH_STATUSES
+    from services.bootstrap import bootstrap_user_data
+
+    user_id = user_id or uuid4()
+    bootstrap_user_data(db, user_id, "Europe/Moscow", now=NOW)
+    from db import models
+
+    records = [Record.model_validate(r) for r in db.query(models.Record).filter_by(user_id=user_id)]
+    concepts = {t: parse_title(t) for t in {r.title for r in records}}
+    result = ExtendedResult()
+
+    for case in search_cases(NOW):
+        gold = {
+            r.id for r in records
+            if _in_filters(r, case.filters, DEFAULT_SEARCH_STATUSES)
+            and case.need.matches(concepts[r.title], r.type)
+        }
+        hits = search(db, user_id, case.query, case.filters, limit=AGENT_SEARCH_LIMIT)
+        level = hits[0].match if hits else "пусто"
+        result.search.append(ExtSearchRow(
+            group=case.group,
+            query=case.query,
+            relevant=len(gold),
+            level=level,
+            hit=any(h.record.id in gold for h in hits),
+            wrong_exact=[h.record.title for h in hits
+                         if h.match == "exact" and h.record.id not in gold],
+            titles=[h.record.title for h in hits],
+        ))
+
+    for case in target_cases(records, NOW):
+        filters = case.filters or SearchFilters()
+        candidates = [r for r in records if _in_filters(r, filters, case.statuses)
+                      and case.need.matches(concepts[r.title], r.type)]
+        gold = _narrow_gold(candidates, case.when, case.when_kind)
+        match = find_target(db, user_id, case.text, case.when, case.filters, case.statuses)
+        result.targets.append(ExtTargetRow(
+            group=case.group,
+            text=case.text,
+            when=case.when,
+            gold=len(gold),
+            outcome=judge_target([r.id for r in match.exact], [r.id for r in match.similar],
+                                 {r.id for r in gold}),
+            exact=[r.title for r in match.exact],
+            similar=[r.title for r in match.similar],
+        ))
+    return result
+
+
+def _pct(part: int, whole: int) -> str:
+    return f"{part}/{whole} ({100 * part / whole:.0f}%)" if whole else "—"
+
+
+def report_extended(result: ExtendedResult) -> str:
+    groups = list(dict.fromkeys(r.group for r in result.search))
+    s = result.search
+    answerable = [r for r in s if r.relevant]
+    lines = [
+        f"## Расширенный набор, поиск: {len(s)} запросов, с ответом {len(answerable)}",
+        "",
+        f"- нашёл подходящую (среди {AGENT_SEARCH_LIMIT}, как зовёт агент): "
+        f"{_pct(sum(r.hit for r in answerable), len(answerable))}",
+        f"- «точно» на запросах без ответа: {len(result.false_exact_without_answer)}",
+        f"- запросов, где «точно» вернул неподходящую запись: "
+        f"{sum(bool(r.wrong_exact) for r in s)}",
+        "",
+        "| группа | всего | с ответом | нашёл | «точно» | «похожие» | пусто "
+        "| «точно» с чужими | «точно» без ответа |",
+        "|---|---|---|---|---|---|---|---|---|",
+    ]
+    for g in groups:
+        rows = [r for r in s if r.group == g]
+        ans = [r for r in rows if r.relevant]
+        lines.append(
+            f"| {g} | {len(rows)} | {len(ans)} | {_pct(sum(r.hit for r in ans), len(ans))} | "
+            f"{sum(r.level == 'exact' for r in rows)} | {sum(r.level == 'similar' for r in rows)} "
+            f"| {sum(r.level == 'пусто' for r in rows)} | {sum(bool(r.wrong_exact) for r in rows)} "
+            f"| {sum(not r.relevant and r.level == 'exact' for r in rows)} |"
+        )
+
+    t = result.targets
+    outcomes = sorted({r.outcome for r in t})
+    lines += [
+        "",
+        f"## Расширенный набор, цели изменения: {len(t)}; чужих записей: "
+        f"{len(result.wrong_records)}",
+        "",
+        "| группа | всего | " + " | ".join(outcomes) + " |",
+        "|---|---|" + "---|" * len(outcomes),
+    ]
+    for g in dict.fromkeys(r.group for r in t):
+        rows = [r for r in t if r.group == g]
+        counts = Counter(r.outcome for r in rows)
+        cells = " | ".join(str(counts[o]) for o in outcomes)
+        lines.append(f"| {g} | {len(rows)} | {cells} |")
+
+    lines += ["", "## Примеры ошибок", ""]
+    for g in groups:
+        bad = [r for r in s if r.group == g and (
+            (r.relevant and not r.hit) or r.wrong_exact or (not r.relevant and r.level == "exact"))]
+        for r in bad[:MAX_EXAMPLES]:
+            why = ("не нашёл" if r.relevant and not r.hit else
+                   "«точно» без ответа" if not r.relevant else "«точно» с чужими")
+            shown = "; ".join(dict.fromkeys(r.wrong_exact or r.titles)) or "—"
+            lines.append(f"- поиск · {g} · «{r.query}» ({r.level}, подходят {r.relevant}): "
+                         f"{why} → {shown}")
+    good = {"действие: верно", "«какую?»: верно", "«не нашёл»: верно", "«может, эту?»: верно"}
+    for g in dict.fromkeys(r.group for r in t):
+        bad = [r for r in t if r.group == g and r.outcome not in good]
+        for r in bad[:MAX_EXAMPLES]:
+            when = r.when.strftime("%d.%m.%Y %H:%M") if r.when else "—"
+            got = "; ".join(dict.fromkeys(r.exact or r.similar)) or "—"
+            lines.append(f"- цель · {g} · «{r.text}» {when} (нужно {r.gold}): {r.outcome} → "
+                         f"exact {len(r.exact)}, similar {len(r.similar)}: {got}")
+    return "\n".join(lines)
+
+
 def main() -> None:
     sys.stdout.reconfigure(encoding="utf-8")
-    argparse.ArgumentParser(description=__doc__.splitlines()[0]).parse_args()
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("--extended", action="store_true", help="и расширенный набор")
+    args = parser.parse_args()
 
     from db.session import get_engine
 
@@ -315,6 +508,9 @@ def main() -> None:
         session = Session(bind=conn, join_transaction_mode="create_savepoint")
         try:
             print(report(run_eval(session)))
+            if args.extended:
+                print()
+                print(report_extended(run_extended(session)))
         finally:
             session.close()
             trans.rollback()

@@ -7,12 +7,25 @@
 // 3. Ошибки в два вида: «результат неизвестен» (сеть, таймаут, 5xx, не-JSON — сервер мог успеть
 //    выполнить) и «сервер не принял» (4xx с detail — точно ничего не сделано).
 
-import { loadUserId, saveUserId } from '../lib/storage';
-import type { ChatRequest, ChatResponse, LLMConfig, Record } from './types';
+import { loadAuth, loadUserId, saveAuth, saveUserId } from '../lib/storage';
+import type {
+  Account,
+  ActionResult,
+  AuthResponse,
+  ChatRequest,
+  ChatResponse,
+  CreateItem,
+  Credentials,
+  LLMConfig,
+  Record,
+  RecordStatus,
+  UpdateItem,
+} from './types';
 
 const USER_HEADER = 'X-User-Id';
 const CHAT_TIMEOUT_MS = 60_000; // агент: таймаут LLM 15 с и повтор — ответ бывает до ~30 с
 const ITEMS_TIMEOUT_MS = 30_000;
+const AUTH_TIMEOUT_MS = 30_000;
 
 export type ApiErrorKind = 'unknown' | 'rejected';
 
@@ -29,13 +42,20 @@ export class ApiError extends Error {
 // --- пользователь -------------------------------------------------------------------------
 
 let userId: string | null = loadUserId();
+let auth: AuthResponse | null = loadAuth();
 let firstRequest: Promise<void> | null = null;
 const profileResetListeners = new Set<() => void>();
+const sessionExpiredListeners = new Set<() => void>();
 
 /** Подписка на «начат новый профиль» (сохранённый id оказался испорчен). */
 export function onProfileReset(listener: () => void): () => void {
   profileResetListeners.add(listener);
   return () => profileResetListeners.delete(listener);
+}
+
+export function onSessionExpired(listener: () => void): () => void {
+  sessionExpiredListeners.add(listener);
+  return () => sessionExpiredListeners.delete(listener);
 }
 
 function rememberUser(res: Response): void {
@@ -52,24 +72,42 @@ function forgetUser(): void {
   profileResetListeners.forEach((listener) => listener());
 }
 
+function forgetAuth(): void {
+  auth = null;
+  saveAuth(null);
+  sessionExpiredListeners.forEach((listener) => listener());
+}
+
 /**
  * Выполнить запрос от имени пользователя. Если id ещё нет, первый такой запрос идёт один,
  * остальные ждут его ответа и уходят уже с полученным id. Возвращает и id, с которым ушёл запрос.
  */
-async function asUser(send: (id: string | null) => Promise<Response>): Promise<{ res: Response; sentId: string | null }> {
+async function asUser(
+  send: (id: string | null, token: string | null) => Promise<Response>,
+): Promise<{ res: Response; sentId: string | null }> {
+  if (auth) {
+    const token = auth.token;
+    const res = await send(null, token);
+    if (res.status === 401) {
+      forgetAuth();
+      throw new ApiError('rejected', 401, 'Сессия входа истекла — вы снова гость. Войдите ещё раз.');
+    }
+    return { res, sentId: null };
+  }
+
   while (!userId && firstRequest) {
     await firstRequest;
   }
   if (userId) {
     const sentId = userId;
-    const res = await send(sentId);
+    const res = await send(sentId, null);
     rememberUser(res);
     return { res, sentId };
   }
   let done!: () => void;
   firstRequest = new Promise<void>((resolve) => (done = resolve));
   try {
-    const res = await send(null);
+    const res = await send(null, null);
     rememberUser(res);
     return { res, sentId: null };
   } finally {
@@ -104,9 +142,13 @@ async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: numbe
   }
 }
 
-function headersFor(id: string | null, extra: HeadersInit = {}): Headers {
+function headersFor(id: string | null, token: string | null = null, extra: HeadersInit = {}): Headers {
   const headers = new Headers(extra);
-  if (id) headers.set(USER_HEADER, id);
+  if (token) {
+    headers.set('Authorization', `Bearer ${token}`);
+  } else if (id) {
+    headers.set(USER_HEADER, id);
+  }
   return headers;
 }
 
@@ -176,12 +218,12 @@ export async function sendChat(args: SendChatArgs): Promise<ChatResponse> {
     const llm = llmConfigForRequest(args.llmConfig);
     if (llm) body.llm_config = llm;
 
-    const { res, sentId } = await asUser((id) =>
+    const { res, sentId } = await asUser((id, token) =>
       fetchWithTimeout(
         '/api/chat',
         {
           method: 'POST',
-          headers: headersFor(id, { 'Content-Type': 'application/json' }),
+          headers: headersFor(id, token, { 'Content-Type': 'application/json' }),
           body: JSON.stringify(body),
         },
         CHAT_TIMEOUT_MS,
@@ -220,14 +262,80 @@ export async function fetchItems(query: ItemsQuery): Promise<Record[]> {
   });
   let retriedUser = false;
   for (;;) {
-    const { res, sentId } = await asUser((id) =>
-      fetchWithTimeout(`/api/items?${params}`, { headers: headersFor(id) }, ITEMS_TIMEOUT_MS),
+    const { res, sentId } = await asUser((id, token) =>
+      fetchWithTimeout(`/api/items?${params}`, { headers: headersFor(id, token) }, ITEMS_TIMEOUT_MS),
     );
     if (!retriedUser && recoverBadUser(res, sentId)) {
       retriedUser = true;
       continue;
     }
     return parse<Record[]>(res);
+  }
+}
+
+export async function createItem(body: CreateItem, tz: string): Promise<ActionResult> {
+  let retriedUser = false;
+  for (;;) {
+    const { res, sentId } = await asUser((id, token) =>
+      fetchWithTimeout(
+        `/api/items?tz=${encodeURIComponent(tz)}`,
+        {
+          method: 'POST',
+          headers: headersFor(id, token, { 'Content-Type': 'application/json' }),
+          body: JSON.stringify(body),
+        },
+        ITEMS_TIMEOUT_MS,
+      ),
+    );
+    if (!retriedUser && recoverBadUser(res, sentId)) {
+      retriedUser = true;
+      continue;
+    }
+    return parse<ActionResult>(res);
+  }
+}
+
+export async function updateItem(id: string, body: UpdateItem, tz: string): Promise<ActionResult> {
+  let retriedUser = false;
+  for (;;) {
+    const { res, sentId } = await asUser((userId, token) =>
+      fetchWithTimeout(
+        `/api/items/${encodeURIComponent(id)}?tz=${encodeURIComponent(tz)}`,
+        {
+          method: 'PATCH',
+          headers: headersFor(userId, token, { 'Content-Type': 'application/json' }),
+          body: JSON.stringify(body),
+        },
+        ITEMS_TIMEOUT_MS,
+      ),
+    );
+    if (!retriedUser && recoverBadUser(res, sentId)) {
+      retriedUser = true;
+      continue;
+    }
+    return parse<ActionResult>(res);
+  }
+}
+
+export async function setItemStatus(id: string, status: RecordStatus, tz: string): Promise<ActionResult> {
+  let retriedUser = false;
+  for (;;) {
+    const { res, sentId } = await asUser((userId, token) =>
+      fetchWithTimeout(
+        `/api/items/${encodeURIComponent(id)}/status?tz=${encodeURIComponent(tz)}`,
+        {
+          method: 'POST',
+          headers: headersFor(userId, token, { 'Content-Type': 'application/json' }),
+          body: JSON.stringify({ status }),
+        },
+        ITEMS_TIMEOUT_MS,
+      ),
+    );
+    if (!retriedUser && recoverBadUser(res, sentId)) {
+      retriedUser = true;
+      continue;
+    }
+    return parse<ActionResult>(res);
   }
 }
 
@@ -244,8 +352,8 @@ export async function transcribe(audio: File): Promise<string> {
   for (;;) {
     const form = new FormData();
     form.append('audio', audio);
-    const { res, sentId } = await asUser((id) =>
-      fetchWithTimeout('/api/stt', { method: 'POST', headers: headersFor(id), body: form }, STT_TIMEOUT_MS),
+    const { res, sentId } = await asUser((id, token) =>
+      fetchWithTimeout('/api/stt', { method: 'POST', headers: headersFor(id, token), body: form }, STT_TIMEOUT_MS),
     );
     if (!retriedUser && recoverBadUser(res, sentId)) {
       retriedUser = true;
@@ -259,4 +367,73 @@ export async function transcribe(audio: File): Promise<string> {
     const { text } = await parse<{ text: string }>(res);
     return text;
   }
+}
+
+export async function login(c: Credentials): Promise<AuthResponse> {
+  const res = await fetchWithTimeout(
+    '/api/auth/login',
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(c),
+    },
+    AUTH_TIMEOUT_MS,
+  );
+  const data = await parse<AuthResponse>(res);
+  auth = data;
+  saveAuth(data);
+  return data;
+}
+
+export async function register(c: Credentials): Promise<AuthResponse> {
+  const res = await fetchWithTimeout(
+    '/api/auth/register',
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(c),
+    },
+    AUTH_TIMEOUT_MS,
+  );
+  const data = await parse<AuthResponse>(res);
+  auth = data;
+  saveAuth(data);
+  return data;
+}
+
+export async function logout(): Promise<void> {
+  const token = auth?.token;
+  auth = null;
+  saveAuth(null);
+  if (!token) return;
+  try {
+    await fetchWithTimeout(
+      '/api/auth/logout',
+      {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      },
+      AUTH_TIMEOUT_MS,
+    );
+  } catch {
+  }
+}
+
+export async function fetchMe(): Promise<Account> {
+  if (!auth) {
+    throw new ApiError('rejected', 401, 'Не выполнен вход');
+  }
+  const { res } = await asUser((_id, token) =>
+    fetchWithTimeout('/api/auth/me', { headers: headersFor(null, token) }, AUTH_TIMEOUT_MS),
+  );
+  const account = await parse<Account>(res);
+  if (auth) {
+    auth = { token: auth.token, account };
+    saveAuth(auth);
+  }
+  return account;
+}
+
+export function currentAccount(): Account | null {
+  return auth?.account ?? null;
 }

@@ -96,6 +96,9 @@ class Record(Base):
         default=RecordStatus.ACTIVE,
         server_default=RecordStatus.ACTIVE.value,
     )
+    # Когда запись отменили; пусто, если она не отменена. По нему чистка удаляет записи,
+    # отменённые больше 30 дней назад: `updated_at` не годится — меняется при любой правке.
+    cancelled_at: Mapped[datetime | None] = mapped_column(AwareDateTime())
     created_at: Mapped[datetime] = mapped_column(
         AwareDateTime(), nullable=False, server_default=func.now()
     )
@@ -122,7 +125,7 @@ class Record(Base):
 class ConversationState(Base):
     """Состояние разговора. Поля — как `ConversationState` в контракте.
 
-    `pending` — черновик действия агента (`LLMAction`) в JSON; `candidates` и `missing` — массивы.
+    `pending` и `last_action` — JSON; `shown`, `candidates` и `missing` — массивы.
     """
 
     __tablename__ = "conversation_states"
@@ -132,7 +135,17 @@ class ConversationState(Base):
     focus_record_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("records.id", ondelete="SET NULL")
     )
+    # Записи, показанные пользователю под номерами: номер N — shown[N - 1].
+    shown: Mapped[list[uuid.UUID]] = mapped_column(
+        ARRAY(UUID(as_uuid=True)), nullable=False, default=list, server_default=text("'{}'")
+    )
+    # Последнее изменяющее действие (`LastAction`) — для поправки, отката и замены цели.
+    last_action: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
     pending: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    # Прошлая реплика была не про черновик — следующая такая сбрасывает черновик.
+    pending_skipped: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=text("false")
+    )
     candidates: Mapped[list[uuid.UUID]] = mapped_column(
         ARRAY(UUID(as_uuid=True)), nullable=False, default=list, server_default=text("'{}'")
     )
@@ -174,3 +187,54 @@ class TextEmbedding(Base):
     created_at: Mapped[datetime] = mapped_column(
         AwareDateTime(), nullable=False, server_default=func.now()
     )
+
+
+class User(Base):
+    """Пользователь: гость или учётка.
+
+    Гость — строка без логина: создаётся при первом запросе с новым `X-User-Id`.
+    Учётка — с логином и хешем пароля (argon2). `id` — тот же `user_id`, что у записей и
+    разговоров. Внешних ключей от записей сюда нет: записи гостя удаляет чистка
+    (`services/retention.py`), а не каскад.
+    """
+
+    __tablename__ = "users"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
+    login: Mapped[str | None] = mapped_column(String(32))
+    password_hash: Mapped[str | None] = mapped_column(Text)
+    is_demo: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=text("false")
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        AwareDateTime(), nullable=False, server_default=func.now()
+    )
+    # Последний запрос гостя (обновляется не чаще раза в час) — для чистки через 30 дней.
+    last_seen_at: Mapped[datetime] = mapped_column(
+        AwareDateTime(), nullable=False, server_default=func.now()
+    )
+
+    __table_args__ = (
+        CheckConstraint("(login IS NULL) = (password_hash IS NULL)", name="account_has_password"),
+        CheckConstraint("NOT is_demo OR login IS NOT NULL", name="demo_is_account"),
+        # Логин уникален без учёта регистра.
+        Index("uq_users_login_lower", func.lower(text("login")), unique=True),
+    )
+
+
+class AuthToken(Base):
+    """Токен входа. Хранится SHA-256 токена, сам токен знает только клиент.
+
+    Выход — удаление строки: после него токен не принимается.
+    """
+
+    __tablename__ = "auth_tokens"
+
+    token_hash: Mapped[str] = mapped_column(String(64), primary_key=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        AwareDateTime(), nullable=False, server_default=func.now()
+    )
+    expires_at: Mapped[datetime] = mapped_column(AwareDateTime(), nullable=False)

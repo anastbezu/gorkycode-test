@@ -3,7 +3,16 @@
 from copy import deepcopy
 from datetime import datetime
 
-from schemas import AskUser, CreateRecord, Help, ListRecords, SearchRecords
+from schemas import (
+    AskUser,
+    CreateRecord,
+    Help,
+    ListRecords,
+    SearchRecords,
+    SetStatus,
+    UndoLast,
+    UpdateRecord,
+)
 
 from .system_prompt import format_iso_example
 
@@ -11,7 +20,10 @@ from .system_prompt import format_iso_example
 def get_agent_tools() -> list[dict]:
     """Экспортировать доступные действия без подстановки {ISO_EXAMPLE}."""
     tools = []
-    for model in (CreateRecord, ListRecords, SearchRecords, AskUser, Help):
+    for model in (
+            CreateRecord, ListRecords, SearchRecords, UpdateRecord, SetStatus, UndoLast, AskUser,
+            Help,
+    ):
         parameters = model.model_json_schema()
         description = parameters.pop("description", model.__name__)
         tools.append(

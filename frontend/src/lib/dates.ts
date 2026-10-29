@@ -160,15 +160,42 @@ export function recordAnchor(record: Record): string | null {
  * Смещение — своё для этой даты (переход на летнее время меняет его).
  * Пояс браузера совпадает с локальным поясом `Date`, поэтому считаем через `new Date(y, m, d)`.
  */
-export function localMidnightIso(key: string): string {
-  const [y, m, d] = key.split('-').map(Number);
-  const midnight = new Date(y, m - 1, d);
-  const offsetMin = -midnight.getTimezoneOffset();
+export function localDateTimeIso(key: string, time = '00:00'): string {
+  const [year, month, day] = key.split('-').map(Number);
+  const [hStr, mStr] = time.split(':');
+  const hours = Number(hStr) || 0;
+  const minutes = Number(mStr) || 0;
+  const dt = new Date(year, month - 1, day, hours, minutes, 0);
+  const offsetMin = -dt.getTimezoneOffset();
   const sign = offsetMin >= 0 ? '+' : '-';
   const abs = Math.abs(offsetMin);
-  const hh = pad(midnight.getHours());
-  const mm = pad(midnight.getMinutes());
+  const hh = pad(dt.getHours());
+  const mm = pad(dt.getMinutes());
   return `${key}T${hh}:${mm}:00${sign}${pad(Math.floor(abs / 60))}:${pad(abs % 60)}`;
+}
+
+export function localMidnightIso(key: string): string {
+  return localDateTimeIso(key, '00:00');
+}
+
+export function recordDayKey(record: Record, tz: string): string | null {
+  const anchor = recordAnchor(record);
+  return anchor ? dayKey(new Date(anchor), tz) : null;
+}
+
+export function recordTimeField(record: Record, tz: string): string {
+  if (!record.start || record.all_day) return '';
+  const w = wallTime(new Date(record.start), tz);
+  return `${pad(w.hour)}:${pad(w.minute)}`;
+}
+
+export function recordDeadlineField(record: Record, tz: string): { day: string; time: string } | null {
+  if (!record.deadline) return null;
+  const moment = new Date(record.deadline);
+  const w = wallTime(moment, tz);
+  const day = dayKey(moment, tz);
+  const time = isEndOfDay(w) ? '' : `${pad(w.hour)}:${pad(w.minute)}`;
+  return { day, time };
 }
 
 const MONTHS_NOMINATIVE = [

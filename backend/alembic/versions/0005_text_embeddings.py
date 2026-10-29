@@ -4,8 +4,9 @@ Revision ID: 0005
 Revises: 0004
 Create Date: 2026-10-27
 
-Вектор на текст, а не на запись (docs/modules/search.md): ключ — модель и md5 текста. Индекса по вектору
-нет: у пользователя ~1000 записей, полный перебор быстрее индекса (README pgvector).
+Вектор на текст, а не на запись (docs/modules/search.md): ключ — модель и md5 текста.
+Индекса по вектору нет: у пользователя ~1000 записей, полный перебор быстрее индекса
+(README pgvector).
 """
 
 from collections.abc import Sequence

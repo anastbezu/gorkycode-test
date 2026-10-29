@@ -1,5 +1,7 @@
 import json
+import re
 from asyncio import to_thread
+from contextvars import ContextVar
 from datetime import datetime
 from uuid import UUID
 from zoneinfo import ZoneInfo
@@ -7,9 +9,14 @@ from zoneinfo import ZoneInfo
 import openai
 from pydantic import ValidationError
 
-from schemas import AskUser, ChatResponse, CreateRecord, LLMAction, LLMConfig
+from schemas import (
+    AskUser,
+    ChatResponse,
+    CreateRecord,
+    LLMAction,
+    LLMConfig,
+)
 from services.conversation import (
-    clear_pending,
     get_or_create_conversation_state,
     merge_pending,
     save_conversation_state,
@@ -17,16 +24,44 @@ from services.conversation import (
 from services.records import get_record
 
 from .actions import execute
-from .context import build_draft_context, build_focus_context
-from .focus import focus_record_id
+from .change_replies import reply_for_change
+from .changes import CHANGE_ACTIONS, execute_change
+from .context import build_state_context, record_summary
 from .llm import LLMConfigError, make_client
+from .presentation import MAX_SHOWN
 from .replies import question_for_missing, reply_for_result
+from .state import (
+    complete_from_draft,
+    continues_pending,
+    is_refusal,
+    pending_draft,
+    reset_pending,
+    update_state,
+)
 from .system_prompt import build_compact_system_prompt
 from .tools import get_agent_tools, localize_tools
 
 
 class ActionParseError(Exception):
     """Модель вернула действие, которое не удалось разобрать."""
+
+
+# Несколько команд в одной фразе (agent-07). Проверка живым запросом (docs/modules/agent.md,
+# «Несколько команд»): Gemini при любых параметрах отдаёт один вызов. Поэтому исполняется
+# первое действие, а ответ просит сказать остальное отдельно — если модель всё же вернула
+# несколько вызовов или во фразе две команды подряд («запиши … и поставь …»).
+EXTRA_CALLS: ContextVar[int] = ContextVar("extra_calls", default=0)
+COMMAND = re.compile(
+    r"\b(?:запиши|запишите|поставь|поставьте|напомни|напомните|добавь|добавьте|создай|"
+    r"создайте|запланируй|отмени|отмените|перенеси|перенесите|сдвинь|отметь|удали)\b",
+    re.IGNORECASE,
+)
+SAY_REST = "Остальное скажите отдельно."
+
+
+def several_commands(text: str) -> bool:
+    """Во фразе не меньше двух глаголов-команд: «запиши задачу … и поставь встречу …»."""
+    return len(COMMAND.findall(text)) >= 2
 
 
 async def get_action(
@@ -43,21 +78,30 @@ async def get_action(
     if context:
         prompt += "\n" + context
     tools = localize_tools(get_agent_tools(), now)
-    response = await client.chat.completions.create(
-        model=model,
-        messages=[
-            {"role": "system", "content": prompt},
-            {"role": "user", "content": text},
-        ],
-        tools=tools,
-        tool_choice="required",
-    )
+    try:
+        response = await client.chat.completions.create(
+            model=model,
+            messages=[
+                {"role": "system", "content": prompt},
+                {"role": "user", "content": text},
+            ],
+            tools=tools,
+            tool_choice="required",
+        )
+    finally:
+        # Клиент создаётся на запрос: закрываем соединения сразу, а не сборщиком мусора
+        # после закрытия цикла событий («Event loop is closed» в живом прогоне на Windows).
+        close = getattr(client, "close", None)
+        if close is not None:
+            await close()
     if not response.choices:
         raise ActionParseError("модель вернула пустой ответ")
     message = response.choices[0].message
 
-    if not message.tool_calls or len(message.tool_calls) != 1:
-        raise ActionParseError("модель должна вернуть ровно одно действие")
+    if not message.tool_calls:
+        raise ActionParseError("модель не вернула действие")
+    # Несколько вызовов — исполняем первый, ответ попросит остальное отдельно.
+    EXTRA_CALLS.set(len(message.tool_calls) - 1)
 
     call = message.tool_calls[0]
     if call.function.name not in {tool["function"]["name"] for tool in tools}:
@@ -83,17 +127,34 @@ async def process_user_turn(
     # Готовый now подставляют автотесты (agent-08).
     zone = ZoneInfo(timezone_name)
     now = now.astimezone(zone) if now is not None else datetime.now(zone)
+    EXTRA_CALLS.set(0)
     state = await to_thread(get_or_create_conversation_state, db, conversation_id, user_id)
-    context = [build_draft_context(state)]
+    if is_refusal(text, state):
+        creating = state.pending is not None and isinstance(state.pending.root, CreateRecord)
+        state = reset_pending(state)
+        await to_thread(save_conversation_state, db, state)
+        return ChatResponse(
+            conversation_id=conversation_id,
+            reply="Хорошо, не ставлю." if creating else "Хорошо, ничего не меняю.",
+        )
+
+    # Один Session: чтения последовательные, все записи проверяются по user_id.
+    ids = list(state.shown[:MAX_SHOWN])
     if state.focus_record_id is not None:
-        record = await to_thread(get_record, db, user_id, state.focus_record_id)
-        if record is not None:
-            context.append(build_focus_context(record, timezone_name))
-        else:
-            state.focus_record_id = None
+        ids.append(state.focus_record_id)
+    if state.last_action is not None:
+        ids.extend(state.last_action.record_ids[:3])
+    records = {}
+    for rid in dict.fromkeys(ids):
+        record = await to_thread(get_record, db, user_id, rid)
+        if record is not None and record.user_id == user_id and record.id == rid:
+            records[rid] = record
+    if state.focus_record_id not in records:
+        state.focus_record_id = None
+    context = build_state_context(state, records, timezone_name)
     try:
         action = await get_action(
-            text, now, timezone_name, llm_config, context="\n".join(filter(None, context))
+            text, now, timezone_name, llm_config, context=context
         )
     except LLMConfigError:
         return ChatResponse(
@@ -117,32 +178,21 @@ async def process_user_turn(
         )
 
     if isinstance(action, AskUser):
-        # Вопрос не заменяет действие: иначе теряются type/title первого шага.
-        if state.pending is None:
-            state.missing = action.missing
-        state.awaiting = "answer"
-        state.candidates = []
+        state = update_state(state, action, None)
         await to_thread(save_conversation_state, db, state)
         return ChatResponse(
-            conversation_id=conversation_id, reply=action.question, awaiting="answer"
+            conversation_id=conversation_id, reply=action.question, awaiting=state.awaiting
         )
 
     continuing = (
-        state.awaiting == "answer"
-        and state.pending is not None
-        and isinstance(state.pending.root, CreateRecord)
+        continues_pending(state, action)
         and isinstance(action, CreateRecord)
-        and state.pending.root.type == action.type
     )
-    if (
-        isinstance(action, CreateRecord)
-        and state.pending is not None
-        and isinstance(state.pending.root, CreateRecord)
-        and state.pending.root.type != action.type
-    ):
-        state = clear_pending(state)
-        state.candidates = []
-    if continuing:
+    ask = pending_draft(state)
+    if continuing and ask is not None:
+        # Ответ на вопрос с частичным черновиком (AskUser.draft): дополнить уже названное.
+        action = complete_from_draft(ask, action, timezone_name)
+    elif continuing:
         # LLM возвращает полное действие, но дописываем только ожидаемые слоты.
         # type/title и неназванные end/deadline из черновика остаются неизменными.
         fields = set(state.missing) & {"start", "end", "deadline"}
@@ -158,36 +208,42 @@ async def process_user_turn(
         # Сохраняем ожидание до ответа сервиса (включая ошибки и дату без времени).
         action = state.pending.root
 
-    result = await execute(db, user_id, action, now=now)
+    change = None
+    if action.action in CHANGE_ACTIONS:
+        # Изменение, статус, откат: нужна цель из состояния и прежние значения для отката.
+        change = await execute_change(db, user_id, action, state, now=now)
+        action = change.applied or action
+        result = change.result
+    else:
+        result = await execute(db, user_id, action, now=now)
 
-    if not result.ok and result.missing:
-        state.pending = LLMAction(action)
-        question = AskUser(
-            question=question_for_missing(result.missing), missing=result.missing
-        )
-        state.missing = question.missing
-        state.awaiting = "answer"
-        state.candidates = []
-        await to_thread(save_conversation_state, db, state)
-        return ChatResponse(
-            conversation_id=conversation_id,
-            reply=question.question,
-            result=result,
-            awaiting="answer",
-        )
-
-    if result.ok:
-        # Список/поиск во время уточнения не уничтожает незавершённое создание.
-        if continuing or state.pending is None:
-            state = clear_pending(state)
-            state.candidates = []
-        if result.action in {"create_record", "list_records", "search_records"}:
-            state.focus_record_id = focus_record_id(result)
+    state = update_state(state, action, result, before=change.before if change else None)
     await to_thread(save_conversation_state, db, state)
+
+    if change is not None:
+        reply = reply_for_change(change, action, timezone_name)
+    elif result.candidates:
+        choices = "; ".join(
+            f"{index}) {record_summary(record, timezone_name)}"
+            for index, record in enumerate(result.candidates[:MAX_SHOWN], 1)
+        )
+        reply = f"Какую запись выбрать? {choices}."
+    elif not result.ok and result.missing:
+        reply = question_for_missing(result.missing)
+    else:
+        reply = reply_for_result(result, timezone_name, action=action, now=now)
+    if state.pending_skipped and state.pending is not None:
+        pending = state.pending.root
+        title = getattr(pending, "title", None)
+        reminder = f"Запись «{title}» ещё не создана." if title else "Действие ещё не завершено."
+        reply += " " + reminder + " " + question_for_missing(state.missing)
+
+    if EXTRA_CALLS.get() or several_commands(text):
+        reply += " " + SAY_REST
 
     return ChatResponse(
         conversation_id=conversation_id,
-        reply=reply_for_result(result, timezone_name, action=action, now=now),
+        reply=reply,
         result=result,
         awaiting=state.awaiting,
     )

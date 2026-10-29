@@ -1,19 +1,23 @@
 """Уровень «точно»: есть ли в названии записи каждое значимое слово запроса.
 
 Правило контракта (`docs/contracts/search.md`, «Общие правила»), алгоритм — из замера
-техлида на нашем датасете (docs/modules/search.md): слово запроса совпадает со словом
-названия, если у них одна основа
-(Snowball russian: «юристами» ↔ «юристом») или слова почти одинаковые
-(`rapidfuzz.fuzz.ratio ≥ 85`: искажённый падеж в датасете «Позвонить Дмитрием», опечатка).
+техлида на нашем датасете (docs/modules/search.md). Слово запроса совпадает со словом
+названия, если выполнено одно из трёх:
+- одна основа — Snowball russian отрезает окончания по правилам: «юристами» ↔ «юристом»;
+- одна словарная форма — pymorphy3 знает формы слов по словарю: «Сергею» ↔ «Сергеем»
+  (основы у них разные: `серг` и `серге`), «Иван» ↔ «Иваном»;
+- слова почти одинаковые по буквам — `rapidfuzz.fuzz.ratio ≥ 85`: опечатка, искажённый
+  падеж датасета («Ольге» ↔ «Ольгой»).
 
-Почему не полнотекст Postgres: Snowball сам по себе не сводит падежи имён
-(«Иван» → `ива`, «Иваном» → `иван`), нужен второй критерий — почти совпадающее слово.
-«Каждое слово по основе ИЛИ почти совпадает» в SQL громоздко, а записей у пользователя
-около тысячи — сравнение в Python занимает миллисекунды.
+Почему не полнотекст Postgres: он сравнивает только основы Snowball, а они не сводят падежи
+имён. «Каждое слово по основе, словарной форме или почти по буквам» в SQL не выразить,
+а записей у пользователя около тысячи — сравнение в Python занимает миллисекунды.
 """
 
 import re
+from functools import lru_cache
 
+import pymorphy3
 import snowballstemmer
 from rapidfuzz import fuzz
 
@@ -21,6 +25,7 @@ from rapidfuzz import fuzz
 WORD = re.compile(r"[0-9a-zа-я]+")
 
 # Почти совпадающее слово: порог из замера на датасете (опечатка, «Ольге» ~ «Ольгой»).
+# Мягче нельзя: «созвон с Севером по CRM» не должен совпадать с «…по новому продукту».
 FUZZY_WORD_MIN_RATIO = 85
 
 # Служебные слова — список Postgres `russian` (snowball russian.stop).
@@ -36,10 +41,17 @@ STOP_WORDS = frozenset(
 )
 
 _STEMMER = snowballstemmer.stemmer("russian")
+_MORPH = pymorphy3.MorphAnalyzer()
 
 
 def stem(word: str) -> str:
     return _STEMMER.stemWord(word)
+
+
+@lru_cache(maxsize=50_000)
+def lemmas(word: str) -> frozenset[str]:
+    """Словарные формы слова. У омонимов их несколько: «стали» — «сталь» и «стать»."""
+    return frozenset(p.normal_form.replace("ё", "е") for p in _MORPH.parse(word))
 
 
 # Слова типа записи («задачу», «напоминание», «встречу», «дело») — по основе.
@@ -53,27 +65,40 @@ def words(text: str) -> list[str]:
     return WORD.findall(text.lower().replace("ё", "е"))
 
 
+class Word:
+    """Слово с основой и словарными формами — считаются один раз."""
+
+    __slots__ = ("text", "stem", "lemmas")
+
+    def __init__(self, text: str):
+        self.text = text
+        self.stem = stem(text)
+        self.lemmas = lemmas(text)
+
+
 class QueryWords:
     """Значимые слова запроса, разобранные один раз на весь перебор записей."""
 
     def __init__(self, query: str):
-        significant = [w for w in words(query) if w not in STOP_WORDS]
-        self.required = [(w, stem(w)) for w in significant if stem(w) not in TYPE_WORD_STEMS]
-        self.type_words = [(w, stem(w)) for w in significant if stem(w) in TYPE_WORD_STEMS]
-
+        significant = [Word(w) for w in words(query) if w not in STOP_WORDS]
+        self.required = [w for w in significant if w.stem not in TYPE_WORD_STEMS]
+        self.type_words = [w for w in significant if w.stem in TYPE_WORD_STEMS]
 
 
 class TitleWords:
-    """Слова названия записи: сами слова (для нечёткого сравнения) и их основы."""
+    """Значимые слова названия записи."""
 
     def __init__(self, title: str):
-        self.words = [w for w in words(title) if w not in STOP_WORDS]
-        self.stems = {stem(w) for w in self.words}
+        self.words = [Word(w) for w in words(title) if w not in STOP_WORDS]
+        self.stems = {w.stem for w in self.words}
 
-    def has(self, word: str, word_stem: str) -> bool:
-        if word_stem in self.stems:
+    def has(self, word: Word) -> bool:
+        if word.stem in self.stems:
             return True
-        return any(fuzz.ratio(word, w) >= FUZZY_WORD_MIN_RATIO for w in self.words)
+        return any(
+            word.lemmas & w.lemmas or fuzz.ratio(word.text, w.text) >= FUZZY_WORD_MIN_RATIO
+            for w in self.words
+        )
 
 
 def is_exact(query: QueryWords, title: TitleWords) -> bool:
@@ -84,7 +109,7 @@ def is_exact(query: QueryWords, title: TitleWords) -> bool:
     Если после этого значимых слов не осталось («встречу» и название «Созвон с Иваном») —
     совпадения нет: пустой запрос не совпадает ни с чем.
     """
-    type_words_in_title = [s for _, s in query.type_words if s in title.stems]
+    type_words_in_title = [w for w in query.type_words if w.stem in title.stems]
     if not query.required and not type_words_in_title:
         return False
-    return all(title.has(w, s) for w, s in query.required)
+    return all(title.has(w) for w in query.required)

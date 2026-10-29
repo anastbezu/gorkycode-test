@@ -146,3 +146,29 @@ describe('календарь', () => {
     ]);
   });
 });
+
+describe('localDateTimeIso и поля формы', () => {
+  it('localDateTimeIso возвращает ISO со смещением', async () => {
+    const { localDateTimeIso, localMidnightIso } = await import('./dates');
+    const iso = localDateTimeIso('2026-10-31', '15:30');
+    expect(iso).toMatch(/^2026-10-31T15:30:00[+-]\d{2}:\d{2}$/);
+    const midnight = localMidnightIso('2026-10-31');
+    expect(midnight).toMatch(/^2026-10-31T00:00:00[+-]\d{2}:\d{2}$/);
+  });
+
+  it('извлечение полей для формы', async () => {
+    const { recordDayKey, recordTimeField, recordDeadlineField } = await import('./dates');
+    const rMeeting = rec({ start: '2026-10-26T12:00:00Z', all_day: false });
+    expect(recordDayKey(rMeeting, MSK)).toBe('2026-10-26');
+    expect(recordTimeField(rMeeting, MSK)).toBe('15:00');
+
+    const rAllDay = rec({ start: '2026-10-26T00:00:00+03:00', all_day: true });
+    expect(recordTimeField(rAllDay, MSK)).toBe('');
+
+    const rDeadline = rec({ deadline: '2026-10-26T17:00:00Z' });
+    expect(recordDeadlineField(rDeadline, MSK)).toEqual({ day: '2026-10-26', time: '20:00' });
+
+    const rEndOfDay = rec({ deadline: '2026-10-26T20:59:59Z' });
+    expect(recordDeadlineField(rEndOfDay, MSK)).toEqual({ day: '2026-10-26', time: '' });
+  });
+});
