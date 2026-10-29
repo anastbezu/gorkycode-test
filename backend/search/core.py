@@ -85,7 +85,7 @@ def _exact_by_words(query: str, rows: list[models.Record]) -> list[models.Record
     for row in rows:
         if row.title not in title_words:
             title_words[row.title] = TitleWords(row.title)
-        if is_exact(words, title_words[row.title]):
+        if is_exact(words, title_words[row.title], row.type):
             matched.append(row)
     return matched
 

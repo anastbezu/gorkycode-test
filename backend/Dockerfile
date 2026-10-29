@@ -34,7 +34,8 @@ FROM python:3.13-slim
 ENV PYTHONUNBUFFERED=1 \
     PATH="/app/.venv/bin:$PATH" \
     HF_HOME=/app/hf \
-    HF_HUB_OFFLINE=1
+    HF_HUB_OFFLINE=1 \
+    SEARCH_WARMUP=1
 
 # Код принадлежит root и только читается: процесс сервера работает без прав root.
 RUN useradd --system --no-create-home --uid 10001 app

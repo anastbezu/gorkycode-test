@@ -23,6 +23,8 @@ import pymorphy3
 import snowballstemmer
 from rapidfuzz import fuzz
 
+from schemas import RecordType
+
 # Слова — буквы и цифры: «CRM», «1С», «ТЗ» остаются словами.
 WORD = re.compile(r"[0-9a-zа-я]+")
 
@@ -65,10 +67,16 @@ def is_dictionary_word(word: str) -> bool:
     return _MORPH.word_is_known(word)
 
 
-# Слова типа записи («задачу», «напоминание», «встречу», «дело») — по основе.
-# Контракт: они значимы, только если есть в названии («Встреча с Иваном»); в названиях задач
-# слова «задача» нет, поэтому «задачу про смету» ищется как «смету».
-TYPE_WORD_STEMS = frozenset(stem(w) for w in ("задача", "напоминание", "встреча", "дело"))
+# Слова типа записи — по основе: какой тип записи называет слово (контракт search.md,
+# «Общие правила»). «Задачи» — task и reminder, как у агента (`TYPES_HINT` в
+# schemas/actions.py); «дело» — любой тип.
+TYPE_WORDS = {
+    stem("встреча"): frozenset({RecordType.MEETING}),
+    stem("задача"): frozenset({RecordType.TASK, RecordType.REMINDER}),
+    stem("напоминание"): frozenset({RecordType.REMINDER}),
+    stem("дело"): frozenset(RecordType),
+}
+TYPE_WORD_STEMS = frozenset(TYPE_WORDS)
 
 
 def words(text: str) -> list[str]:
@@ -117,15 +125,19 @@ def _typo_of(a: Word, b: Word) -> bool:
     return fuzz.ratio(a.text, b.text) >= FUZZY_WORD_MIN_RATIO
 
 
-def is_exact(query: QueryWords, title: TitleWords) -> bool:
+def is_exact(query: QueryWords, title: TitleWords, record_type: RecordType) -> bool:
     """Уровень «точно»: каждое значимое слово запроса есть в названии.
 
-    Слово типа записи отбрасывается, если в названии его нет: «встречу с Иваном»
-    совпадает с «Встреча с Иваном» и с «Созвон с Иваном», но не с «Встреча с Ольгой».
-    Если после этого значимых слов не осталось («встречу» и название «Созвон с Иваном») —
-    совпадения нет: пустой запрос не совпадает ни с чем.
+    Слово типа записи («встречу», «задачу») совпадает, если оно есть в названии или если
+    запись этого типа: «встречу с Иваном» совпадает с «Встреча с Иваном» и с «Созвон
+    с Иваном» (тип — встреча), но не с задачей «Позвонить Иваном». Иначе «отмени встречу
+    с Алексеем по CRM» отменило бы задачу «Обсудить CRM с Алексеем».
+    Запрос без значимых слов («с по про») не совпадает ни с чем.
     """
-    type_words_in_title = [w for w in query.type_words if w.stem in title.stems]
-    if not query.required and not type_words_in_title:
+    if not query.required and not query.type_words:
         return False
-    return all(title.has(w) for w in query.required)
+    if not all(title.has(w) for w in query.required):
+        return False
+    return all(
+        w.stem in title.stems or record_type in TYPE_WORDS[w.stem] for w in query.type_words
+    )

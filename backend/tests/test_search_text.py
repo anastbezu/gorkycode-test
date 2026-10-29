@@ -5,11 +5,14 @@
 
 import pytest
 
+from schemas import RecordType
 from search.text import QueryWords, TitleWords, is_exact, words
 
+MEETING, TASK, REMINDER = RecordType.MEETING, RecordType.TASK, RecordType.REMINDER
 
-def exact(query: str, title: str) -> bool:
-    return is_exact(QueryWords(query), TitleWords(title))
+
+def exact(query: str, title: str, record_type: RecordType = TASK) -> bool:
+    return is_exact(QueryWords(query), TitleWords(title), record_type)
 
 
 @pytest.mark.parametrize(
@@ -56,23 +59,36 @@ def test_missing_word_is_not_exact(query, title):
     assert not exact(query, title)
 
 
-def test_type_word_is_skipped_when_title_has_none():
-    # В названиях задач слова «задача» нет: «задачу про смету» ищется как «смету».
-    assert exact("задачу про смету", "Согласовать смету с Максимом")
-    # Контракт: слово типа значимо, только если оно есть в названии.
-    assert exact("встречу с Иваном", "Созвон с Иваном")
-    assert not exact("встречу с Иваном", "Встреча с Ольгой")
+def test_type_word_matches_by_title_or_record_type():
+    # Слова «задача» в названиях задач нет: «задачу про смету» — задача со «сметой».
+    assert exact("задачу про смету", "Согласовать смету с Максимом", TASK)
+    assert exact("задачу про CRM", "Напомнить Анной про CRM", REMINDER)  # «задачи» — и напоминания
+    # «Встречу» — запись типа «встреча», даже если в названии «созвон».
+    assert exact("встречу с Иваном", "Созвон с Иваном", MEETING)
+    assert not exact("встречу с Иваном", "Встреча с Ольгой", MEETING)
 
 
-def test_query_of_only_type_or_stop_words_matches_nothing():
-    assert not exact("встречу", "Созвон с Иваном")
-    assert not exact("про по с", "Созвон с Иваном")
-    assert not exact("", "Созвон с Иваном")
+def test_type_word_excludes_other_types():
+    # «Отмени встречу с Алексеем по CRM», а есть только задача — это не она.
+    assert not exact("встречу с Алексеем по CRM", "Обсудить CRM с Алексеем", TASK)
+    assert not exact("задачу с Иваном", "Встреча с Иваном по бюджету", MEETING)
+    assert not exact("напоминание Сергею", "Позвонить Сергеем", TASK)
 
 
-def test_type_word_present_in_title_counts():
-    # «встречу» есть в названии — значимое слово, и оно совпало.
-    assert exact("встречу", "Встреча с Ольгой")
+def test_type_word_in_title_counts_whatever_the_type():
+    # Слово есть в названии — оно совпало: «итоги встречи» — задача, но слово «встреча» в ней есть.
+    assert exact("встречу", "Встреча с Ольгой", MEETING)
+    assert exact("итоги встречи Марией", "Отправить итоги встречи Марией", TASK)
+
+
+def test_only_type_word_finds_records_of_that_type():
+    assert exact("встречу", "Созвон с Иваном", MEETING)
+    assert not exact("встречу", "Позвонить Иваном", TASK)
+
+
+def test_query_of_only_stop_words_matches_nothing():
+    assert not exact("про по с", "Созвон с Иваном", MEETING)
+    assert not exact("", "Созвон с Иваном", MEETING)
 
 
 def test_words_keep_latin_and_digits():
