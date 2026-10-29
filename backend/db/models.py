@@ -99,6 +99,9 @@ class Record(Base):
     # Когда запись отменили; пусто, если она не отменена. По нему чистка удаляет записи,
     # отменённые больше 30 дней назад: `updated_at` не годится — меняется при любой правке.
     cancelled_at: Mapped[datetime | None] = mapped_column(AwareDateTime())
+    # Синхронизация с Google Календарём (calendar-01): NULL — не отправлялась (нет подключения
+    # или записи без даты), «pending» — ждёт отправки, «synced» — в Google как у нас.
+    google_sync: Mapped[str | None] = mapped_column(String(16))
     created_at: Mapped[datetime] = mapped_column(
         AwareDateTime(), nullable=False, server_default=func.now()
     )
@@ -116,6 +119,10 @@ class Record(Base):
         # Списки «за период» и «активные» всегда в рамках одного пользователя.
         Index("ix_records_user_id_start_at", "user_id", "start_at"),
         Index("ix_records_user_id_status", "user_id", "status"),
+        CheckConstraint(
+            "google_sync IS NULL OR google_sync IN ('pending', 'synced')",
+            name="google_sync_values",
+        ),
     )
 
     def __repr__(self) -> str:
@@ -239,3 +246,38 @@ class AuthToken(Base):
         AwareDateTime(), nullable=False, server_default=func.now()
     )
     expires_at: Mapped[datetime] = mapped_column(AwareDateTime(), nullable=False)
+
+
+class GoogleConnection(Base):
+    """Подключение Google Календаря у учётки (calendar-01).
+
+    Refresh-токен хранится зашифрованным (`gcal/crypto.py`, ключ `GOOGLE_TOKEN_KEY`):
+    в браузер и в логи не попадает. `calendar_id` — отдельный календарь «Голосовой ассистент»,
+    который приложение создаёт в Google пользователя (разрешение `calendar.app.created`).
+    Удаление учётки удаляет и подключение. Отключение (`disconnected`) токен стирает, а строку
+    оставляет ради `calendar_id`: повторное подключение пишет в тот же календарь, без дублей.
+    """
+
+    __tablename__ = "google_connections"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    email: Mapped[str | None] = mapped_column(Text)
+    refresh_token: Mapped[str | None] = mapped_column(Text)  # зашифрован; NULL после отключения
+    calendar_id: Mapped[str | None] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="connected", server_default=text("'connected'")
+    )
+    error: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(
+        AwareDateTime(), nullable=False, server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        AwareDateTime(), nullable=False, server_default=func.now(), onupdate=func.now()
+    )
+
+    __table_args__ = (
+        CheckConstraint("status IN ('connected', 'error', 'disconnected')",
+                        name="status_values"),
+    )
