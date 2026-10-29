@@ -23,17 +23,21 @@ import { SettingsModal } from './components/SettingsModal';
 import { Toast, type ToastInfo } from './components/Toast';
 import { activeTodayCount, panelDayKeys, PANEL_DAYS, TasksPanel, type PanelState } from './components/TasksPanel';
 import { RecordingIndicator } from './components/RecordingIndicator';
-import { BackIcon, CalendarIcon, MicIcon, SendIcon, SettingsIcon } from './components/icons';
-import { addDaysToKey, browserTimeZone, localMidnightIso } from './lib/dates';
+import { BackIcon, CalendarIcon, MicIcon, MoonIcon, SendIcon, SettingsIcon, SunIcon } from './components/icons';
+import { addDaysToKey, browserTimeZone, dayKey, localMidnightIso } from './lib/dates';
 import { canRecord, microphoneErrorText, startRecording, type Recording } from './lib/recorder';
 import { speak, stopSpeaking } from './lib/speech';
 import {
+  applyTheme,
   loadChat,
   loadLLMConfig,
+  loadTheme,
   saveChat,
   saveLLMConfig,
+  saveTheme,
   type ChatMessage,
   type StoredChat,
+  type ThemeChoice,
 } from './lib/storage';
 
 const HINTS = ['Что у меня сегодня?', 'Напомни завтра в 10 позвонить Ивану'];
@@ -67,15 +71,20 @@ function newId(): string {
   return typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : String(Date.now() + Math.random());
 }
 
-/** Панель «Мои дела»: один запрос на 7 дней; прежние записи видны, пока идёт перезапрос. */
+/** Панель «Мои дела»: один запрос на 5 дней; прежние записи видны, пока идёт перезапрос. */
 function usePanel(tz: string) {
+  const [firstDayKey, setFirstDayKey] = useState(() => dayKey(new Date(), tz));
+  const [selectedDay, setSelectedDay] = useState<number | 'undated'>(0);
   const [state, setState] = useState<PanelState>({ status: 'loading', records: [] });
+  const [todayCount, setTodayCount] = useState(0);
   // Номер последнего запроса: ответ более раннего, пришедший позже, не затирает свежие данные
   const latest = useRef(0);
+  const currentFirstDay = useRef(firstDayKey);
+  currentFirstDay.current = firstDayKey;
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (targetFirstDay?: string) => {
     const request = ++latest.current;
-    const [first] = panelDayKeys(tz);
+    const first = targetFirstDay ?? currentFirstDay.current;
     setState((prev) => ({ status: 'loading', records: prev.records }));
     try {
       const records = await fetchItems({
@@ -84,7 +93,15 @@ function usePanel(tz: string) {
         tz,
         includeUndated: true,
       });
-      if (request === latest.current) setState({ status: 'ready', records });
+      if (request === latest.current) {
+        setState({ status: 'ready', records });
+        const now = new Date();
+        const today = dayKey(now, tz);
+        const pageKeys = panelDayKeys(first, PANEL_DAYS);
+        if (pageKeys.includes(today)) {
+          setTodayCount(activeTodayCount(records, tz, now));
+        }
+      }
     } catch (err) {
       if (request !== latest.current) return;
       const message = err instanceof ApiError && err.kind === 'rejected' ? err.detail : 'Нет ответа от сервера.';
@@ -92,7 +109,38 @@ function usePanel(tz: string) {
     }
   }, [tz]);
 
-  return { state, load };
+  const prevPage = useCallback(() => {
+    const nextFirst = addDaysToKey(firstDayKey, -PANEL_DAYS);
+    setFirstDayKey(nextFirst);
+    setSelectedDay(0);
+    void load(nextFirst);
+  }, [firstDayKey, load]);
+
+  const nextPage = useCallback(() => {
+    const nextFirst = addDaysToKey(firstDayKey, PANEL_DAYS);
+    setFirstDayKey(nextFirst);
+    setSelectedDay(0);
+    void load(nextFirst);
+  }, [firstDayKey, load]);
+
+  const resetToToday = useCallback(() => {
+    const today = dayKey(new Date(), tz);
+    setFirstDayKey(today);
+    setSelectedDay(0);
+    void load(today);
+  }, [tz, load]);
+
+  return {
+    state,
+    firstDayKey,
+    selectedDay,
+    setSelectedDay,
+    todayCount,
+    load,
+    prevPage,
+    nextPage,
+    resetToToday,
+  };
 }
 
 export function App() {
@@ -109,7 +157,31 @@ export function App() {
   const [llmConfig, setLlmConfig] = useState<LLMConfig>(loadLLMConfig);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
-  const [selectedDay, setSelectedDay] = useState(0);
+  const [theme, setTheme] = useState<ThemeChoice | null>(loadTheme);
+  const [systemDark, setSystemDark] = useState<boolean>(() => {
+    if (typeof window !== 'undefined' && window.matchMedia) {
+      return window.matchMedia('(prefers-color-scheme: dark)').matches;
+    }
+    return false;
+  });
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return;
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    const onChange = (e: MediaQueryListEvent) => setSystemDark(e.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
+
+  const isDark = theme ? theme === 'dark' : systemDark;
+
+  const toggleTheme = useCallback(() => {
+    const next: ThemeChoice = isDark ? 'light' : 'dark';
+    saveTheme(next);
+    applyTheme(next);
+    setTheme(next);
+  }, [isDark]);
+
   const panel = usePanel(tz);
   const [screen, goTo] = useScreen();
   const feedEnd = useRef<HTMLDivElement>(null);
@@ -211,7 +283,7 @@ export function App() {
       }
       sending.current = false;
       setPending(false);
-      void panel.load();
+      void panel.resetToToday();
     },
     [recording, panel],
   );
@@ -353,7 +425,7 @@ export function App() {
     return () => window.removeEventListener('keydown', onKey);
   }, [sheetOpen]);
 
-  const todayCount = activeTodayCount(panel.state.records, tz);
+  const todayCount = panel.todayCount;
 
   return (
     <div className="app">
@@ -373,6 +445,15 @@ export function App() {
           </h1>
         )}
         <div className="header__actions">
+          <button
+            type="button"
+            className="icon-btn"
+            onClick={toggleTheme}
+            aria-label={isDark ? 'Включить светлую тему' : 'Включить тёмную тему'}
+            title={isDark ? 'Включить светлую тему' : 'Включить тёмную тему'}
+          >
+            {isDark ? <SunIcon /> : <MoonIcon />}
+          </button>
           {screen === 'chat' && (
             <button type="button" className="icon-btn" onClick={() => goTo('calendar')} aria-label="Календарь">
               <CalendarIcon />
@@ -519,8 +600,11 @@ export function App() {
         <TasksPanel
           state={panel.state}
           tz={tz}
-          selectedDay={selectedDay}
-          onSelectDay={setSelectedDay}
+          firstDayKey={panel.firstDayKey}
+          selectedDay={panel.selectedDay}
+          onSelectDay={panel.setSelectedDay}
+          onPrevPage={panel.prevPage}
+          onNextPage={panel.nextPage}
           onRetry={() => void panel.load()}
           onClose={() => setSheetOpen(false)}
           onOpen={openRecord}

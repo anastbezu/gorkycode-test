@@ -1,7 +1,9 @@
 // Состояние в браузере (localStorage). Сервер не хранит ни ленту для показа, ни настройки LLM.
 //   gorky.userId — X-User-Id, выданный сервером;
+//   gorky.auth   — токен и данные авторизованного пользователя;
 //   gorky.chat   — conversation_id и сообщения ленты этого разговора (эндпоинта истории нет);
-//   gorky.llm    — настройки LLM пользователя.
+//   gorky.llm    — настройки LLM пользователя;
+//   gorky.theme  — выбранная пользователем тема оформления ('light' | 'dark' | null для системной).
 // localStorage бывает недоступен (приватный режим, запрет сайта) — тогда страница работает,
 // но ничего не переживает перезагрузку. Ошибки чтения не роняют страницу.
 
@@ -11,6 +13,7 @@ const KEY_USER = 'gorky.userId';
 const KEY_AUTH = 'gorky.auth';
 const KEY_CHAT = 'gorky.chat';
 const KEY_LLM = 'gorky.llm';
+export const KEY_THEME = 'gorky.theme';
 
 export interface UserMessage {
   id: string;
@@ -100,4 +103,46 @@ export function loadLLMConfig(): LLMConfig {
 export function saveLLMConfig(cfg: LLMConfig): void {
   const empty = !cfg.base_url && !cfg.model && !cfg.api_key;
   write(KEY_LLM, empty ? null : cfg);
+}
+
+export type ThemeChoice = 'light' | 'dark';
+
+export function loadTheme(): ThemeChoice | null {
+  try {
+    const raw = localStorage.getItem(KEY_THEME);
+    if (raw === 'light' || raw === 'dark') return raw;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+export function saveTheme(theme: ThemeChoice | null): void {
+  try {
+    if (!theme) localStorage.removeItem(KEY_THEME);
+    else localStorage.setItem(KEY_THEME, theme);
+  } catch {}
+}
+
+export function applyTheme(theme: ThemeChoice | null): void {
+  try {
+    if (theme) {
+      document.documentElement.setAttribute('data-theme', theme);
+    } else {
+      document.documentElement.removeAttribute('data-theme');
+    }
+  } catch {}
+}
+
+/**
+ * Определить активную тему: если задана явно в localStorage — она,
+ * иначе — текущая системная настройка.
+ */
+export function getActiveTheme(): ThemeChoice {
+  const stored = loadTheme();
+  if (stored) return stored;
+  if (typeof window !== 'undefined' && window.matchMedia?.('(prefers-color-scheme: dark)').matches) {
+    return 'dark';
+  }
+  return 'light';
 }

@@ -12,6 +12,10 @@ const MONTHS_GENITIVE = [
   'января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
   'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря',
 ];
+export const MONTHS_SHORT = [
+  'янв', 'фев', 'мар', 'апр', 'май', 'июн',
+  'июл', 'авг', 'сен', 'окт', 'ноя', 'дек',
+];
 const WEEKDAYS_SHORT = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
 
 /** Пояс браузера, IANA-имя (`Europe/Moscow`). Уходит в `timezone` и `tz`. */
@@ -56,6 +60,33 @@ export function addDaysToKey(key: string, days: number): string {
   const [y, m, d] = key.split('-').map(Number);
   const date = new Date(Date.UTC(y, m - 1, d + days));
   return `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())}`;
+}
+
+/**
+ * Подпись диапазона дней (по умолчанию 5 дней):
+ * «25–29 окт», через месяц — «30 окт – 3 ноя», через год — «29 дек 2026 – 2 янв 2027».
+ */
+export function formatDaysRange(startKey: string, count = 5, referenceYear?: number): string {
+  const endKey = addDaysToKey(startKey, count - 1);
+  const [startY, startM, startD] = startKey.split('-').map(Number);
+  const [endY, endM, endD] = endKey.split('-').map(Number);
+
+  const startMonthStr = MONTHS_SHORT[startM - 1];
+  const endMonthStr = MONTHS_SHORT[endM - 1];
+
+  const currentYear = referenceYear ?? startY;
+
+  if (startY !== endY) {
+    return `${startD} ${startMonthStr} ${startY} – ${endD} ${endMonthStr} ${endY}`;
+  }
+
+  const yearSuffix = startY !== currentYear ? ` ${startY}` : '';
+
+  if (startM === endM) {
+    return `${startD}–${endD} ${startMonthStr}${yearSuffix}`;
+  }
+
+  return `${startD} ${startMonthStr} – ${endD} ${endMonthStr}${yearSuffix}`;
 }
 
 /** День недели по ключу дня: 0 — воскресенье. */
