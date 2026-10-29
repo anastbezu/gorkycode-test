@@ -37,6 +37,7 @@ backend-01-model-dannyh.md
 | [agent-10](agent-10-bystrye-otvety.md) | `agent` | Денис | Быстрые ответы: `awaiting` — выбор, подтверждение, время встречи; «номер N» без модели |
 | [frontend-08](frontend-08-chipy-vybora-i-podtverzhdeniya.md) | `frontend` | Ася | Чипы выбора записи, «Да, все / Отмена», чипы времени встречи (после frontend-06 и agent-10) |
 | [product-06](product-06-makety-tema-vid-kalendarya-napominaniya.md) | `product` | Маша | Макеты: тема «как в системе», календарь «день» и «неделя», напоминания в браузере, часовой пояс |
+| [product-07](product-07-teksty-po-novomu-kodu.md) | `product` | Маша | Тексты ассистента по коду develop: `awaiting` из четырёх значений, массовое «выполнено», шаблоны agent-07 в разделе 14, две поправки к эталонам (после product-03) |
 
 ## Архив — выполненные задачи
 
