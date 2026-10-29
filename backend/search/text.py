@@ -6,8 +6,10 @@
 - одна основа — Snowball russian отрезает окончания по правилам: «юристами» ↔ «юристом»;
 - одна словарная форма — pymorphy3 знает формы слов по словарю: «Сергею» ↔ «Сергеем»
   (основы у них разные: `серг` и `серге`), «Иван» ↔ «Иваном»;
-- слова почти одинаковые по буквам — `rapidfuzz.fuzz.ratio ≥ 85`: опечатка, искажённый
-  падеж датасета («Ольге» ↔ «Ольгой»).
+- слова почти одинаковые по буквам — `rapidfuzz.fuzz.ratio ≥ 85` — только если хотя бы одно
+  из них не словарное, то есть это опечатка («Дмтрий» ↔ «Дмитрий»). Два словарных слова
+  с разными словарными формами — разные слова, даже если отличаются одной буквой:
+  «Виктором» ↔ «Вектором» (ratio 88) не совпадают.
 
 Почему не полнотекст Postgres: он сравнивает только основы Snowball, а они не сводят падежи
 имён. «Каждое слово по основе, словарной форме или почти по буквам» в SQL не выразить,
@@ -54,6 +56,15 @@ def lemmas(word: str) -> frozenset[str]:
     return frozenset(p.normal_form.replace("ё", "е") for p in _MORPH.parse(word))
 
 
+@lru_cache(maxsize=50_000)
+def is_dictionary_word(word: str) -> bool:
+    """Слово есть в словаре pymorphy3, а не угадано по окончанию.
+
+    «Вектором» — есть, «Дмтрий» — нет.
+    """
+    return _MORPH.word_is_known(word)
+
+
 # Слова типа записи («задачу», «напоминание», «встречу», «дело») — по основе.
 # Контракт: они значимы, только если есть в названии («Встреча с Иваном»); в названиях задач
 # слова «задача» нет, поэтому «задачу про смету» ищется как «смету».
@@ -68,12 +79,13 @@ def words(text: str) -> list[str]:
 class Word:
     """Слово с основой и словарными формами — считаются один раз."""
 
-    __slots__ = ("text", "stem", "lemmas")
+    __slots__ = ("text", "stem", "lemmas", "in_dictionary")
 
     def __init__(self, text: str):
         self.text = text
         self.stem = stem(text)
         self.lemmas = lemmas(text)
+        self.in_dictionary = is_dictionary_word(text)
 
 
 class QueryWords:
@@ -95,10 +107,14 @@ class TitleWords:
     def has(self, word: Word) -> bool:
         if word.stem in self.stems:
             return True
-        return any(
-            word.lemmas & w.lemmas or fuzz.ratio(word.text, w.text) >= FUZZY_WORD_MIN_RATIO
-            for w in self.words
-        )
+        return any(word.lemmas & w.lemmas or _typo_of(word, w) for w in self.words)
+
+
+def _typo_of(a: Word, b: Word) -> bool:
+    """Одно слово — опечатка в другом: буквы почти те же, и хотя бы одно не словарное."""
+    if a.in_dictionary and b.in_dictionary:
+        return False
+    return fuzz.ratio(a.text, b.text) >= FUZZY_WORD_MIN_RATIO
 
 
 def is_exact(query: QueryWords, title: TitleWords) -> bool:
