@@ -1,4 +1,6 @@
-"""Цель изменения (agent-07, agent-09): `resolve_target` и заглушка `find_target`.
+"""Цель изменения (agent-07, agent-09): `resolve_target`.
+
+Сам `find_target()` модуля поиска проверяет tests/test_search_db.py.
 
 Тесты на тестовой PostgreSQL; без базы пропускаются, в CI выполняются.
 """
@@ -18,11 +20,9 @@ from schemas import (
     ConversationState,
     RecordStatus,
     RecordType,
-    SearchFilters,
     TargetMatch,
     TargetRef,
 )
-from services.search_stub import find_target
 
 MSK = ZoneInfo("Europe/Moscow")
 ACTIVE = [RecordStatus.ACTIVE]
@@ -50,41 +50,6 @@ def user_id():
 def resolve(db, user_id, target, state=None, statuses=ACTIVE):
     state = state or ConversationState(conversation_id=uuid4(), user_id=user_id)
     return asyncio.run(resolve_target(db, user_id, target, state, statuses))
-
-
-# --- заглушка find_target по контракту search.md ---
-
-def test_find_target_needs_every_word_and_status(db: Session, user_id) -> None:
-    ivan = add(db, user_id, "Встреча с Иваном", at(23, 15))
-    add(db, user_id, "Встреча с дизайнером", at(23, 15))
-    add(db, user_id, "Встреча с Иваном", at(22, 15), status=RecordStatus.CANCELLED)
-    add(db, uuid4(), "Встреча с Иваном", at(23, 15))  # чужая
-
-    match = find_target(db, user_id, "встреча Иваном", None, None, ACTIVE)
-    assert [r.id for r in match.exact] == [ivan.id]
-    assert match.similar == []
-
-
-def test_find_target_narrows_by_when_then_falls_back_to_similar(db: Session, user_id) -> None:
-    friday = add(db, user_id, "Встреча с дизайнером", at(23, 15))
-    monday = add(db, user_id, "Встреча с дизайнером", at(26, 11))
-
-    assert [r.id for r in find_target(db, user_id, "дизайнером", at(23), None,
-                                      ACTIVE).exact] == [friday.id]
-    assert [r.id for r in find_target(db, user_id, "дизайнером", at(30, 11), None,
-                                      ACTIVE).exact] == [monday.id]  # то же время
-    missed = find_target(db, user_id, "дизайнером", at(28), None, ACTIVE)
-    assert missed.exact == []
-    assert [r.id for r in missed.similar] == [friday.id, monday.id]
-
-
-def test_find_target_without_text_takes_everything_by_filters(db: Session, user_id) -> None:
-    calls = [add(db, user_id, f"Созвон {n}", at(22, 10 + n)) for n in range(3)]
-    add(db, user_id, "Купить хлеб", at(22, 9), type=RecordType.TASK)
-    filters = SearchFilters(types=[RecordType.MEETING], date_from=at(22), date_to=at(23))
-
-    match = find_target(db, user_id, None, None, filters, ACTIVE)
-    assert [r.id for r in match.exact] == [c.id for c in calls]
 
 
 # --- resolve_target: index, focus, all, четыре исхода find_target ---
@@ -172,15 +137,3 @@ def test_statuses_are_passed_to_find_target(db: Session, user_id, monkeypatch) -
     assert seen == [statuses]
 
 
-def test_target_stems_drop_type_words_and_endings() -> None:
-    from services.search_stub import target_stems
-
-    assert target_stems("встречу с Иваном") == ["иван"]
-    assert target_stems("созвон с Севером по CRM") == ["созв", "север", "crm"]
-
-
-def test_stub_never_takes_other_record_for_crm(db: Session, user_id) -> None:
-    """«Отмени созвон с Севером по CRM» не находит «…по новому продукту» точно."""
-    add(db, user_id, "Созвон с Севером по новому продукту", at(22, 12))
-    match = find_target(db, user_id, "созвон с Севером по CRM", None, None, ACTIVE)
-    assert match.exact == []

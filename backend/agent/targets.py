@@ -14,8 +14,8 @@ from dataclasses import dataclass, field
 from uuid import UUID
 
 from schemas import ConversationState, Record, RecordStatus, TargetRef
+from search import find_target
 from services.records import get_record
-from services.search_stub import find_target  # TODO: find_target() из модуля поиска Родиона
 
 MAX_ALL = 20  # «отмени все …» — больше 20 записей не трогаем, просим уточнить
 

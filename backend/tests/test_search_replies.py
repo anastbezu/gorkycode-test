@@ -78,7 +78,7 @@ def test_similar_hits_say_not_found_exactly_and_list_similar(monkeypatch):
     from schemas import SearchFilters, SearchHit
 
     lease = make("Договор поставки", start=datetime(2026, 10, 26, 15, 0, tzinfo=MSK))
-    monkeypatch.setattr(actions_module, "search_by_substring", lambda *args: [
+    monkeypatch.setattr(actions_module, "search", lambda *args: [
         SearchHit(record=lease, score=0.7, match="similar")])
     action = SearchRecords(query="договор аренды", filters=SearchFilters())
     result = asyncio.run(actions_module.execute(None, uuid4(), action, now=NOW))
@@ -103,7 +103,7 @@ def test_exact_hits_reply_as_before(monkeypatch):
     from schemas import SearchFilters, SearchHit
 
     record = make("Договор аренды", start=datetime(2026, 10, 26, 15, 0, tzinfo=MSK))
-    monkeypatch.setattr(actions_module, "search_by_substring", lambda *args: [
+    monkeypatch.setattr(actions_module, "search", lambda *args: [
         SearchHit(record=record, score=1.0)])
     action = SearchRecords(query="договор аренды", filters=SearchFilters())
     result = asyncio.run(actions_module.execute(None, uuid4(), action, now=NOW))
