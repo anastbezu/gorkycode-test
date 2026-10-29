@@ -1,5 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { applyTheme, getActiveTheme, KEY_THEME, loadTheme, saveTheme } from './storage';
+import {
+  applyTheme,
+  getActiveTheme,
+  KEY_THEME,
+  loadChat,
+  loadTheme,
+  saveChat,
+  saveTheme,
+  type ChatMessage,
+} from './storage';
 
 describe('theme storage and logic', () => {
   let store: Map<string, string>;
@@ -73,5 +82,22 @@ describe('theme storage and logic', () => {
 
     saveTheme('dark');
     expect(getActiveTheme()).toBe('dark');
+  });
+
+  it('saveChat фильтрует сообщения-ошибки role === error', () => {
+    const messages: ChatMessage[] = [
+      { id: '1', role: 'user', text: 'Привет' },
+      { id: '2', role: 'error', kind: 'unknown', userText: 'Привет' },
+      { id: '3', role: 'user', text: 'Повтор' },
+      { id: '4', role: 'assistant', reply: 'Привет!', result: null, awaiting: null },
+      { id: '5', role: 'error', kind: 'rejected', userText: 'Повтор', detail: 'Ошибка' },
+    ];
+
+    saveChat({ conversationId: 'conv-1', messages });
+    const loaded = loadChat();
+
+    expect(loaded.conversationId).toBe('conv-1');
+    expect(loaded.messages).toHaveLength(3);
+    expect(loaded.messages.map((m) => m.role)).toEqual(['user', 'user', 'assistant']);
   });
 });

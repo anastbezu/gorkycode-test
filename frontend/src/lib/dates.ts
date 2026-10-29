@@ -113,10 +113,20 @@ function isEndOfDay(w: WallTime): boolean {
 }
 
 /** «26 октября», для другого года — «26 октября 2027». */
-function dateText(key: string, todayKey: string): string {
+export function dateText(key: string, todayKey: string): string {
   const [y, m, d] = key.split('-').map(Number);
   const sameYear = y === Number(todayKey.slice(0, 4));
   return `${d} ${MONTHS_GENITIVE[m - 1]}${sameYear ? '' : ` ${y}`}`;
+}
+
+/**
+ * Заголовок дня в списке чата: «Сегодня, 25 октября», «Завтра, 26 октября»,
+ * «Среда, 28 октября», «Воскресенье, 1 ноября».
+ */
+export function listDayHeader(key: string, todayKey: string): string {
+  if (key === todayKey) return `Сегодня, ${dateText(key, todayKey)}`;
+  if (key === addDaysToKey(todayKey, 1)) return `Завтра, ${dateText(key, todayKey)}`;
+  return dayTitle(key, todayKey);
 }
 
 /**

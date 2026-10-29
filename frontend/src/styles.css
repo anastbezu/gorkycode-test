@@ -433,9 +433,67 @@ button:disabled {
 }
 
 .feed__empty {
+  flex: 1;
   display: flex;
   flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
   gap: 12px;
+  padding: 40px 16px;
+  margin: auto 0;
+}
+
+.empty-chat__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--tag-type-bg);
+  color: var(--violet);
+  margin-bottom: 4px;
+}
+
+.empty-chat__title {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0;
+}
+
+.empty-chat__subtitle {
+  font-size: 15px;
+  color: var(--muted);
+  max-width: 440px;
+  margin: 0 0 16px;
+  line-height: 1.4;
+}
+
+.empty-chat__chips {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  max-width: 580px;
+}
+
+.empty-chat__chip {
+  padding: 10px 18px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.empty-chat__chip:hover:not(:disabled) {
+  background: var(--surface-glass);
+  border-color: var(--violet);
 }
 
 .bubble {
@@ -526,6 +584,173 @@ button:disabled {
   width: 100%;
 }
 
+/* ---------- карточки действий (frontend-06) ---------- */
+
+.result-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: min(440px, 100%);
+}
+
+.card--action {
+  width: 100%;
+  border: 1.5px solid var(--violet);
+  border-radius: var(--radius-card);
+  padding: 16px 18px;
+  background: var(--surface);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+}
+
+.card--action.card--conflict {
+  border-color: var(--orange);
+}
+
+.tag--lime {
+  background: var(--sun);
+  color: #1e1d1f;
+}
+
+.tag--violet {
+  background: var(--tag-type-bg);
+  color: var(--tag-type-text);
+}
+
+.tag--gray {
+  background: var(--done-bg);
+  color: var(--done-text);
+}
+
+.card__title--strikethrough {
+  text-decoration: line-through;
+  opacity: 0.7;
+}
+
+.card__conflicts {
+  width: 100%;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--border);
+}
+
+.card__conflicts-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--orange);
+  margin-bottom: 6px;
+}
+
+.card__conflicts-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.card__conflict-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+  font-size: 13px;
+}
+
+.card__conflict-name {
+  color: var(--text);
+  font-weight: 500;
+}
+
+.card__conflict-time {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.card__divider {
+  width: 100%;
+  height: 1px;
+  background: var(--border);
+  margin: 14px 0 10px;
+}
+
+.card__footer-note {
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+
+.card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  width: 100%;
+}
+
+.btn--card-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 36px;
+  min-height: 36px;
+  padding: 0 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.btn--card-action:hover {
+  background: var(--surface-glass);
+  border-color: var(--violet);
+}
+
+.btn--card-delete {
+  width: 36px;
+  min-width: 36px;
+  padding: 0;
+  color: var(--muted);
+}
+
+.btn--card-delete:hover {
+  color: var(--orange);
+  border-color: var(--orange);
+  background: rgba(255, 90, 36, 0.08);
+}
+
+.card__multi-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  margin-top: 10px;
+}
+
+.card__multi-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  font-size: 14px;
+}
+
+.card__multi-title {
+  font-weight: 500;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.card__multi-when {
+  color: var(--muted);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  text-align: right;
+}
+
 .tag {
   display: inline-block;
   padding: 3px 10px;
@@ -555,6 +780,98 @@ button:disabled {
   border: 1px solid var(--banner-border);
 }
 
+/* ---------- карточка ошибки в ленте (фрейм «Чат · ошибки») ---------- */
+
+.chat-error-card {
+  width: min(440px, 100%);
+  background: var(--banner-bg);
+  border: 1px solid var(--banner-border);
+  border-radius: var(--radius-card);
+  padding: 16px 18px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+}
+
+.chat-error-card__body {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.chat-error-card__icon {
+  color: var(--orange);
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.chat-error-card__content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.chat-error-card__title {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text);
+  line-height: 1.4;
+}
+
+.chat-error-card__detail {
+  font-size: 13px;
+  color: var(--muted);
+  word-break: break-word;
+}
+
+.chat-error-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.btn--primary-sm {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 36px;
+  min-height: 36px;
+  padding: 0 16px;
+  border-radius: 10px;
+  border: none;
+  background: var(--violet);
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.btn--primary-sm:hover {
+  opacity: 0.9;
+}
+
+.btn--secondary-sm {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 36px;
+  min-height: 36px;
+  padding: 0 16px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.btn--secondary-sm:hover {
+  background: var(--surface-glass);
+  border-color: var(--violet);
+}
+
 /* ---------- нумерованный список ---------- */
 
 .list {
@@ -579,8 +896,8 @@ button:disabled {
 .list__row {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
-  gap: 10px;
-  align-items: baseline;
+  gap: 12px;
+  align-items: center;
   padding: 12px 18px;
   border-top: 1px solid var(--border);
 }
@@ -593,6 +910,42 @@ button:disabled {
 .list__num {
   color: var(--muted);
   font-variant-numeric: tabular-nums;
+}
+
+.list__num-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
+  border-radius: 50%;
+  background: var(--violet);
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.list__expand-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  padding: 12px 18px;
+  background: none;
+  border: none;
+  border-top: 1px solid var(--border);
+  color: var(--violet);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.list__expand-btn:hover {
+  background: var(--surface-glass);
 }
 
 .list__title {

@@ -29,7 +29,15 @@ export interface AssistantMessage {
   awaiting: 'answer' | 'choice' | null;
 }
 
-export type ChatMessage = UserMessage | AssistantMessage;
+export interface ErrorMessage {
+  id: string;
+  role: 'error';
+  kind: 'unknown' | 'rejected';
+  userText: string;
+  detail?: string;
+}
+
+export type ChatMessage = UserMessage | AssistantMessage | ErrorMessage;
 
 export interface StoredChat {
   conversationId: string | null;
@@ -82,9 +90,11 @@ export function loadChat(): StoredChat {
  * Сохранить разговор. Если места не хватило (списки бывают на сотни записей),
  * отбрасываются самые старые сообщения, пока не влезет: последние важнее — к ним
  * относятся номера, которые пользователь называет следующей репликой.
+ * Карточки ошибок в ленте эфемерны и в localStorage не сохраняются.
  */
 export function saveChat(chat: StoredChat): void {
-  let messages = chat.messages;
+  const cleanMessages = chat.messages.filter((m) => m.role !== 'error');
+  let messages = cleanMessages;
   while (!write(KEY_CHAT, { ...chat, messages })) {
     if (messages.length === 0) return;
     messages = messages.slice(Math.ceil(messages.length / 2));
