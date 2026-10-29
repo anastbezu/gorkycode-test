@@ -23,22 +23,39 @@ import { SettingsModal } from './components/SettingsModal';
 import { Toast, type ToastInfo } from './components/Toast';
 import { activeTodayCount, panelDayKeys, PANEL_DAYS, TasksPanel, type PanelState } from './components/TasksPanel';
 import { RecordingIndicator } from './components/RecordingIndicator';
-import { BackIcon, CalendarIcon, MicIcon, SendIcon, SettingsIcon } from './components/icons';
-import { addDaysToKey, browserTimeZone, localMidnightIso } from './lib/dates';
+import {
+  AlertCircleIcon,
+  BackIcon,
+  CalendarIcon,
+  MicIcon,
+  MoonIcon,
+  SendIcon,
+  SettingsIcon,
+  SunIcon,
+  WifiOffIcon,
+} from './components/icons';
+import { addDaysToKey, browserTimeZone, dayKey, localMidnightIso } from './lib/dates';
 import { canRecord, microphoneErrorText, startRecording, type Recording } from './lib/recorder';
 import { speak, stopSpeaking } from './lib/speech';
 import {
+  applyTheme,
   loadChat,
   loadLLMConfig,
+  loadTheme,
   saveChat,
   saveLLMConfig,
+  saveTheme,
   type ChatMessage,
   type StoredChat,
+  type ThemeChoice,
 } from './lib/storage';
 
-const HINTS = ['Что у меня сегодня?', 'Напомни завтра в 10 позвонить Ивану'];
-
-const UNKNOWN_RESULT_TEXT = 'Нет ответа от сервера. Не знаю, выполнено ли — проверьте «Мои дела».';
+const HINTS = [
+  'Что у меня сегодня?',
+  'Напомни завтра в 10 позвонить Ивану',
+  'Назначь встречу в пятницу в 15:00',
+  'Что у меня на неделе?',
+];
 const STT_NO_ANSWER_TEXT = 'Не удалось распознать запись: нет ответа от сервера. Попробуйте ещё раз.';
 const NO_VOICE_TEXT = 'Озвучка на этом устройстве недоступна: нет русского голоса. Ответы — только текстом.';
 const NEW_PROFILE_TEXT =
@@ -67,15 +84,20 @@ function newId(): string {
   return typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : String(Date.now() + Math.random());
 }
 
-/** Панель «Мои дела»: один запрос на 7 дней; прежние записи видны, пока идёт перезапрос. */
+/** Панель «Мои дела»: один запрос на 5 дней; прежние записи видны, пока идёт перезапрос. */
 function usePanel(tz: string) {
+  const [firstDayKey, setFirstDayKey] = useState(() => dayKey(new Date(), tz));
+  const [selectedDay, setSelectedDay] = useState<number | 'undated'>(0);
   const [state, setState] = useState<PanelState>({ status: 'loading', records: [] });
+  const [todayCount, setTodayCount] = useState(0);
   // Номер последнего запроса: ответ более раннего, пришедший позже, не затирает свежие данные
   const latest = useRef(0);
+  const currentFirstDay = useRef(firstDayKey);
+  currentFirstDay.current = firstDayKey;
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (targetFirstDay?: string) => {
     const request = ++latest.current;
-    const [first] = panelDayKeys(tz);
+    const first = targetFirstDay ?? currentFirstDay.current;
     setState((prev) => ({ status: 'loading', records: prev.records }));
     try {
       const records = await fetchItems({
@@ -84,7 +106,15 @@ function usePanel(tz: string) {
         tz,
         includeUndated: true,
       });
-      if (request === latest.current) setState({ status: 'ready', records });
+      if (request === latest.current) {
+        setState({ status: 'ready', records });
+        const now = new Date();
+        const today = dayKey(now, tz);
+        const pageKeys = panelDayKeys(first, PANEL_DAYS);
+        if (pageKeys.includes(today)) {
+          setTodayCount(activeTodayCount(records, tz, now));
+        }
+      }
     } catch (err) {
       if (request !== latest.current) return;
       const message = err instanceof ApiError && err.kind === 'rejected' ? err.detail : 'Нет ответа от сервера.';
@@ -92,7 +122,38 @@ function usePanel(tz: string) {
     }
   }, [tz]);
 
-  return { state, load };
+  const prevPage = useCallback(() => {
+    const nextFirst = addDaysToKey(firstDayKey, -PANEL_DAYS);
+    setFirstDayKey(nextFirst);
+    setSelectedDay(0);
+    void load(nextFirst);
+  }, [firstDayKey, load]);
+
+  const nextPage = useCallback(() => {
+    const nextFirst = addDaysToKey(firstDayKey, PANEL_DAYS);
+    setFirstDayKey(nextFirst);
+    setSelectedDay(0);
+    void load(nextFirst);
+  }, [firstDayKey, load]);
+
+  const resetToToday = useCallback(() => {
+    const today = dayKey(new Date(), tz);
+    setFirstDayKey(today);
+    setSelectedDay(0);
+    void load(today);
+  }, [tz, load]);
+
+  return {
+    state,
+    firstDayKey,
+    selectedDay,
+    setSelectedDay,
+    todayCount,
+    load,
+    prevPage,
+    nextPage,
+    resetToToday,
+  };
 }
 
 export function App() {
@@ -109,7 +170,31 @@ export function App() {
   const [llmConfig, setLlmConfig] = useState<LLMConfig>(loadLLMConfig);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
-  const [selectedDay, setSelectedDay] = useState(0);
+  const [theme, setTheme] = useState<ThemeChoice | null>(loadTheme);
+  const [systemDark, setSystemDark] = useState<boolean>(() => {
+    if (typeof window !== 'undefined' && window.matchMedia) {
+      return window.matchMedia('(prefers-color-scheme: dark)').matches;
+    }
+    return false;
+  });
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return;
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    const onChange = (e: MediaQueryListEvent) => setSystemDark(e.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
+
+  const isDark = theme ? theme === 'dark' : systemDark;
+
+  const toggleTheme = useCallback(() => {
+    const next: ThemeChoice = isDark ? 'light' : 'dark';
+    saveTheme(next);
+    applyTheme(next);
+    setTheme(next);
+  }, [isDark]);
+
   const panel = usePanel(tz);
   const [screen, goTo] = useScreen();
   const feedEnd = useRef<HTMLDivElement>(null);
@@ -179,6 +264,28 @@ export function App() {
     [tz, panel, updateRecordInFeed],
   );
 
+  const handleSetStatus = useCallback(
+    async (record: Record, status: 'done' | 'active' | 'cancelled') => {
+      try {
+        const res = await setItemStatus(record.id, status, tz);
+        void panel.load();
+        setCalendarReloadKey((k) => k + 1);
+        if (res.records && res.records.length > 0) {
+          updateRecordInFeed(res.records[0]);
+        } else {
+          updateRecordInFeed({ ...record, status });
+        }
+      } catch (err) {
+        if (err instanceof ApiError && err.kind === 'rejected') {
+          setBanner({ text: err.detail });
+        } else {
+          setBanner({ text: 'Нет ответа от сервера, проверьте список.' });
+        }
+      }
+    },
+    [tz, panel, updateRecordInFeed],
+  );
+
   const handleRestoreRecord = useCallback(
     async (recordId: string) => {
       setToast(null);
@@ -211,7 +318,7 @@ export function App() {
       }
       sending.current = false;
       setPending(false);
-      void panel.load();
+      void panel.resetToToday();
     },
     [recording, panel],
   );
@@ -251,7 +358,7 @@ export function App() {
   }, [chat.messages.length, pending, banner]);
 
   const send = useCallback(
-    async (text: string, isRetry = false) => {
+    async (text: string, isRetry = false, replaceErrorId?: string) => {
       const trimmed = text.trim();
       if (!trimmed || sending.current) return;
       sending.current = true;
@@ -271,7 +378,10 @@ export function App() {
           result: res.result,
           awaiting: res.awaiting,
         };
-        setChat((c) => ({ conversationId: res.conversation_id, messages: [...c.messages, reply] }));
+        setChat((c) => {
+          const filtered = replaceErrorId ? c.messages.filter((m) => m.id !== replaceErrorId) : c.messages;
+          return { conversationId: res.conversation_id, messages: [...filtered, reply] };
+        });
         void panel.load();
         // Озвучивается каждый ответ — и на голос, и на набранный текст
         void speak(res.reply, () => {
@@ -281,10 +391,28 @@ export function App() {
         });
       } catch (err) {
         if (err instanceof ApiError && err.kind === 'rejected') {
-          setBanner({ text: `Сервер не принял запрос: ${err.detail}` });
+          const errorMsg: ChatMessage = {
+            id: newId(),
+            role: 'error',
+            kind: 'rejected',
+            userText: trimmed,
+            detail: err.detail,
+          };
+          setChat((c) => {
+            const filtered = replaceErrorId ? c.messages.filter((m) => m.id !== replaceErrorId) : c.messages;
+            return { ...c, messages: [...filtered, errorMsg] };
+          });
         } else {
-          // Сервер мог успеть выполнить — нельзя писать «ничего не сохранено»
-          setBanner({ text: UNKNOWN_RESULT_TEXT, retryText: trimmed });
+          const errorMsg: ChatMessage = {
+            id: newId(),
+            role: 'error',
+            kind: 'unknown',
+            userText: trimmed,
+          };
+          setChat((c) => {
+            const filtered = replaceErrorId ? c.messages.filter((m) => m.id !== replaceErrorId) : c.messages;
+            return { ...c, messages: [...filtered, errorMsg] };
+          });
         }
       } finally {
         sending.current = false;
@@ -353,7 +481,7 @@ export function App() {
     return () => window.removeEventListener('keydown', onKey);
   }, [sheetOpen]);
 
-  const todayCount = activeTodayCount(panel.state.records, tz);
+  const todayCount = panel.todayCount;
 
   return (
     <div className="app">
@@ -373,6 +501,15 @@ export function App() {
           </h1>
         )}
         <div className="header__actions">
+          <button
+            type="button"
+            className="icon-btn"
+            onClick={toggleTheme}
+            aria-label={isDark ? 'Включить светлую тему' : 'Включить тёмную тему'}
+            title={isDark ? 'Включить светлую тему' : 'Включить тёмную тему'}
+          >
+            {isDark ? <SunIcon /> : <MoonIcon />}
+          </button>
           {screen === 'chat' && (
             <button type="button" className="icon-btn" onClick={() => goTo('calendar')} aria-label="Календарь">
               <CalendarIcon />
@@ -420,10 +557,22 @@ export function App() {
         <div className="feed" aria-live="polite">
           {chat.messages.length === 0 && (
             <div className="feed__empty">
-              <div className="bubble bubble--assistant">Я помогаю вести задачи, встречи и напоминания.</div>
-              <div className="chips">
+              <div className="empty-chat__icon" aria-hidden="true">
+                <MicIcon width={28} height={28} />
+              </div>
+              <h2 className="empty-chat__title">Чем помочь?</h2>
+              <p className="empty-chat__subtitle">
+                Скажите или напишите — я запишу задачу, встречу или напоминание.
+              </p>
+              <div className="empty-chat__chips">
                 {HINTS.map((hint) => (
-                  <button key={hint} type="button" className="chip" onClick={() => void send(hint)} disabled={pending}>
+                  <button
+                    key={hint}
+                    type="button"
+                    className="chip empty-chat__chip"
+                    onClick={() => void send(hint)}
+                    disabled={pending}
+                  >
                     {hint}
                   </button>
                 ))}
@@ -431,18 +580,87 @@ export function App() {
             </div>
           )}
 
-          {chat.messages.map((m) =>
-            m.role === 'user' ? (
-              <div key={m.id} className="bubble bubble--user">
-                {m.text}
-              </div>
-            ) : (
+          {chat.messages.map((m) => {
+            if (m.role === 'user') {
+              return (
+                <div key={m.id} className="bubble bubble--user">
+                  {m.text}
+                </div>
+              );
+            }
+            if (m.role === 'error') {
+              return (
+                <div key={m.id} className="assistant">
+                  <div className="chat-error-card">
+                    <div className="chat-error-card__body">
+                      <div className="chat-error-card__icon">
+                        {m.kind === 'unknown' ? (
+                          <WifiOffIcon width={20} height={20} />
+                        ) : (
+                          <AlertCircleIcon width={20} height={20} />
+                        )}
+                      </div>
+                      <div className="chat-error-card__content">
+                        <div className="chat-error-card__title">
+                          {m.kind === 'unknown'
+                            ? 'Нет ответа от сервера. Не знаю, выполнено ли — проверьте «Мои дела».'
+                            : 'Сервер не принял запрос. Ничего не изменилось.'}
+                        </div>
+                        {m.kind === 'rejected' && m.detail && (
+                          <div className="chat-error-card__detail">{m.detail}</div>
+                        )}
+                      </div>
+                    </div>
+                    <div className="chat-error-card__actions">
+                      {m.kind === 'unknown' ? (
+                        <>
+                          <button
+                            type="button"
+                            className="btn btn--primary-sm"
+                            onClick={() => {
+                              setSheetOpen(true);
+                              void panel.load();
+                            }}
+                          >
+                            Открыть «Мои дела»
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn--secondary-sm"
+                            onClick={() => void send(m.userText, true, m.id)}
+                          >
+                            Отправить ещё раз
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          type="button"
+                          className="btn btn--primary-sm"
+                          onClick={() => void send(m.userText, true, m.id)}
+                        >
+                          Повторить
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            }
+            return (
               <div key={m.id} className="assistant">
                 <div className="bubble bubble--assistant">{m.reply}</div>
-                <ResultView result={m.result} awaiting={m.awaiting} tz={tz} onOpen={openRecord} />
+                <ResultView
+                  result={m.result}
+                  awaiting={m.awaiting}
+                  tz={tz}
+                  onOpen={openRecord}
+                  onSetStatus={handleSetStatus}
+                  onDelete={handleDeleteRecord}
+                  onRestore={handleRestoreRecord}
+                />
               </div>
-            ),
-          )}
+            );
+          })}
 
           {pending && (
             <div className="thinking" role="status">
@@ -519,8 +737,11 @@ export function App() {
         <TasksPanel
           state={panel.state}
           tz={tz}
-          selectedDay={selectedDay}
-          onSelectDay={setSelectedDay}
+          firstDayKey={panel.firstDayKey}
+          selectedDay={panel.selectedDay}
+          onSelectDay={panel.setSelectedDay}
+          onPrevPage={panel.prevPage}
+          onNextPage={panel.nextPage}
           onRetry={() => void panel.load()}
           onClose={() => setSheetOpen(false)}
           onOpen={openRecord}
