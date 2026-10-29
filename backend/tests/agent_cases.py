@@ -20,9 +20,10 @@
 - `status` — у set_status: done / cancelled / active; `replaces_last` — «нет, не этот, а тот»;
 - цель изменения (`target`): `target_index` — номер из «Показано», `target_focus` — «её»,
   `target_all` — «все …» / «да» на подтверждение, `target_text` — основы слов описания;
-- `ok` — успешно ли исполнено действие; `awaiting` — ждёт ли ассистент ответа после реплики
-  ("answer" или NONE). У `create(...)` по умолчанию ok=True и awaiting=NONE: положительный
-  сценарий создания проходит, только если запись создана и уточнение завершено.
+- `ok` — успешно ли исполнено действие; `awaiting` — чего ждёт ассистент после реплики
+  ("answer", "time", "choice", "confirm" или NONE; api.md, «Правила»). У `create(...)`
+  по умолчанию ok=True и awaiting=NONE: положительный сценарий создания проходит, только если
+  запись создана и уточнение завершено.
 
 У `start` со временем модель обязана поставить time_given=true, у даты без времени —
 false (иначе запись станет «на весь день» или получит полночь).
@@ -32,7 +33,8 @@ false (иначе запись станет «на весь день» или п
 
 Изменение записей (раздел 7) и пересечения (8.5, 8.7, 8.8) проверяются только с базой:
 `records` — записи пользователя до первой реплики (вместо стартового набора и предыдущих
-кейсов из колонки «Предусловие»), `awaiting="choice"` — ассистент ждёт выбора.
+кейсов из колонки «Предусловие»), `awaiting="choice"` — ассистент ждёт выбора одной записи,
+`awaiting="confirm"` — подтверждения массового действия (agent-10).
 """
 
 from dataclasses import dataclass, field
@@ -139,8 +141,13 @@ def change(action: str, *, ok: bool | None = True, awaiting: str | None = NONE,
 
 
 def choice(action: str, **fields) -> Expect:
-    """Цель неоднозначна или нужно подтверждение: ничего не изменено, ждём выбора."""
+    """Цель неоднозначна: ничего не изменено, ждём выбора одной записи."""
     return Expect(action=action, ok=False, awaiting="choice", **fields)
+
+
+def confirm(action: str, **fields) -> Expect:
+    """Массовое действие («отмени всё на завтра»): ничего не изменено, ждём подтверждения."""
+    return Expect(action=action, ok=False, awaiting="confirm", **fields)
 
 
 def seed(type_: str, title: str, start: str | None = None, **fields) -> Seed:
@@ -166,6 +173,8 @@ TOMORROW = (MAXIM, ALFA, TEAM)  # «что у меня на завтра»: тр
 
 TASKS = ("task", "reminder")  # «задачи» в контракте — задачи и напоминания
 ASK = Expect(action="create_record|ask_user", awaiting="answer")  # шаг, после которого ждём ответа
+# Встреча с днём, но без времени: ждём именно время — под вопросом чипы времени (agent-10).
+ASK_TIME = Expect(action="create_record|ask_user", awaiting="time")
 
 CASES: tuple[Case, ...] = (
     # ── 1. Примеры из задания ───────────────────────────────────────────────
@@ -195,7 +204,7 @@ CASES: tuple[Case, ...] = (
     one("1.14", "Я когда-то ставил задачу по договору, найди ее",
         search("договор", query_from=NONE, query_to=NONE)),
     dialog("1.15",
-           ("Поставь встречу с Иваном завтра", ASK),
+           ("Поставь встречу с Иваном завтра", ASK_TIME),
            ("в 15:00", create("meeting", ("Иван",), start="2026-10-22 15:00",
                               ok=True, awaiting=NONE))),
     dialog("1.16",
@@ -285,7 +294,7 @@ CASES: tuple[Case, ...] = (
            ("Завтра в 14", create("meeting", ("Дмитри", "бюджет"), start="2026-10-22 14:00",
                                   ok=True, awaiting=NONE))),
     dialog("3.2",
-           ("Добавь созвон с Севером в пятницу", ASK),
+           ("Добавь созвон с Севером в пятницу", ASK_TIME),
            ("В одиннадцать тридцать", create("meeting", ("Север",), start="2026-10-23 11:30",
                                              ok=True, awaiting=NONE))),
     dialog("3.3",
@@ -301,11 +310,11 @@ CASES: tuple[Case, ...] = (
            ("Позвонить маме", create("reminder", ("позвон", "мам"), start="2026-10-22 10:00",
                                      ok=True, awaiting=NONE))),
     dialog("3.6",
-           ("Запланируй созвон с Альфой на послезавтра", ASK),
+           ("Запланируй созвон с Альфой на послезавтра", ASK_TIME),
            ("Утром", create("meeting", ("Альф",), start="2026-10-23 09:00",
                             ok=True, awaiting=NONE))),
     dialog("3.7",
-           ("Поставь встречу с командой на следующий вторник", ASK),
+           ("Поставь встречу с командой на следующий вторник", ASK_TIME),
            ("В 14:30", create("meeting", ("команд",), start="2026-10-27 14:30",
                               ok=True, awaiting=NONE))),
     dialog("3.8",
@@ -313,31 +322,31 @@ CASES: tuple[Case, ...] = (
            ("Завтра", create("meeting", ("Серге",), start="2026-10-22 14:45",
                              ok=True, awaiting=NONE))),
     dialog("3.9",
-           ("Поставь встречу с Иваном завтра", ASK),
+           ("Поставь встречу с Иваном завтра", ASK_TIME),
            ("15:00", create("meeting", ("Иван",), start="2026-10-22 15:00",
                             ok=True, awaiting=NONE)),
            note="ответ чипом приходит тем же текстом, что и голосом"),
     dialog("3.10",
-           ("Поставь встречу с Ольгой сегодня", ASK),
+           ("Поставь встречу с Ольгой сегодня", ASK_TIME),
            ("В 9 утра", create("meeting", ("Ольг",), start="2026-10-21 09:00",
                                ok=False, awaiting=None))),
     dialog("3.11",
-           ("Поставь встречу с Иваном завтра", ASK),
+           ("Поставь встречу с Иваном завтра", ASK_TIME),
            ("Не надо", Expect(action="none", awaiting=NONE)),
            skip=NO_STATE),
     one("3.12", "Поставь задачу подготовить смету",
         create("task", ("подготов", "смет"), start=NONE, deadline=NONE, ok=True, awaiting=NONE)),
     dialog("3.13",
-           ("Поставь встречу с Иваном завтра", ASK),
+           ("Поставь встречу с Иваном завтра", ASK_TIME),
            ("А что у меня завтра?", listing("2026-10-22 00:00", "2026-10-23 00:00")),
            skip=NO_STATE),
     dialog("3.14",
-           ("Поставь встречу с Иваном завтра", ASK),
+           ("Поставь встречу с Иваном завтра", ASK_TIME),
            ("А что у меня завтра?", listing("2026-10-22 00:00", "2026-10-23 00:00")),
            ("В 16", create("meeting", ("Иван",), start="2026-10-22 16:00", ok=True)),
            skip=NO_STATE),
     dialog("3.15",
-           ("Поставь встречу с Иваном завтра", ASK),
+           ("Поставь встречу с Иваном завтра", ASK_TIME),
            ("А что у меня завтра?", listing("2026-10-22 00:00", "2026-10-23 00:00")),
            ("Что у меня в пятницу?", listing("2026-10-23 00:00", "2026-10-24 00:00")),
            ("В 16", Expect(action="ask_user", awaiting="answer")),
@@ -511,20 +520,20 @@ CASES: tuple[Case, ...] = (
            ("Верни как было", change("undo_last")),
            records=(NATALIA,)),
     one("7.19", "Отмени всё на завтра",
-        choice("set_status", status="cancelled", target_all=True), records=TOMORROW),
+        confirm("set_status", status="cancelled", target_all=True), records=TOMORROW),
     dialog("7.20",
            ("Отмени всё на завтра",
-            choice("set_status", status="cancelled", target_all=True)),
+            confirm("set_status", status="cancelled", target_all=True)),
            ("Да", change("set_status", status="cancelled", target_all=True)),
            records=TOMORROW),
     dialog("7.21",
            ("Отмени всё на завтра",
-            choice("set_status", status="cancelled", target_all=True)),
+            confirm("set_status", status="cancelled", target_all=True)),
            ("Да", change("set_status", status="cancelled", target_all=True)),
            ("Верни", change("undo_last")),
            records=TOMORROW),
     one("7.22", "Отмени все созвоны на этой неделе",
-        choice("set_status", status="cancelled", target_all=True),
+        confirm("set_status", status="cancelled", target_all=True),
         records=(ALFA, VECTOR, VECTOR_SITE)),
 
     # ── 8. Граничные случаи ─────────────────────────────────────────────────

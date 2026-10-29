@@ -55,7 +55,7 @@ backend/
 | `pending_skipped` | boolean | прошлая реплика была не про черновик; default `false` (с `0003`) |
 | `candidates` | uuid[] | записи, из которых пользователь выбирает |
 | `missing` | text[] | каких полей не хватает, напр. `{start}` |
-| `awaiting` | varchar(16) | `answer` / `choice` / NULL |
+| `awaiting` | varchar(16) | `answer` / `choice` / `confirm` / `time` / NULL — чего ждёт ассистент (`api.md`, «Правила»; `confirm`, `time` — с `0006`) |
 | `updated_at` | timestamptz | время последнего изменения |
 
 ## Принятые решения
@@ -223,6 +223,7 @@ uv run alembic revision --autogenerate -m "что изменилось"   # но
 | `0003` | `conversation_states`: `shown`, `last_action`, `pending_skipped` — у существующих строк значения по умолчанию |
 | `0004` | таблицы `users`, `auth_tokens`; `records.cancelled_at`. Уже существующие пользователи (по записям и разговорам) становятся гостями с последним запросом «сейчас»; у отменённых записей момент отмены — `updated_at` |
 | `0005` | таблица `text_embeddings` модуля поиска (`search.md`) |
+| `0006` | `conversation_states`: ограничение `awaiting_values` принимает `confirm` и `time` (agent-10); `downgrade` снимает такие ожидания (`NULL`) |
 
 Автогенерированную миграцию нужно вычитать: в ней не должно быть ссылок на код приложения
 (`db.models...`), имена ограничений оборачиваются в `op.f(...)`.
