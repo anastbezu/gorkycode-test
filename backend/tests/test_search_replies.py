@@ -60,14 +60,25 @@ def test_reply_for_result_uses_search_reply():
     assert "ничего не нашлось" in reply
 
 
-def test_repeated_title_is_grouped_with_latest_representative():
+def test_repeated_title_names_nearest_upcoming():
+    # Порядок search(): будущие от ближних, затем прошедшие (search.md).
     records = [
-        make("Созвон с юристами", start=datetime(2026, 9, 1, 10, 0, tzinfo=MSK)),
-        make("Созвон с юристами", start=datetime(2026, 11, 20, 11, 0, tzinfo=MSK)),
         make("Созвон с юристами", start=datetime(2026, 10, 26, 11, 0, tzinfo=MSK)),
+        make("Созвон с юристами", start=datetime(2026, 11, 20, 11, 0, tzinfo=MSK)),
+        make("Созвон с юристами", start=datetime(2026, 9, 1, 10, 0, tzinfo=MSK)),
     ]
     reply = reply_for_search(records, "созвон юристы", TZ, NOW)
-    assert "Созвон с юристами — 3 раза, последний 20.11.2026" in reply
+    assert reply.startswith("Нашёл 3 записи.")
+    assert "Созвон с юристами — 3 раза, ближайший 26.10.2026" in reply
+
+
+def test_repeated_title_all_past_names_latest():
+    records = [
+        make("Позвонить Дмитрием", start=datetime(2026, 10, 20, 11, 0, tzinfo=MSK)),
+        make("Позвонить Дмитрием", start=datetime(2026, 6, 9, 10, 45, tzinfo=MSK)),
+    ]
+    reply = reply_for_search(records, "звонил Дмитрию", TZ, NOW)
+    assert "Позвонить Дмитрием — 2 раза, последний 20.10.2026" in reply
 
 
 def test_similar_hits_say_not_found_exactly_and_list_similar(monkeypatch):
@@ -78,7 +89,7 @@ def test_similar_hits_say_not_found_exactly_and_list_similar(monkeypatch):
     from schemas import SearchFilters, SearchHit
 
     lease = make("Договор поставки", start=datetime(2026, 10, 26, 15, 0, tzinfo=MSK))
-    monkeypatch.setattr(actions_module, "search", lambda *args: [
+    monkeypatch.setattr(actions_module, "search", lambda *args, **kwargs: [
         SearchHit(record=lease, score=0.7, match="similar")])
     action = SearchRecords(query="договор аренды", filters=SearchFilters())
     result = asyncio.run(actions_module.execute(None, uuid4(), action, now=NOW))
@@ -103,7 +114,7 @@ def test_exact_hits_reply_as_before(monkeypatch):
     from schemas import SearchFilters, SearchHit
 
     record = make("Договор аренды", start=datetime(2026, 10, 26, 15, 0, tzinfo=MSK))
-    monkeypatch.setattr(actions_module, "search", lambda *args: [
+    monkeypatch.setattr(actions_module, "search", lambda *args, **kwargs: [
         SearchHit(record=record, score=1.0)])
     action = SearchRecords(query="договор аренды", filters=SearchFilters())
     result = asyncio.run(actions_module.execute(None, uuid4(), action, now=NOW))

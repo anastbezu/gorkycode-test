@@ -18,8 +18,11 @@ class RecordGroup:
     count: int
 
 
-def group_records(records: list[Record]) -> list[RecordGroup]:
+def group_records(records: list[Record], *, first_in_order: bool = False) -> list[RecordGroup]:
     """Порядок первого появления названия; представитель группы — последний по дате.
+
+    first_in_order — представитель первый в порядке `records`: у поиска это ближайшая
+    запись (будущие от ближних, затем прошедшие от новых — search.md), а не самая дальняя.
 
     Разные типы/статусы не склеиваем: выполненная задача и активная встреча
     с одинаковым названием должны оставаться разными целями.
@@ -27,6 +30,8 @@ def group_records(records: list[Record]) -> list[RecordGroup]:
     groups: dict[tuple, list[Record]] = {}
     for record in records:
         groups.setdefault((record.title, record.type, record.status), []).append(record)
+    if first_in_order:
+        return [RecordGroup(items[0], len(items)) for items in groups.values()]
     return [RecordGroup(max(items, key=record_moment), len(items)) for items in groups.values()]
 
 
