@@ -1186,19 +1186,12 @@
         {
           "text": "Встреча с Сергеем в 14:45",
           "expect": {
-            "action": "create_record|ask_user",
-            "awaiting": "answer"
-          }
-        },
-        {
-          "text": "Завтра",
-          "expect": {
             "action": "create_record",
             "type": "meeting",
             "title": [
               "Серге"
             ],
-            "start": "2026-10-22 14:45",
+            "start": "2026-10-21 14:45",
             "ok": true,
             "awaiting": "none"
           }
