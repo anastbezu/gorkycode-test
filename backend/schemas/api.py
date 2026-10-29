@@ -30,7 +30,8 @@ class ChatResponse(BaseModel):
     conversation_id: UUID
     reply: str                          # текст ответа пользователю
     result: ActionResult | None = None  # что сделано — для показа в интерфейсе
-    awaiting: Literal["answer", "choice"] | None = None  # ассистент ждёт ответа или выбора
+    # чего ждёт ассистент — по нему интерфейс рисует быстрые ответы (api.md, «Правила»)
+    awaiting: Literal["answer", "choice", "confirm", "time"] | None = None
 
 
 class STTResponse(BaseModel):

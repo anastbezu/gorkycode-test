@@ -44,7 +44,7 @@ def _meeting_dialog():
 def test_dialog_fills_draft_and_creates(monkeypatch):
     report = Harness(monkeypatch, scripted(*_meeting_dialog())).run_case(case("1.15"))
     assert report.passed, [t.problems for t in report.turns]
-    assert report.turns[0].observed.awaiting == "answer"
+    assert report.turns[0].observed.awaiting == "time"  # день назван, ждём время (agent-10)
     assert report.turns[1].observed.ok is True
     assert report.turns[1].observed.action.title == "встреча с Иваном"
 
