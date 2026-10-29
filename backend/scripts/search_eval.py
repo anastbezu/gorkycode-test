@@ -213,7 +213,7 @@ def run_eval(db: Session, user_id: UUID | None = None) -> EvalResult:
         for query, types, patterns in SEARCH_SET:
             filters = SearchFilters(types=[RecordType(t) for t in types] if types else None)
             started = time.perf_counter()
-            hits = search(db, user_id, query, filters, limit=HIT_K)
+            hits = search(db, user_id, query, filters, limit=HIT_K, now=NOW)
             elapsed = time.perf_counter() - started
             match = hits[0].match if hits else "пусто"
             if match == "similar" and result.first_similar_s is None:
@@ -307,8 +307,7 @@ def report(result: EvalResult) -> str:
 
 # ---------- расширенный набор ----------
 
-# Сколько записей агент просит у search() (agent/actions.py — значение по умолчанию).
-AGENT_SEARCH_LIMIT = 10
+# Агент берёт у search() все точные (agent/actions.py, без limit) — здесь так же.
 MAX_EXAMPLES = 6  # примеров ошибок на группу в отчёте
 
 
@@ -393,7 +392,7 @@ def run_extended(db: Session, user_id: UUID | None = None) -> ExtendedResult:
             if _in_filters(r, case.filters, DEFAULT_SEARCH_STATUSES)
             and case.need.matches(concepts[r.title], r.type)
         }
-        hits = search(db, user_id, case.query, case.filters, limit=AGENT_SEARCH_LIMIT)
+        hits = search(db, user_id, case.query, case.filters, now=NOW)
         level = hits[0].match if hits else "пусто"
         result.search.append(ExtSearchRow(
             group=case.group,
@@ -436,7 +435,7 @@ def report_extended(result: ExtendedResult) -> str:
     lines = [
         f"## Расширенный набор, поиск: {len(s)} запросов, с ответом {len(answerable)}",
         "",
-        f"- нашёл подходящую (среди {AGENT_SEARCH_LIMIT}, как зовёт агент): "
+        "- нашёл подходящую (все точные или до 10 похожих, как зовёт агент): "
         f"{_pct(sum(r.hit for r in answerable), len(answerable))}",
         f"- «точно» на запросах без ответа: {len(result.false_exact_without_answer)}",
         f"- запросов, где «точно» вернул неподходящую запись: "

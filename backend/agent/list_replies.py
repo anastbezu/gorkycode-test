@@ -79,12 +79,14 @@ def item_phrase(record: Record, tz: ZoneInfo, today: date, with_day: bool) -> st
     return title
 
 
-def group_phrase(group: RecordGroup, tz: ZoneInfo) -> str:
-    last = record_moment(group.record).astimezone(tz)
+def group_phrase(group: RecordGroup, tz: ZoneInfo, now: datetime | None = None) -> str:
+    """«Созвон — 7 раз, последний 22.08.2026». С `now` представитель в будущем — «ближайший»."""
+    moment = record_moment(group.record)
+    word = "ближайший" if now is not None and moment >= now else "последний"
     count = group.count
     return (
         f"{group.record.title} — {count} {plural(count, 'раз', 'раза', 'раз')}, "
-        f"последний {last:%d.%m.%Y}"
+        f"{word} {moment.astimezone(tz):%d.%m.%Y}"
     )
 
 

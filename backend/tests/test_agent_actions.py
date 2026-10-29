@@ -36,19 +36,22 @@ def test_search_handler_calls_search_in_thread(monkeypatch):
     record = Record(id=uuid4(), user_id=uuid4(), type="task", title="Подписать договор",
                     created_at=datetime(2026, 10, 25, tzinfo=MSK))
 
-    def fake_search(db, user_id, query, filters):
+    def fake_search(db, user_id, query, filters, *, now=None):
         seen["thread"] = threading.get_ident()
         seen["args"] = (db, user_id, query)
+        seen["now"] = now
         return [SearchHit(record=record, score=1.0)]
 
     monkeypatch.setattr("agent.actions.search", fake_search)
     action = SearchRecords(query="договор")
 
-    result = asyncio.run(actions.handle_search_records("db", "user", action))
+    now = datetime(2026, 10, 29, 12, 0, tzinfo=MSK)
+    result = asyncio.run(actions.handle_search_records("db", "user", action, now=now))
 
     assert result.ok
     assert result.records == [record]
     assert seen["args"] == ("db", "user", "договор")
+    assert seen["now"] == now  # порядок «ближайшие сначала» считается от «сейчас» реплики
     assert seen["thread"] != threading.get_ident()
 
 
