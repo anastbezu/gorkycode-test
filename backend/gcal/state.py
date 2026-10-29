@@ -18,20 +18,21 @@ def _sign(payload: str, key: str) -> str:
     return base64.urlsafe_b64encode(digest).decode().rstrip("=")
 
 
-def make_state(user_id: UUID, key: str, now: datetime) -> str:
-    payload = f"{user_id}.{int((now + STATE_TTL).timestamp())}"
+def make_state(user_id: UUID, key: str, now: datetime, tz: str = "Europe/Moscow") -> str:
+    """`tz` — пояс браузера: первой выгрузке нужен день записей «на весь день»."""
+    payload = f"{user_id}.{tz}.{int((now + STATE_TTL).timestamp())}"
     return f"{payload}.{_sign(payload, key)}"
 
 
-def read_state(state: str, key: str, now: datetime) -> UUID | None:
-    """Учётка из `state` или `None`: подпись не сходится, истёк, не тот формат."""
+def read_state(state: str, key: str, now: datetime) -> tuple[UUID, str] | None:
+    """Учётка и пояс из `state` или `None`: подпись не сходится, истёк, не тот формат."""
     try:
-        user, expires, signature = state.split(".")
-        payload = f"{user}.{expires}"
+        user, tz, expires, signature = state.split(".")
+        payload = f"{user}.{tz}.{expires}"
         if not hmac.compare_digest(signature, _sign(payload, key)):
             return None
         if int(expires) < now.timestamp():
             return None
-        return UUID(user)
+        return UUID(user), tz
     except ValueError:
         return None

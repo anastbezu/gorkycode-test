@@ -29,8 +29,14 @@ def pending_count(db: Session, user_id: UUID) -> int:
         models.Record.user_id == user_id, models.Record.google_sync == "pending")) or 0
 
 
-def connection_status(db: Session, user_id: UUID) -> GoogleCalendarStatus:
+def active_connection(db: Session, user_id: UUID) -> models.GoogleConnection | None:
+    """Подключение, которое работает или в ошибке; отключённое — как будто его нет."""
     row = db.get(models.GoogleConnection, user_id)
+    return row if row is not None and row.status != "disconnected" else None
+
+
+def connection_status(db: Session, user_id: UUID) -> GoogleCalendarStatus:
+    row = active_connection(db, user_id)
     if row is None:
         return GoogleCalendarStatus(state="not_connected")
     return GoogleCalendarStatus(
@@ -39,16 +45,18 @@ def connection_status(db: Session, user_id: UUID) -> GoogleCalendarStatus:
     )
 
 
-def start_connect(config: GoogleConfig, user_id: UUID, now: datetime) -> str:
-    return google.authorization_url(config, make_state(user_id, config.token_key, now))
+def start_connect(config: GoogleConfig, user_id: UUID, now: datetime,
+                  tz: str = "Europe/Moscow") -> str:
+    return google.authorization_url(config, make_state(user_id, config.token_key, now, tz))
 
 
 def finish_connect(db: Session, config: GoogleConfig, code: str, state: str,
-                   now: datetime) -> UUID:
-    """Код от Google → токены → отдельный календарь → подключение. Возвращает учётку."""
-    user_id = read_state(state, config.token_key, now)
-    if user_id is None:
+                   now: datetime) -> tuple[UUID, str]:
+    """Код от Google → токены → отдельный календарь → подключение. Возвращает учётку и пояс."""
+    read = read_state(state, config.token_key, now)
+    if read is None:
         raise ConnectError("state не сходится или истёк")
+    user_id, tz = read
     user = db.get(models.User, user_id)
     if user is None or user.login is None:
         raise ConnectError("учётки нет")
@@ -72,19 +80,26 @@ def finish_connect(db: Session, config: GoogleConfig, code: str, state: str,
     row.status = "connected"
     row.error = None
     db.flush()
-    return user_id
+    return user_id, tz
 
 
 def disconnect(db: Session, config: GoogleConfig, user_id: UUID) -> None:
-    """Отозвать доступ в Google и забыть токен. События в Google остаются."""
-    row = db.get(models.GoogleConnection, user_id)
+    """Отозвать доступ в Google и забыть токен и почту. События в Google остаются.
+
+    `calendar_id` остаётся: повторное подключение пишет в тот же календарь, а не создаёт
+    второй «Голосовой ассистент» с копиями событий. Найти его заново нельзя — список
+    календарей разрешением `calendar.app.created` не читается."""
+    row = active_connection(db, user_id)
     if row is None:
         return
     try:
         google.revoke(decrypt_token(row.refresh_token, config.token_key))
     except ValueError:
-        pass  # ключ сменили — отозвать нечем, но удалить у нас всё равно нужно
-    db.delete(row)
+        pass  # ключ сменили — отозвать нечем, но забыть у нас всё равно нужно
+    row.refresh_token = None
+    row.email = None
+    row.status = "disconnected"
+    row.error = None
     db.execute(update(models.Record).where(models.Record.user_id == user_id)
                .values(google_sync=None))
     db.flush()
@@ -92,7 +107,7 @@ def disconnect(db: Session, config: GoogleConfig, user_id: UUID) -> None:
 
 def mark_revoked(db: Session, user_id: UUID) -> None:
     """Google ответил invalid_grant: подключение в ошибке, ассистент работает без Google."""
-    row = db.get(models.GoogleConnection, user_id)
+    row = active_connection(db, user_id)
     if row is not None:
         row.status = "error"
         row.error = REVOKED_TEXT

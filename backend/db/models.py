@@ -227,7 +227,8 @@ class GoogleConnection(Base):
     Refresh-токен хранится зашифрованным (`gcal/crypto.py`, ключ `GOOGLE_TOKEN_KEY`):
     в браузер и в логи не попадает. `calendar_id` — отдельный календарь «Голосовой ассистент»,
     который приложение создаёт в Google пользователя (разрешение `calendar.app.created`).
-    Удаление учётки удаляет и подключение.
+    Удаление учётки удаляет и подключение. Отключение (`disconnected`) токен стирает, а строку
+    оставляет ради `calendar_id`: повторное подключение пишет в тот же календарь, без дублей.
     """
 
     __tablename__ = "google_connections"
@@ -236,7 +237,7 @@ class GoogleConnection(Base):
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
     )
     email: Mapped[str | None] = mapped_column(Text)
-    refresh_token: Mapped[str] = mapped_column(Text, nullable=False)  # зашифрован
+    refresh_token: Mapped[str | None] = mapped_column(Text)  # зашифрован; NULL после отключения
     calendar_id: Mapped[str | None] = mapped_column(Text)
     status: Mapped[str] = mapped_column(
         String(16), nullable=False, default="connected", server_default=text("'connected'")
@@ -250,5 +251,6 @@ class GoogleConnection(Base):
     )
 
     __table_args__ = (
-        CheckConstraint("status IN ('connected', 'error')", name="status_values"),
+        CheckConstraint("status IN ('connected', 'error', 'disconnected')",
+                        name="status_values"),
     )

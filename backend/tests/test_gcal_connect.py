@@ -4,8 +4,6 @@ Google подменён: `gcal.google.http_client` отдаёт клиента �
 Маршруты и база настоящие (тестовая PostgreSQL).
 """
 
-import base64
-import json
 from collections.abc import AsyncIterator
 from datetime import UTC, datetime, timedelta
 from urllib.parse import parse_qs, urlparse
@@ -22,6 +20,7 @@ from gcal import google
 from gcal.crypto import decrypt_token
 from gcal.state import make_state, read_state
 from main import app
+from tests.gcal_fake import FakeGoogle
 
 pytestmark = pytest.mark.anyio
 PASSWORD = "correct-horse-1"
@@ -44,42 +43,10 @@ def google_env(monkeypatch) -> None:
     monkeypatch.setenv("GOOGLE_RETURN_URL", "http://localhost:5173/")
 
 
-class FakeGoogle:
-    """Что получил «Google» и что он ответит."""
-
-    def __init__(self) -> None:
-        self.requests: list[httpx.Request] = []
-        self.token_status = 200
-        self.refresh_token: str | None = "1//refresh"
-        self.calendars = 0
-
-    def handler(self, request: httpx.Request) -> httpx.Response:
-        self.requests.append(request)
-        if request.url.path == "/token":
-            if self.token_status != 200:
-                return httpx.Response(self.token_status, json={"error": "invalid_grant"})
-            claims = base64.urlsafe_b64encode(json.dumps({"email": "anna@gmail.com"}).encode())
-            body = {"access_token": "ya29.access", "id_token": f"h.{claims.decode()}.s"}
-            if self.refresh_token:
-                body["refresh_token"] = self.refresh_token
-            return httpx.Response(200, json=body)
-        if request.url.path == "/revoke":
-            return httpx.Response(200)
-        if request.url.path == "/calendar/v3/calendars":
-            self.calendars += 1
-            calendar_id = f"cal{self.calendars}@group.calendar.google.com"
-            return httpx.Response(200, json={"id": calendar_id})
-        return httpx.Response(404)
-
-    def paths(self) -> list[str]:
-        return [r.url.path for r in self.requests]
-
-
 @pytest.fixture
 def fake_google(monkeypatch) -> FakeGoogle:
     fake = FakeGoogle()
-    monkeypatch.setattr(google, "http_client",
-                        lambda: httpx.Client(transport=httpx.MockTransport(fake.handler)))
+    monkeypatch.setattr(google, "http_client", fake.client)
     return fake
 
 
@@ -138,7 +105,7 @@ async def test_connect_url_asks_only_for_app_calendar_offline(client, fake_googl
         "https://www.googleapis.com/auth/calendar.app.created", "openid", "email"]
     assert query["access_type"] == ["offline"] and query["prompt"] == ["consent"]
     assert query["redirect_uri"] == ["http://test/api/calendar/google/callback"]
-    assert read_state(query["state"][0], KEY, datetime.now(UTC)) == user_id
+    assert read_state(query["state"][0], KEY, datetime.now(UTC)) == (user_id, "Europe/Moscow")
     assert fake_google.requests == []  # до согласия в Google не ходим
 
 
@@ -155,6 +122,7 @@ async def test_callback_saves_encrypted_token_and_creates_calendar(
     assert "refresh" not in row.refresh_token  # в базе — только зашифрованный
     assert decrypt_token(row.refresh_token, KEY) == "1//refresh"
     token_request = fake_google.requests[0]
+    assert fake_google.paths()[:2] == ["/token", "/calendar/v3/calendars"]
     assert b"client_secret=secret" in token_request.content  # секрет — только сервер → Google
 
     status = (await client.get("/api/calendar/google", headers=headers)).json()
@@ -166,7 +134,7 @@ async def test_reconnect_keeps_the_same_calendar(client, fake_google, db: Sessio
     headers, user_id = await _account(client)
     await _connect(client, headers, fake_google)
     await _connect(client, headers, fake_google)
-    assert fake_google.calendars == 1
+    assert len(fake_google.calendars) == 1
     assert db.get(models.GoogleConnection, user_id).calendar_id.startswith("cal1")
 
 
@@ -218,10 +186,25 @@ async def test_disconnect_revokes_and_forgets_token(client, fake_google, db: Ses
     assert fake_google.paths()[-1] == "/revoke"
     assert b"token=1%2F%2Frefresh" in fake_google.requests[-1].content
     db.expire_all()
-    assert db.get(models.GoogleConnection, user_id) is None
+    row = db.get(models.GoogleConnection, user_id)
+    assert row.status == "disconnected" and row.refresh_token is None and row.email is None
+    assert row.calendar_id.startswith("cal1")  # календарь помним — для повторного подключения
     assert db.get(models.Record, record.id).google_sync is None
     status = (await client.get("/api/calendar/google", headers=headers)).json()
-    assert status["state"] == "not_connected"
+    assert status == {"state": "not_connected", "email": None, "error": None, "pending": 0}
+
+
+async def test_reconnect_after_disconnect_writes_to_the_same_calendar(
+        client, fake_google, db: Session) -> None:
+    headers, user_id = await _account(client)
+    await _connect(client, headers, fake_google)
+    await client.delete("/api/calendar/google", headers=headers)
+    response = await _connect(client, headers, fake_google)
+    assert response.headers["location"].endswith("calendar=connected")
+    assert len(fake_google.calendars) == 1  # второго «Голосового ассистента» нет
+    db.expire_all()
+    row = db.get(models.GoogleConnection, user_id)
+    assert row.status == "connected" and row.email == "anna@gmail.com"
 
 
 async def test_revoked_connection_shows_error(client, fake_google, db: Session) -> None:

@@ -625,7 +625,7 @@ req.llm_config)`.
 
 ### Calendar API, а не MCP
 
-У Google есть официальный удалённый MCP-сервер календаря (`calendarmcp.googleapis.com/mcp/v1`), но в статусе Developer Preview — только участникам программы предпросмотра Google Workspace ([документация](https://developers.google.com/workspace/calendar/api/guides/configure-mcp-server)). MCP придуман, чтобы инструменты вызывала модель; у нас в Google ходит наш код после успешной операции сервиса, и MCP был бы прослойкой: наш код → MCP-сервер → Calendar API. Поэтому — Calendar API напрямую, официальными `google-auth` и `google-api-python-client`. Вызовы синхронные, как сервисы.
+У Google есть официальный удалённый MCP-сервер календаря (`calendarmcp.googleapis.com/mcp/v1`), но в статусе Developer Preview — только участникам программы предпросмотра Google Workspace ([документация](https://developers.google.com/workspace/calendar/api/guides/configure-mcp-server)). MCP придуман, чтобы инструменты вызывала модель; у нас в Google ходит наш код после успешной операции сервиса, и MCP был бы прослойкой: наш код → MCP-сервер → Calendar API. Поэтому — Calendar API напрямую, через `httpx`, который уже есть в проекте: нам нужны пять REST-вызовов (токен, календарь, событие PUT/POST/DELETE), а клиентская библиотека Google тянет большой набор зависимостей. Вызовы синхронные, как сервисы; в ходе запроса у них общий бюджет 3 с.
 
 ### Направление и что уходит в Google
 

@@ -4,6 +4,7 @@
 на сервере нет — 503.
 """
 
+import logging
 from datetime import UTC, datetime
 from typing import Annotated
 from urllib.parse import urlencode
@@ -21,11 +22,13 @@ from gcal.connection import (
     finish_connect,
     start_connect,
 )
+from gcal.sync import mark_first_upload, sync_pending
 from schemas import GoogleCalendarStatus, GoogleConnectResponse
 
-from .deps import CurrentUser, get_current_user_id
+from .deps import CurrentUser, get_current_user_id, parse_timezone
 
 router = APIRouter(prefix="/api/calendar/google", tags=["calendar"])
+log = logging.getLogger("uvicorn.error")
 
 ERRORS = {
     401: {"description": "Токен учётки недействителен"},
@@ -66,9 +69,15 @@ def get_status(
 def connect(
     user: Annotated[CurrentUser, Depends(account)],
     cfg: Annotated[GoogleConfig, Depends(config)],
+    tz: Annotated[str | None, Query(description="IANA-пояс браузера")] = None,
 ) -> GoogleConnectResponse:
-    """Ссылка на страницу согласия Google; повторный вызов — переподключение."""
-    return GoogleConnectResponse(auth_url=start_connect(cfg, user.id, datetime.now(UTC)))
+    """Ссылка на страницу согласия Google; повторный вызов — переподключение.
+
+    `tz` — пояс браузера, как у `GET /api/items`: по нему первая выгрузка определяет дни
+    записей «на весь день» и окно «ближайшие 2 недели»."""
+    zone = parse_timezone(tz)
+    return GoogleConnectResponse(
+        auth_url=start_connect(cfg, user.id, datetime.now(UTC), zone.key))
 
 
 def _back(cfg: GoogleConfig, result: str) -> RedirectResponse:
@@ -89,12 +98,21 @@ def callback(
     (браузер приходит обычным переходом). Пользователь отказался — `error=access_denied`."""
     if error or not code or not state:
         return _back(cfg, "error")
+    now = datetime.now(UTC)
     try:
-        finish_connect(db, cfg, code, state, datetime.now(UTC))
+        user_id, tz = finish_connect(db, cfg, code, state, now)
+        mark_first_upload(db, user_id, now, tz)
         db.commit()
     except ConnectError:
         db.rollback()
         return _back(cfg, "error")
+    # Первая выгрузка — ближайшие 2 недели; не всё успело — догонит при следующих запросах.
+    try:
+        sync_pending(db, cfg, user_id, tz, limit=100)
+        db.commit()
+    except Exception:  # noqa: BLE001 — подключение уже сохранено, записи остаются в очереди
+        db.rollback()
+        log.exception("Первая выгрузка в Google Календарь упала")
     return _back(cfg, "connected")
 
 
