@@ -6,6 +6,7 @@
 from .conversation import (
     ConversationAccessError,
     clear_pending,
+    forget_last_action_for_record,
     get_conversation_state,
     get_or_create_conversation_state,
     merge_pending,
@@ -32,6 +33,7 @@ __all__ = [
     "set_status",
     "update_record",
     "clear_pending",
+    "forget_last_action_for_record",
     "create_record",
     "get_conversation_state",
     "get_or_create_conversation_state",

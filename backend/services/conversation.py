@@ -11,6 +11,7 @@
 from typing import Any
 from uuid import UUID
 
+from sqlalchemy import update
 from sqlalchemy.orm import Session
 
 from db import models
@@ -107,3 +108,24 @@ def merge_pending(state: ConversationState, incoming: dict[str, Any]) -> Convers
 def clear_pending(state: ConversationState) -> ConversationState:
     """Очистить черновик после успешного завершения действия: `pending`, `missing`, `awaiting`."""
     return state.model_copy(update={"pending": None, "missing": [], "awaiting": None})
+
+
+def forget_last_action_for_record(db: Session, user_id: UUID, record_id: UUID) -> int:
+    """Сбросить `last_action` во всех разговорах пользователя, где оно затрагивает запись
+    (у массового действия — запись среди `record_ids`). Возвращает число разговоров.
+
+    Вызывается после изменения записи кнопкой (backend-05): иначе «верни» в чате откатило бы
+    старое изменение поверх ручной правки. Остальное состояние — `shown`, фокус, черновик —
+    не трогается. Без `commit`.
+    """
+    state = models.ConversationState
+    result = db.execute(
+        update(state)
+        .where(
+            state.user_id == user_id,
+            state.last_action["record_ids"].contains([str(record_id)]),
+        )
+        .values(last_action=None)
+        .execution_options(synchronize_session="fetch")
+    )
+    return result.rowcount
