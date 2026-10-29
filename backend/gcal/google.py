@@ -30,6 +30,10 @@ class GoogleAccessRevoked(GoogleError):
     """`invalid_grant`: пользователь отозвал доступ или токен больше не действует."""
 
 
+class GoogleForbidden(GoogleError):
+    """403: у токена нет нужного разрешения (например, доступ к календарю не отмечен)."""
+
+
 @dataclass(frozen=True)
 class Tokens:
     access_token: str
@@ -129,6 +133,8 @@ def create_calendar(access_token: str, name: str, timeout: httpx.Timeout = TIMEO
     """Отдельный календарь приложения — разрешение calendar.app.created даёт только его."""
     response = calendar_request("POST", "/calendars", access_token, {"summary": name},
                                 timeout)
+    if response.status_code == 403:
+        raise GoogleForbidden("Календарь не создан: 403, нет разрешения")
     if response.status_code != 200:
         raise GoogleError(f"Календарь не создан: {response.status_code}")
     return response.json()["id"]

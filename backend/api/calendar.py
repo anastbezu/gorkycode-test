@@ -94,21 +94,25 @@ def callback(
     code: Annotated[str | None, Query()] = None,
     state: Annotated[str | None, Query()] = None,
     error: Annotated[str | None, Query()] = None,
+    scope: Annotated[str | None, Query()] = None,
 ) -> RedirectResponse:
     """Сюда Google возвращает пользователя; учётка — из подписанного `state`, не из заголовка
     (браузер приходит обычным переходом). Пользователь отказался — `error=access_denied`."""
     if error or not code or not state:
+        log.warning("Подключение Google: возврат без кода (%s)", error or "нет code/state")
         return _back(cfg, "error")
     now = datetime.now(UTC)
     try:
-        user_id, tz = finish_connect(db, cfg, code, state, now)
+        user_id, tz = finish_connect(db, cfg, code, state, now, granted=scope)
         mark_first_upload(db, user_id, now, tz)
         db.commit()
-    except CalendarAccessMissing:
+    except CalendarAccessMissing as missing:
         db.rollback()
+        log.warning("Подключение Google: нет доступа к календарю (%s)", missing)
         return _back(cfg, "no_access")
-    except ConnectError:
+    except ConnectError as failed:
         db.rollback()
+        log.warning("Подключение Google не удалось: %s", failed)
         return _back(cfg, "error")
     # Первая выгрузка — ближайшие 2 недели; не всё успело — догонит при следующих запросах.
     try:

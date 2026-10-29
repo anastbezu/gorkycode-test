@@ -20,6 +20,7 @@ class FakeGoogle:
         self.refresh_token: str | None = "1//refresh"
         self.scopes = ["https://www.googleapis.com/auth/calendar.app.created", "openid",
                        "https://www.googleapis.com/auth/userinfo.email"]  # что «разрешил» человек
+        self.scope_in_token = True  # кладёт ли Google `scope` в ответ с токенами
         self.calendars: list[str] = []
         self.events: dict[str, dict] = {}  # id события → тело (status = cancelled — удалено)
         self.down = False  # Google не отвечает (таймаут, сеть)
@@ -37,6 +38,8 @@ class FakeGoogle:
         if path == "/revoke":
             return httpx.Response(200)
         if path == "/calendar/v3/calendars":
+            if "https://www.googleapis.com/auth/calendar.app.created" not in self.scopes:
+                return httpx.Response(403, json={"error": {"code": 403}})
             calendar_id = f"cal{len(self.calendars) + 1}@group.calendar.google.com"
             self.calendars.append(calendar_id)
             return httpx.Response(200, json={"id": calendar_id})
@@ -46,8 +49,9 @@ class FakeGoogle:
         if self.token_status != 200:
             return httpx.Response(self.token_status, json={"error": self.token_error})
         claims = base64.urlsafe_b64encode(json.dumps({"email": "anna@gmail.com"}).encode())
-        body = {"access_token": "ya29.access", "id_token": f"h.{claims.decode()}.s",
-                "scope": " ".join(self.scopes)}
+        body = {"access_token": "ya29.access", "id_token": f"h.{claims.decode()}.s"}
+        if self.scope_in_token:
+            body["scope"] = " ".join(self.scopes)
         if self.refresh_token:
             body["refresh_token"] = self.refresh_token
         return httpx.Response(200, json=body)

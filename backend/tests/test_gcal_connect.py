@@ -172,6 +172,25 @@ async def test_calendar_box_left_unchecked_returns_no_access(
     assert fake_google.paths() == ["/token", "/revoke"]  # частичный доступ сразу отозван
 
 
+@pytest.mark.parametrize("where", ["callback_url", "nowhere"])
+async def test_no_access_without_scope_in_token_response(
+        client, fake_google, db: Session, where) -> None:
+    """Google не положил `scope` в ответ с токенами: берём из адреса возврата, а нет и там —
+    узнаём по 403 при создании календаря."""
+    headers, user_id = await _account(client)
+    fake_google.scopes = ["openid", "email"]
+    fake_google.scope_in_token = False
+    auth_url = (await client.post("/api/calendar/google/connect", headers=headers)).json()[
+        "auth_url"]
+    params = {"code": "4/code", "state": parse_qs(urlparse(auth_url).query)["state"][0]}
+    if where == "callback_url":
+        params["scope"] = "email https://www.googleapis.com/auth/userinfo.email openid"
+    response = await client.get("/api/calendar/google/callback", params=params)
+    assert response.headers["location"].endswith("?calendar=no_access")
+    assert db.get(models.GoogleConnection, user_id) is None
+    assert fake_google.paths()[-1] == "/revoke"
+
+
 async def test_state_of_guest_is_not_accepted(client, fake_google, db: Session) -> None:
     guest = uuid4()
     db.add(models.User(id=guest))

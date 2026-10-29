@@ -56,8 +56,12 @@ def start_connect(config: GoogleConfig, user_id: UUID, now: datetime,
 
 
 def finish_connect(db: Session, config: GoogleConfig, code: str, state: str,
-                   now: datetime) -> tuple[UUID, str]:
-    """Код от Google → токены → отдельный календарь → подключение. Возвращает учётку и пояс."""
+                   now: datetime, granted: str | None = None) -> tuple[UUID, str]:
+    """Код от Google → токены → отдельный календарь → подключение. Возвращает учётку и пояс.
+
+    Что разрешил пользователь, Google сообщает и в ответе с токенами, и в адресе возврата
+    (`granted` — параметр `scope` колбэка): берём первое, что есть. Не сказал нигде — узнаем
+    по 403 при создании календаря."""
     read = read_state(state, config.token_key, now)
     if read is None:
         raise ConnectError("state не сходится или истёк")
@@ -67,7 +71,10 @@ def finish_connect(db: Session, config: GoogleConfig, code: str, state: str,
         raise ConnectError("учётки нет")
     try:
         tokens = google.exchange_code(config, code)
-        if tokens.scopes is not None and CALENDAR_SCOPE not in tokens.scopes:
+        scopes = tokens.scopes
+        if scopes is None and granted:
+            scopes = frozenset(granted.split())
+        if scopes is not None and CALENDAR_SCOPE not in scopes:
             google.revoke(tokens.refresh_token or tokens.access_token)
             raise CalendarAccessMissing("доступ к календарю не разрешён")
         if not tokens.refresh_token:
@@ -76,6 +83,9 @@ def finish_connect(db: Session, config: GoogleConfig, code: str, state: str,
         calendar_id = row.calendar_id if row is not None else None
         if calendar_id is None:
             calendar_id = google.create_calendar(tokens.access_token, CALENDAR_NAME)
+    except google.GoogleForbidden as error:
+        google.revoke(tokens.refresh_token or tokens.access_token)
+        raise CalendarAccessMissing(str(error)) from error
     except google.GoogleError as error:
         raise ConnectError(str(error)) from error
 
