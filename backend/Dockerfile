@@ -18,11 +18,24 @@ WORKDIR /app
 COPY pyproject.toml uv.lock ./
 RUN uv sync --locked --no-dev --no-install-project
 
+# Модель поиска по смыслу (search-01, docs/modules/search.md) скачивается при сборке: в работе сервер
+# не ходит за ней в сеть, а первый поиск не ждёт загрузку. Имя и ревизия — те же, что
+# в search/embeddings.py (сверяет тест test_search_model_pinned). Слой пересобирается
+# только вместе с зависимостями.
+ARG SEARCH_MODEL=sergeyzh/rubert-mini-frida
+ARG SEARCH_MODEL_REVISION=32a82388a9f99c99eca74494731f7ee6e9a9fe3a
+ENV HF_HOME=/app/hf
+RUN .venv/bin/python -c "from huggingface_hub import snapshot_download; \
+snapshot_download('${SEARCH_MODEL}', revision='${SEARCH_MODEL_REVISION}')"
+
 # --- Итоговый образ: без uv, только окружение и код ---
 FROM python:3.13-slim
 
 ENV PYTHONUNBUFFERED=1 \
-    PATH="/app/.venv/bin:$PATH"
+    PATH="/app/.venv/bin:$PATH" \
+    HF_HOME=/app/hf \
+    HF_HUB_OFFLINE=1 \
+    SEARCH_WARMUP=1
 
 # Код принадлежит root и только читается: процесс сервера работает без прав root.
 RUN useradd --system --no-create-home --uid 10001 app
@@ -30,6 +43,7 @@ RUN useradd --system --no-create-home --uid 10001 app
 WORKDIR /app
 
 COPY --from=builder /app/.venv /app/.venv
+COPY --from=builder /app/hf /app/hf
 COPY . .
 
 USER app

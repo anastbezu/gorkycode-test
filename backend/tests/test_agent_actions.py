@@ -31,7 +31,7 @@ def test_list_handler_calls_service_in_thread(monkeypatch):
     assert seen["thread"] != threading.get_ident()
 
 
-def test_search_handler_calls_stub_in_thread(monkeypatch):
+def test_search_handler_calls_search_in_thread(monkeypatch):
     seen = {}
     record = Record(id=uuid4(), user_id=uuid4(), type="task", title="Подписать договор",
                     created_at=datetime(2026, 10, 25, tzinfo=MSK))
@@ -41,7 +41,7 @@ def test_search_handler_calls_stub_in_thread(monkeypatch):
         seen["args"] = (db, user_id, query)
         return [SearchHit(record=record, score=1.0)]
 
-    monkeypatch.setattr("agent.actions.search_by_substring", fake_search)
+    monkeypatch.setattr("agent.actions.search", fake_search)
     action = SearchRecords(query="договор")
 
     result = asyncio.run(actions.handle_search_records("db", "user", action))

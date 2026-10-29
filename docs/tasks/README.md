@@ -32,11 +32,10 @@ backend-01-model-dannyh.md
 | [backend-05](backend-05-zapisi-iz-interfeysa.md) | `backend` | Давид | Записи из интерфейса без LLM: создать, перенести, выполнено, удалить и вернуть; сброс `last_action` |
 | [voice-02](voice-02-neyrosetevaya-ozvuchka.md) | `voice` | Давид | Нейросетевая озвучка: сравнение сервисов → выбор техлида → `POST /api/tts`, браузер — запасной |
 | [calendar-01](calendar-01-vneshniy-kalendar.md) | `calendar` | Илья | Google Календарь у учётки: наши функции синхронизируют, правда в нашей базе; API или MCP — выбор исполнителя |
-| [frontend-06](frontend-06-otvety-assistenta-po-maketu.md) | `frontend` | Ася | Ответы ассистента по макету: карточки изменения, статуса, отката и пересечений, длинный список, ошибки в ленте, пустой чат |
-| [frontend-07](frontend-07-moi-dela-nastroyki-tema.md) | `frontend` | Ася | «Мои дела» по макету: плитка «Без срока», листание по 5 дней, состояния; настройки LLM «ваши / сервера»; кнопка темы |
 | [agent-10](agent-10-bystrye-otvety.md) | `agent` | Денис | Быстрые ответы: `awaiting` — выбор, подтверждение, время встречи; «номер N» без модели |
 | [frontend-08](frontend-08-chipy-vybora-i-podtverzhdeniya.md) | `frontend` | Ася | Чипы выбора записи, «Да, все / Отмена», чипы времени встречи (после frontend-06 и agent-10) |
 | [product-06](product-06-makety-tema-vid-kalendarya-napominaniya.md) | `product` | Маша | Макеты: тема «как в системе», календарь «день» и «неделя», напоминания в браузере, часовой пояс |
+| [product-07](product-07-teksty-po-novomu-kodu.md) | `product` | Маша | Тексты ассистента по коду develop: `awaiting` из четырёх значений, массовое «выполнено», шаблоны agent-07 в разделе 14, две поправки к эталонам (после product-03) |
 
 ## Архив — выполненные задачи
 
@@ -65,5 +64,7 @@ backend-01-model-dannyh.md
 | [backend-04](archive/backend-04-uchetki-i-vhod.md) | `backend` | Денис | Учётки и вход по токену, гость пустой, демо-учётки с датасетом и сброс, срок хранения 30 дней |
 | [frontend-04](archive/frontend-04-vhod-na-stranitse.md) | `frontend` | Ася | Вход на странице: гость по умолчанию, учётка по желанию, 401 → гость |
 | [frontend-05](archive/frontend-05-deystviya-s-zapisyami.md) | `frontend` | Ася | Кнопки в карточке, «Моих делах» и календаре: создать, перенести, выполнено, удалить с «Вернуть» |
+| [frontend-06](archive/frontend-06-otvety-assistenta-po-maketu.md) | `frontend` | Ася | Ответы ассистента по макету: карточки изменения, статуса, отката и пересечений, длинный список, ошибки в ленте, пустой чат |
+| [frontend-07](archive/frontend-07-moi-dela-nastroyki-tema.md) | `frontend` | Ася | «Мои дела» по макету: плитка «Без срока», листание по 5 дней, состояния; настройки LLM «ваши / сервера»; кнопка темы |
 
 Новая задача создаётся по шаблону [`_template.md`](_template.md).

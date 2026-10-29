@@ -18,6 +18,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from api import auth, calendar, chat, health, items, stt
 from api.deps import USER_ID_HEADER
 from db import SessionLocal
+from search.warmup import warm_up
 from services.demo_accounts import ensure_demo_accounts, parse_demo_accounts
 from services.retention import cleanup
 
@@ -79,6 +80,20 @@ def _cleanup_once() -> None:
         log.exception("Чистка по сроку хранения не выполнена")
 
 
+def _warm_up_search() -> None:
+    """Прогрев поиска (`search/warmup.py`) — только при `SEARCH_WARMUP=1` (так в образе):
+    в тестах и при локальном запуске модель не нужна заранее. Не вышло — в лог; поиск
+    всё равно работает и загрузит модель при первом запросе «похожих»."""
+    if os.environ.get("SEARCH_WARMUP") != "1":
+        return
+    try:
+        with SessionLocal() as db:
+            computed = warm_up(db)
+        log.info("Поиск прогрет: модель загружена, посчитано векторов %d", computed)
+    except Exception:
+        log.exception("Прогрев поиска не выполнен")
+
+
 async def _cleanup_loop() -> None:
     """Чистка по сроку хранения: при старте и потом раз в 6 часов (бэкенд один)."""
     while True:
@@ -90,10 +105,13 @@ async def _cleanup_loop() -> None:
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     await asyncio.to_thread(_ensure_demo_accounts)
     cleanup_task = asyncio.create_task(_cleanup_loop())
+    # В фоне: сервер отвечает сразу, прогрев идёт ~15 с на одном ядре.
+    warm_up_task = asyncio.create_task(asyncio.to_thread(_warm_up_search))
     try:
         yield
     finally:
         cleanup_task.cancel()
+        warm_up_task.cancel()
 
 
 app = FastAPI(

@@ -172,3 +172,29 @@ describe('localDateTimeIso и поля формы', () => {
     expect(recordDeadlineField(rEndOfDay, MSK)).toEqual({ day: '2026-10-26', time: '' });
   });
 });
+
+describe('frontend-07: дни страницы и формат диапазона', () => {
+  it('сдвиг дней: вперёд и назад на 5 дней, через границу месяца и года', () => {
+    expect(addDaysToKey('2026-10-25', 5)).toBe('2026-10-30');
+    expect(addDaysToKey('2026-10-30', 5)).toBe('2026-11-04');
+    expect(addDaysToKey('2026-11-04', -5)).toBe('2026-10-30');
+    expect(addDaysToKey('2026-10-30', -5)).toBe('2026-10-25');
+    expect(addDaysToKey('2026-12-30', 5)).toBe('2027-01-04');
+    expect(addDaysToKey('2027-01-04', -5)).toBe('2026-12-30');
+  });
+
+  it('подпись диапазона в одном месяце', async () => {
+    const { formatDaysRange } = await import('./dates');
+    expect(formatDaysRange('2026-10-25', 5)).toBe('25–29 окт');
+  });
+
+  it('подпись диапазона через границу месяца', async () => {
+    const { formatDaysRange } = await import('./dates');
+    expect(formatDaysRange('2026-10-30', 5)).toBe('30 окт – 3 ноя');
+  });
+
+  it('подпись диапазона через границу года', async () => {
+    const { formatDaysRange } = await import('./dates');
+    expect(formatDaysRange('2026-12-29', 5)).toBe('29 дек 2026 – 2 янв 2027');
+  });
+});

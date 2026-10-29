@@ -9,6 +9,7 @@ from datetime import datetime
 from enum import StrEnum
 from typing import Any
 
+from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
     Boolean,
     CheckConstraint,
@@ -167,6 +168,31 @@ class ConversationState(Base):
         CheckConstraint(
             "awaiting IS NULL OR awaiting IN ('answer', 'choice')", name="awaiting_values"
         ),
+    )
+
+
+# Размер вектора модели поиска `sergeyzh/rubert-mini-frida` (docs/modules/search.md).
+EMBEDDING_DIM = 312
+
+
+class TextEmbedding(Base):
+    """Вектор текста для поиска по смыслу (модуль `search`, docs/modules/search.md).
+
+    Вектор хранится на текст, а не на запись: одинаковые названия у разных записей
+    и у разных пользователей (стартовый набор — 376 текстов на 1000 записей) считаются
+    один раз. Ключ — модель и `md5` текста: короткий ключ фиксированной длины для текста
+    любой длины. Связи с `records` нет: переименование записи даёт новый текст, старый вектор
+    просто перестаёт использоваться.
+    """
+
+    __tablename__ = "text_embeddings"
+
+    model: Mapped[str] = mapped_column(String(128), primary_key=True)
+    text_hash: Mapped[str] = mapped_column(String(32), primary_key=True)
+    text: Mapped[str] = mapped_column(Text, nullable=False)
+    embedding: Mapped[list[float]] = mapped_column(Vector(EMBEDDING_DIM), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        AwareDateTime(), nullable=False, server_default=func.now()
     )
 
 

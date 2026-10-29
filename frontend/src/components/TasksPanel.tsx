@@ -1,8 +1,8 @@
-// Панель «Мои дела»: лента из 7 дней с сегодняшнего, карточки выбранного дня, блок «Без срока».
-// Данные — один GET /api/items на всю неделю (usePanel в App), раскладка по дням — здесь.
+// Панель «Мои дела»: лента из плитки «Без срока» и 5 дней, листание, карточки выбранного дня.
+// Данные — один GET /api/items на 5 дней (usePanel в App), раскладка по дням — здесь.
 import type { Record, RecordType } from '../api/types';
-import { addDaysToKey, dayKey, recordAnchor, recordWhen, weekdayShort } from '../lib/dates';
-import { CloseIcon } from './icons';
+import { addDaysToKey, dayKey, formatDaysRange, recordAnchor, recordWhen, weekdayShort } from '../lib/dates';
+import { CalendarIcon, CloseIcon, NextIcon, PlusIcon, PrevIcon } from './icons';
 
 export type PanelState =
   | { status: 'loading'; records: Record[] }
@@ -15,12 +15,17 @@ const TYPE_TAG: { [K in RecordType]: string } = {
   reminder: 'Напоминание',
 };
 
-export const PANEL_DAYS = 7;
+export const PANEL_DAYS = 5;
 
-/** Ключи 7 дней ленты, начиная с сегодняшнего, в поясе браузера. */
-export function panelDayKeys(tz: string, now: Date = new Date()): string[] {
-  const today = dayKey(now, tz);
-  return Array.from({ length: PANEL_DAYS }, (_, i) => addDaysToKey(today, i));
+/** Ключи 5 дней страницы ленты в поясе браузера. Поддерживает как YYYY-MM-DD, так и IANA-пояс. */
+export function panelDayKeys(startOrTz: string, nowOrCount?: Date | number): string[] {
+  if (startOrTz.includes('/')) {
+    const now = (nowOrCount as Date) ?? new Date();
+    const today = dayKey(now, startOrTz);
+    return Array.from({ length: PANEL_DAYS }, (_, i) => addDaysToKey(today, i));
+  }
+  const count = typeof nowOrCount === 'number' ? nowOrCount : PANEL_DAYS;
+  return Array.from({ length: count }, (_, i) => addDaysToKey(startOrTz, i));
 }
 
 /** Разложить записи по дням (по началу, а без него — по сроку) и отдельно — без даты. */
@@ -43,6 +48,10 @@ export function groupByDay(records: Record[], tz: string): { byDay: Map<string, 
       return Date.parse(recordAnchor(a)!) - Date.parse(recordAnchor(b)!);
     });
   }
+  undated.sort((a, b) => {
+    if ((a.status === 'done') !== (b.status === 'done')) return a.status === 'done' ? 1 : -1;
+    return a.title.localeCompare(b.title);
+  });
   return { byDay, undated };
 }
 
@@ -55,11 +64,19 @@ export function activeTodayCount(records: Record[], tz: string, now: Date = new 
   }).length;
 }
 
+/** Число активных записей без даты (для плитки «Без срока»). */
+export function activeUndatedCount(records: Record[]): number {
+  return records.filter((r) => r.status === 'active' && !recordAnchor(r)).length;
+}
+
 interface Props {
   state: PanelState;
   tz: string;
-  selectedDay: number;
-  onSelectDay: (index: number) => void;
+  firstDayKey: string;
+  selectedDay: number | 'undated';
+  onSelectDay: (selection: number | 'undated') => void;
+  onPrevPage: () => void;
+  onNextPage: () => void;
   onRetry: () => void;
   onClose: () => void;
   onOpen?: (record: Record) => void;
@@ -69,17 +86,26 @@ interface Props {
 export function TasksPanel({
   state,
   tz,
+  firstDayKey,
   selectedDay,
   onSelectDay,
+  onPrevPage,
+  onNextPage,
   onRetry,
   onClose,
   onOpen,
   onCreate,
 }: Props) {
   const now = new Date();
-  const keys = panelDayKeys(tz, now);
+  const todayKey = dayKey(now, tz);
+  const tomorrowKey = addDaysToKey(todayKey, 1);
+  const keys = panelDayKeys(firstDayKey, PANEL_DAYS);
   const { byDay, undated } = groupByDay(state.records, tz);
-  const dayRecords = byDay.get(keys[selectedDay]) ?? [];
+  const activeUndated = activeUndatedCount(state.records);
+
+  const isUndatedSelected = selectedDay === 'undated';
+  const currentDayKey = typeof selectedDay === 'number' ? keys[selectedDay] : null;
+  const dayRecords = currentDayKey ? byDay.get(currentDayKey) ?? [] : [];
   const loaded = state.status === 'ready';
 
   return (
@@ -87,14 +113,35 @@ export function TasksPanel({
       <div className="panel__handle" onClick={onClose} aria-hidden />
       <div className="panel__head">
         <h2 className="panel__title">Мои дела</h2>
+        <div className="panel__pager">
+          <button
+            type="button"
+            className="icon-btn panel__arrow"
+            onClick={onPrevPage}
+            aria-label="Предыдущие дни"
+          >
+            <PrevIcon />
+          </button>
+          <span className="panel__range">{formatDaysRange(firstDayKey, PANEL_DAYS)}</span>
+          <button
+            type="button"
+            className="icon-btn panel__arrow"
+            onClick={onNextPage}
+            aria-label="Следующие дни"
+          >
+            <NextIcon />
+          </button>
+        </div>
         <div className="panel__head-actions">
           {onCreate && (
             <button
               type="button"
-              className="btn btn--glass panel__create-btn"
-              onClick={() => onCreate(keys[selectedDay])}
+              className="btn btn--round panel__create-btn"
+              onClick={() => onCreate(currentDayKey ?? undefined)}
+              aria-label="Создать запись"
+              title="Создать запись"
             >
-              + Создать
+              <PlusIcon />
             </button>
           )}
           <button type="button" className="icon-btn panel__close" onClick={onClose} aria-label="Закрыть">
@@ -104,46 +151,107 @@ export function TasksPanel({
       </div>
 
       <div className="days" role="tablist">
-        {keys.map((key, i) => (
-          <button
-            key={key}
-            type="button"
-            role="tab"
-            aria-selected={i === selectedDay}
-            className={`days__day${i === selectedDay ? ' days__day--selected' : ''}`}
-            onClick={() => onSelectDay(i)}
-          >
-            <span className="days__name">{i === 0 ? 'Сегодня' : i === 1 ? 'Завтра' : weekdayShort(key)}</span>
-            <span className="days__num">{Number(key.slice(8))}</span>
-            <span className={`days__dot${(byDay.get(key)?.length ?? 0) > 0 ? ' days__dot--on' : ''}`} />
-          </button>
-        ))}
+        <button
+          type="button"
+          role="tab"
+          aria-selected={isUndatedSelected}
+          className={`days__day days__day--undated${isUndatedSelected ? ' days__day--selected' : ''}`}
+          onClick={() => onSelectDay('undated')}
+        >
+          <span className="days__name">
+            Без
+            <br />
+            срока
+          </span>
+          <span className="days__num">{activeUndated}</span>
+        </button>
+
+        {keys.map((key, i) => {
+          const isToday = key === todayKey;
+          const isTomorrow = key === tomorrowKey;
+          const isSelected = selectedDay === i;
+          const isTodayOutline = isToday && isUndatedSelected;
+          const dayActiveCount = (byDay.get(key) ?? []).filter((r) => r.status === 'active').length;
+          const hasActive = dayActiveCount > 0;
+
+          let dayName = weekdayShort(key);
+          if (isToday) dayName = 'Сегодня';
+          else if (isTomorrow) dayName = 'Завтра';
+
+          return (
+            <button
+              key={key}
+              type="button"
+              role="tab"
+              aria-selected={isSelected}
+              className={`days__day${isSelected ? ' days__day--selected' : ''}${isTodayOutline ? ' days__day--today-outline' : ''}`}
+              onClick={() => onSelectDay(i)}
+            >
+              <span className="days__name">{dayName}</span>
+              <span className="days__num">{Number(key.slice(8))}</span>
+              <span className={`days__dot${hasActive ? ' days__dot--on' : ''}`} />
+            </button>
+          );
+        })}
       </div>
 
       <div className="panel__body">
         {state.status === 'error' && (
-          <div className="panel__note">
-            <p>Не удалось загрузить дела. {state.message}</p>
-            <button type="button" className="btn btn--glass" onClick={onRetry}>
+          <div className="panel__error-card">
+            <p className="panel__error-text">Не удалось загрузить дела.</p>
+            <button type="button" className="btn panel__error-btn" onClick={onRetry}>
               Повторить
             </button>
           </div>
         )}
-        {state.status === 'loading' && state.records.length === 0 && <p className="panel__note">Загружаю дела…</p>}
-        {loaded && dayRecords.length === 0 && <p className="panel__note">На этот день дел нет.</p>}
 
-        {dayRecords.map((record) => (
-          <TaskCard key={record.id} record={record} tz={tz} now={now} onOpen={onOpen} />
-        ))}
-
-        {undated.length > 0 && (
-          <>
-            <h3 className="panel__section">Без срока</h3>
-            {undated.map((record) => (
-              <TaskCard key={record.id} record={record} tz={tz} now={now} onOpen={onOpen} />
-            ))}
-          </>
+        {state.status === 'loading' && state.records.length === 0 && (
+          <div className="panel__skeletons" aria-label="Загрузка">
+            <div className="card card--skeleton">
+              <div className="skeleton-bar skeleton-bar--tag" />
+              <div className="skeleton-bar skeleton-bar--title" />
+              <div className="skeleton-bar skeleton-bar--time" />
+            </div>
+            <div className="card card--skeleton">
+              <div className="skeleton-bar skeleton-bar--tag" />
+              <div className="skeleton-bar skeleton-bar--title" />
+              <div className="skeleton-bar skeleton-bar--time" />
+            </div>
+            <div className="card card--skeleton">
+              <div className="skeleton-bar skeleton-bar--tag" />
+              <div className="skeleton-bar skeleton-bar--title" />
+              <div className="skeleton-bar skeleton-bar--time" />
+            </div>
+          </div>
         )}
+
+        {loaded && !isUndatedSelected && dayRecords.length === 0 && (
+          <div className="panel__empty">
+            <div className="panel__empty-icon" aria-hidden>
+              <CalendarIcon />
+            </div>
+            <p className="panel__empty-text">На этот день дел нет</p>
+          </div>
+        )}
+
+        {loaded && isUndatedSelected && undated.length === 0 && (
+          <div className="panel__empty">
+            <div className="panel__empty-icon" aria-hidden>
+              <CalendarIcon />
+            </div>
+            <p className="panel__empty-text">Нет дел без срока</p>
+          </div>
+        )}
+
+        {!(state.status === 'loading' && state.records.length === 0) &&
+          state.status !== 'error' &&
+          (isUndatedSelected
+            ? undated.map((record) => (
+                <TaskCard key={record.id} record={record} tz={tz} now={now} when="" onOpen={onOpen} />
+              ))
+            : dayRecords.map((record) => (
+                <TaskCard key={record.id} record={record} tz={tz} now={now} onOpen={onOpen} />
+              )))}
       </div>
     </aside>
   );

@@ -8,8 +8,8 @@ from schemas import (
     ListRecords,
     SearchRecords,
 )
+from search import search
 from services import create_record, list_records_for_period
-from services.search_stub import search_by_substring  # TODO: заменить на search() из модуля Родиона
 
 
 class SearchResult(ActionResult):
@@ -37,10 +37,7 @@ async def handle_list_records(
 async def handle_search_records(
     db, user_id, action: SearchRecords, now: datetime | None = None
 ) -> ActionResult:
-    # TODO: заменить на search(db, user_id, action.query, action.filters) из модуля Родиона
-    hits = await asyncio.to_thread(
-        search_by_substring, db, user_id, action.query, action.filters
-    )
+    hits = await asyncio.to_thread(search, db, user_id, action.query, action.filters)
     similar = bool(hits) and all(hit.match == "similar" for hit in hits)
     return SearchResult(
         action="search_records", ok=True, records=[hit.record for hit in hits], similar=similar
