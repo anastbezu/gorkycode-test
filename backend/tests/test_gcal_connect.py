@@ -161,6 +161,17 @@ async def test_failed_callback_returns_error_and_saves_nothing(
     assert db.get(models.GoogleConnection, user_id) is None
 
 
+async def test_calendar_box_left_unchecked_returns_no_access(
+        client, fake_google, db: Session) -> None:
+    headers, user_id = await _account(client)
+    fake_google.scopes = ["openid", "https://www.googleapis.com/auth/userinfo.email"]
+    response = await _connect(client, headers, fake_google)
+    assert response.headers["location"] == "http://localhost:5173/?calendar=no_access"
+    assert db.get(models.GoogleConnection, user_id) is None
+    assert fake_google.calendars == []  # календарь не создавали
+    assert fake_google.paths() == ["/token", "/revoke"]  # частичный доступ сразу отозван
+
+
 async def test_state_of_guest_is_not_accepted(client, fake_google, db: Session) -> None:
     guest = uuid4()
     db.add(models.User(id=guest))

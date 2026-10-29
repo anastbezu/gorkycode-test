@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 from db import get_session
 from gcal.config import GoogleConfig, google_config
 from gcal.connection import (
+    CalendarAccessMissing,
     ConnectError,
     connection_status,
     disconnect,
@@ -103,6 +104,9 @@ def callback(
         user_id, tz = finish_connect(db, cfg, code, state, now)
         mark_first_upload(db, user_id, now, tz)
         db.commit()
+    except CalendarAccessMissing:
+        db.rollback()
+        return _back(cfg, "no_access")
     except ConnectError:
         db.rollback()
         return _back(cfg, "error")

@@ -18,6 +18,8 @@ class FakeGoogle:
         self.token_status = 200
         self.token_error = "invalid_grant"
         self.refresh_token: str | None = "1//refresh"
+        self.scopes = ["https://www.googleapis.com/auth/calendar.app.created", "openid",
+                       "https://www.googleapis.com/auth/userinfo.email"]  # что «разрешил» человек
         self.calendars: list[str] = []
         self.events: dict[str, dict] = {}  # id события → тело (status = cancelled — удалено)
         self.down = False  # Google не отвечает (таймаут, сеть)
@@ -44,7 +46,8 @@ class FakeGoogle:
         if self.token_status != 200:
             return httpx.Response(self.token_status, json={"error": self.token_error})
         claims = base64.urlsafe_b64encode(json.dumps({"email": "anna@gmail.com"}).encode())
-        body = {"access_token": "ya29.access", "id_token": f"h.{claims.decode()}.s"}
+        body = {"access_token": "ya29.access", "id_token": f"h.{claims.decode()}.s",
+                "scope": " ".join(self.scopes)}
         if self.refresh_token:
             body["refresh_token"] = self.refresh_token
         return httpx.Response(200, json=body)

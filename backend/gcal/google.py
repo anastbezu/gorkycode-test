@@ -35,6 +35,7 @@ class Tokens:
     access_token: str
     refresh_token: str | None
     email: str | None
+    scopes: frozenset[str] | None = None  # что пользователь разрешил; None — Google не сказал
 
 
 def http_client(timeout: httpx.Timeout = TIMEOUT) -> httpx.Client:
@@ -88,8 +89,10 @@ def exchange_code(config: GoogleConfig, code: str) -> Tokens:
     payload = _post_token(config, {
         "code": code, "grant_type": "authorization_code", "redirect_uri": config.redirect_uri,
     })
+    scope = payload.get("scope")
     return Tokens(payload["access_token"], payload.get("refresh_token"),
-                  _email_from_id_token(payload.get("id_token")))
+                  _email_from_id_token(payload.get("id_token")),
+                  frozenset(scope.split()) if isinstance(scope, str) else None)
 
 
 def refresh_access_token(config: GoogleConfig, refresh_token: str,

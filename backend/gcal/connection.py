@@ -13,7 +13,7 @@ from db import models
 from schemas import GoogleCalendarStatus
 
 from . import google
-from .config import CALENDAR_NAME, GoogleConfig
+from .config import CALENDAR_NAME, CALENDAR_SCOPE, GoogleConfig
 from .crypto import decrypt_token, encrypt_token
 from .state import make_state, read_state
 
@@ -22,6 +22,11 @@ REVOKED_TEXT = "Доступ к Google Календарю отозван — п�
 
 class ConnectError(Exception):
     """Подключение не удалось — пользователь вернётся на `?calendar=error`."""
+
+
+class CalendarAccessMissing(ConnectError):
+    """На странице Google не отмечен доступ к календарю (галочка там снята по умолчанию) —
+    пользователь вернётся на `?calendar=no_access`."""
 
 
 def pending_count(db: Session, user_id: UUID) -> int:
@@ -62,6 +67,9 @@ def finish_connect(db: Session, config: GoogleConfig, code: str, state: str,
         raise ConnectError("учётки нет")
     try:
         tokens = google.exchange_code(config, code)
+        if tokens.scopes is not None and CALENDAR_SCOPE not in tokens.scopes:
+            google.revoke(tokens.refresh_token or tokens.access_token)
+            raise CalendarAccessMissing("доступ к календарю не разрешён")
         if not tokens.refresh_token:
             raise ConnectError("Google не выдал refresh-токен")
         row = db.get(models.GoogleConnection, user_id)
