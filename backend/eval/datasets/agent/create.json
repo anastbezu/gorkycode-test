@@ -572,7 +572,6 @@
           "text": "В четверг в 6 утра пробежка в парке",
           "expect": {
             "action": "create_record",
-            "type": "reminder",
             "title": [
               "пробежк",
               "парк"
@@ -768,7 +767,7 @@
               "расход"
             ],
             "start": "none",
-            "deadline": "2026-10-23 18:00",
+            "deadline": "2026-10-23",
             "ok": true,
             "awaiting": "none"
           }

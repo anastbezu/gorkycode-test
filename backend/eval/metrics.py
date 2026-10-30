@@ -1,6 +1,6 @@
 """Метрики агента из файла прогона `eval/results/agent/<label>.jsonl` (`eval.run_agent`).
 
-- доля пройденных кейсов — всего и по категориям, с 95 % интервалом Уилсона;
+- доля пройденных кейсов — всего, по наборам и по категориям;
 - pass^k — кейс прошёл во всех k повторах (устойчивость: один и тот же ответ на ту же фразу);
 - выбор инструмента — матрица ошибок, precision / recall / F1 по инструменту, macro-F1;
 - поля — доля верных по каждому проверяемому полю; инструмент выбран неверно — поля неверны;
@@ -44,8 +44,7 @@ class Share:
         return (lo, hi)
 
     def text(self) -> str:
-        lo, hi = self.interval
-        return f"{self.hits}/{self.total} = {self.rate:.1%} [{lo:.1%}; {hi:.1%}]"
+        return f"{self.hits}/{self.total} = {self.rate:.1%}"
 
 
 @dataclass
@@ -66,6 +65,7 @@ class AgentMetrics:
     skipped: int
     cases: Share
     by_category: dict[str, Share]
+    by_dataset: dict[str, Share]
     pass_k: Share  # кейс прошёл во всех повторах
     tools: list[ToolScore]
     macro_f1: float
@@ -73,6 +73,7 @@ class AgentMetrics:
     fields: dict[str, Share] = field(default_factory=dict)
     latency_p50_ms: float = 0.0
     latency_p95_ms: float = 0.0
+    latency_clean: bool = True  # False — старый прогон: в время входили паузы между вызовами
     failed: list[dict] = field(default_factory=list)  # для разбора провалов
 
 
@@ -104,8 +105,10 @@ def agent_metrics(rows: list[dict]) -> AgentMetrics:
     cases = Share(sum(r["passed"] for r in done), len(done))
     per_category: dict[str, list[bool]] = defaultdict(list)
     per_case: dict[tuple, list[bool]] = defaultdict(list)
+    per_dataset: dict[str, list[bool]] = defaultdict(list)
     for r in done:
         per_category[r["category"]].append(r["passed"])
+        per_dataset[r["dataset"]].append(r["passed"])
         per_case[(r["dataset"], r["case_id"])].append(r["passed"])
     by_category = {c: Share(sum(v), len(v)) for c, v in per_category.items()}
     pass_k = Share(sum(all(v) for v in per_case.values()), len(per_case))
@@ -113,6 +116,7 @@ def agent_metrics(rows: list[dict]) -> AgentMetrics:
     confusion: dict[str, Counter] = defaultdict(Counter)
     field_hits: dict[str, list[bool]] = defaultdict(list)
     latencies = []
+    clean = True
     for r in done:
         for t in r["turns"]:
             got = t["observed_action"] or NOTHING
@@ -121,6 +125,7 @@ def agent_metrics(rows: list[dict]) -> AgentMetrics:
                 if name != "action":
                     field_hits[name].append(ok)
             latencies.append(t["latency_ms"])
+            clean = clean and t.get("latency_clean", False)
 
     labels = sorted(set(confusion) | {g for row in confusion.values() for g in row})
     tools = []
@@ -144,6 +149,7 @@ def agent_metrics(rows: list[dict]) -> AgentMetrics:
         skipped=skipped,
         cases=cases,
         by_category=dict(sorted(by_category.items())),
+        by_dataset={d: Share(sum(v), len(v)) for d, v in per_dataset.items()},
         pass_k=pass_k,
         tools=tools,
         macro_f1=macro_f1,
@@ -151,5 +157,6 @@ def agent_metrics(rows: list[dict]) -> AgentMetrics:
         fields={k: Share(sum(v), len(v)) for k, v in sorted(field_hits.items())},
         latency_p50_ms=percentile(latencies, 0.5),
         latency_p95_ms=percentile(latencies, 0.95),
+        latency_clean=clean,
         failed=failed,
     )

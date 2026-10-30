@@ -88,6 +88,7 @@ def case_row(meta: dict, dataset: str, case: Case, run: int, report: CaseReport 
             "problems": turn.problems,
             "fields": field_verdicts(turn.expect, observed, TZ),
             "latency_ms": round(turn.latency_ms, 1),
+            "latency_clean": True,  # паузы прогона вычтены
         })
     return {**row, "passed": report.passed, "turns": turns}
 

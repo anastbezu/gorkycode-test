@@ -1,0 +1,798 @@
+{
+  "dataset": "list",
+  "source": "генерация моделью по контрактам docs/contracts",
+  "author": "Gemini 3.8 Flash (high), 2026-10-29",
+  "now": "2026-10-21 10:00",
+  "timezone": "Europe/Moscow",
+  "cases": [
+    {
+      "id": "ls.1",
+      "category": "периоды",
+      "turns": [
+        {
+          "text": "Что у меня запланировано на сегодня?",
+          "expect": {
+            "action": "list_records",
+            "date_from": "2026-10-21 00:00",
+            "date_to": "2026-10-22 00:00",
+            "types": "all"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ls.2",
+      "category": "периоды",
+      "turns": [
+        {
+          "text": "Покажи расписание на завтра",
+          "expect": {
+            "action": "list_records",
+            "date_from": "2026-10-22 00:00",
+            "date_to": "2026-10-23 00:00",
+            "types": "all"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ls.3",
+      "category": "периоды",
+      "turns": [
+        {
+          "text": "Какие планы на послезавтра?",
+          "expect": {
+            "action": "list_records",
+            "date_from": "2026-10-23 00:00",
+            "date_to": "2026-10-24 00:00",
+            "types": "all"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ls.4",
+      "category": "периоды",
+      "turns": [
+        {
+          "text": "Что у меня было вчера?",
+          "expect": {
+            "action": "list_records",
+            "date_from": "2026-10-20 00:00",
+            "date_to": "2026-10-21 00:00",
+            "types": "all"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ls.5",
+      "category": "периоды",
+      "turns": [
+        {
+          "text": "Что запланировано на эту неделю?",
+          "expect": {
+            "action": "list_records",
+            "date_from": "2026-10-19 00:00",
+            "date_to": "2026-10-26 00:00",
+            "types": "all"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ls.6",
+      "category": "периоды",
+      "turns": [
+        {
+          "text": "Покажи дела на следующую неделю",
+          "expect": {
+            "action": "list_records",
+            "date_from": "2026-10-26 00:00",
+            "date_to": "2026-11-02 00:00",
+            "types": "all"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ls.7",
+      "category": "периоды",
+      "turns": [
+        {
+          "text": "Что у меня на этих выходных?",
+          "expect": {
+            "action": "list_records",
+            "date_from": "2026-10-24 00:00",
+            "date_to": "2026-10-26 00:00",
+            "types": "all"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ls.8",
+      "category": "периоды",
+      "turns": [
+        {
+          "text": "Какие планы на этот месяц?",
+          "expect": {
+            "action": "list_records",
+            "date_from": "2026-10-01 00:00",
+            "date_to": "2026-11-01 00:00",
+            "types": "all"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ls.9",
+      "category": "периоды",
+      "turns": [
+        {
+          "text": "Что было на прошлой неделе?",
+          "expect": {
+            "action": "list_records",
+            "date_from": "2026-10-12 00:00",
+            "date_to": "2026-10-19 00:00",
+            "types": "all"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ls.10",
+      "category": "периоды",
+      "turns": [
+        {
+          "text": "Что у меня сегодня вечером?",
+          "expect": {
+            "action": "list_records",
+            "date_from": "2026-10-21 18:00",
+            "date_to": "2026-10-22 00:00",
+            "types": "all"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ls.11",
+      "category": "типы записей",
+      "turns": [
+        {
+          "text": "Какие встречи у меня на сегодня?",
+          "expect": {
+            "action": "list_records",
+            "date_from": "2026-10-21 00:00",
+            "date_to": "2026-10-22 00:00",
+            "types": [
+              "meeting"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "ls.12",
+      "category": "типы записей",
+      "turns": [
+        {
+          "text": "Покажи мои встречи на завтра",
+          "expect": {
+            "action": "list_records",
+            "date_from": "2026-10-22 00:00",
+            "date_to": "2026-10-23 00:00",
+            "types": [
+              "meeting"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "ls.13",
+      "category": "типы записей",
+      "turns": [
+        {
+          "text": "Какие созвоны стоят на пятницу?",
+          "expect": {
+            "action": "list_records",
+            "date_from": "2026-10-23 00:00",
+            "date_to": "2026-10-24 00:00",
+            "types": [
+              "meeting"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "ls.14",
+      "category": "типы записей",
+      "turns": [
+        {
+          "text": "Какие задачи стоят на сегодня?",
+          "expect": {
+            "action": "list_records",
+            "date_from": "2026-10-21 00:00",
+            "date_to": "2026-10-22 00:00",
+            "types": [
+              "task",
+              "reminder"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "ls.15",
+      "category": "типы записей",
+      "turns": [
+        {
+          "text": "Покажи список задач на эту неделю",
+          "expect": {
+            "action": "list_records",
+            "date_from": "2026-10-19 00:00",
+            "date_to": "2026-10-26 00:00",
+            "types": [
+              "task",
+              "reminder"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "ls.16",
+      "category": "типы записей",
+      "turns": [
+        {
+          "text": "Какие задачи нужно сделать завтра?",
+          "expect": {
+            "action": "list_records",
+            "date_from": "2026-10-22 00:00",
+            "date_to": "2026-10-23 00:00",
+            "types": [
+              "task",
+              "reminder"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "ls.17",
+      "category": "типы записей",
+      "turns": [
+        {
+          "text": "Есть ли у меня напоминания на сегодня?",
+          "expect": {
+            "action": "list_records",
+            "date_from": "2026-10-21 00:00",
+            "date_to": "2026-10-22 00:00",
+            "types": [
+              "reminder"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "ls.18",
+      "category": "типы записей",
+      "turns": [
+        {
+          "text": "Покажи все напоминания на завтра",
+          "expect": {
+            "action": "list_records",
+            "date_from": "2026-10-22 00:00",
+            "date_to": "2026-10-23 00:00",
+            "types": [
+              "reminder"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "ls.19",
+      "category": "типы записей",
+      "turns": [
+        {
+          "text": "Покажи вообще всё на четверг",
+          "expect": {
+            "action": "list_records",
+            "date_from": "2026-10-22 00:00",
+            "date_to": "2026-10-23 00:00",
+            "types": "all"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ls.20",
+      "category": "типы записей",
+      "turns": [
+        {
+          "text": "Какие встречи запланированы на следующую неделю?",
+          "expect": {
+            "action": "list_records",
+            "date_from": "2026-10-26 00:00",
+            "date_to": "2026-11-02 00:00",
+            "types": [
+              "meeting"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "ls.21",
+      "category": "период без конца",
+      "turns": [
+        {
+          "text": "Что у меня дальше?",
+          "expect": {
+            "action": "list_records",
+            "date_from": "2026-10-21 10:00",
+            "date_to": "none",
+            "types": "all"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ls.22",
+      "category": "период без конца",
+      "turns": [
+        {
+          "text": "Какие планы впереди?",
+          "expect": {
+            "action": "list_records",
+            "date_from": "2026-10-21 10:00",
+            "date_to": "none",
+            "types": "all"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ls.23",
+      "category": "период без конца",
+      "turns": [
+        {
+          "text": "Что вообще висит в делах?",
+          "expect": {
+            "action": "list_records",
+            "date_from": "2026-10-21 00:00",
+            "date_to": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ls.24",
+      "category": "период без конца",
+      "turns": [
+        {
+          "text": "Покажи все мои предстоящие встречи",
+          "expect": {
+            "action": "list_records",
+            "date_from": "2026-10-21 10:00",
+            "date_to": "none",
+            "types": [
+              "meeting"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "ls.25",
+      "category": "период без конца",
+      "turns": [
+        {
+          "text": "Какие задачи у меня висят?",
+          "expect": {
+            "action": "list_records",
+            "date_from": "2026-10-21 00:00",
+            "date_to": "none",
+            "types": [
+              "task",
+              "reminder"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "ls.26",
+      "category": "период без конца",
+      "turns": [
+        {
+          "text": "Что у меня есть в расписании начиная с сегодняшнего дня?",
+          "expect": {
+            "action": "list_records",
+            "date_from": "2026-10-21 00:00",
+            "date_to": "none",
+            "types": "all"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ls.27",
+      "category": "период без конца",
+      "turns": [
+        {
+          "text": "Какие созвоны меня ждут впереди?",
+          "expect": {
+            "action": "list_records",
+            "date_from": "2026-10-21 10:00",
+            "date_to": "none",
+            "types": [
+              "meeting"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "ls.28",
+      "category": "период без конца",
+      "turns": [
+        {
+          "text": "Покажи список всех будущих задач",
+          "expect": {
+            "action": "list_records",
+            "date_from": "2026-10-21 10:00",
+            "date_to": "none",
+            "types": [
+              "task",
+              "reminder"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "ls.29",
+      "category": "период без конца",
+      "turns": [
+        {
+          "text": "Что у меня запланировано на будущее?",
+          "expect": {
+            "action": "list_records",
+            "date_from": "2026-10-21 10:00",
+            "date_to": "none",
+            "types": "all"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ls.30",
+      "category": "период без конца",
+      "turns": [
+        {
+          "text": "Какие напоминания стоят на будущее?",
+          "expect": {
+            "action": "list_records",
+            "date_from": "2026-10-21 00:00",
+            "date_to": "none",
+            "types": [
+              "reminder"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "ls.31",
+      "category": "граница со списком поиска",
+      "turns": [
+        {
+          "text": "Что стоит в календаре на четверг?",
+          "expect": {
+            "action": "list_records",
+            "date_from": "2026-10-22 00:00",
+            "date_to": "2026-10-23 00:00",
+            "types": "all"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ls.32",
+      "category": "граница со списком поиска",
+      "turns": [
+        {
+          "text": "Есть ли какие-то записи на 24 октября?",
+          "expect": {
+            "action": "list_records",
+            "date_from": "2026-10-24 00:00",
+            "date_to": "2026-10-25 00:00",
+            "types": "all"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ls.33",
+      "category": "граница со списком поиска",
+      "turns": [
+        {
+          "text": "Есть ли у меня свободное время в пятницу?",
+          "expect": {
+            "action": "list_records",
+            "date_from": "2026-10-23 00:00",
+            "date_to": "2026-10-24 00:00",
+            "types": "all"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ls.34",
+      "category": "граница со списком поиска",
+      "turns": [
+        {
+          "text": "Насколько я загружен завтра?",
+          "expect": {
+            "action": "list_records",
+            "date_from": "2026-10-22 00:00",
+            "date_to": "2026-10-23 00:00",
+            "types": "all"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ls.35",
+      "category": "граница со списком поиска",
+      "turns": [
+        {
+          "text": "Какие события назначены на понедельник?",
+          "expect": {
+            "action": "list_records",
+            "date_from": "2026-10-26 00:00",
+            "date_to": "2026-10-27 00:00",
+            "types": "all"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ls.36",
+      "category": "граница со списком поиска",
+      "turns": [
+        {
+          "text": "Что у меня по расписанию на послезавтра?",
+          "expect": {
+            "action": "list_records",
+            "date_from": "2026-10-23 00:00",
+            "date_to": "2026-10-24 00:00",
+            "types": "all"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ls.37",
+      "category": "граница со списком поиска",
+      "turns": [
+        {
+          "text": "Есть ли созвоны на следующей неделе во вторник?",
+          "expect": {
+            "action": "list_records",
+            "date_from": "2026-10-27 00:00",
+            "date_to": "2026-10-28 00:00",
+            "types": [
+              "meeting"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "ls.38",
+      "category": "граница со списком поиска",
+      "turns": [
+        {
+          "text": "Покажи мой распорядок дня на завтра",
+          "expect": {
+            "action": "list_records",
+            "date_from": "2026-10-22 00:00",
+            "date_to": "2026-10-23 00:00",
+            "types": "all"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ls.39",
+      "category": "граница со списком поиска",
+      "turns": [
+        {
+          "text": "Есть ли встречи в эту субботу?",
+          "expect": {
+            "action": "list_records",
+            "date_from": "2026-10-24 00:00",
+            "date_to": "2026-10-25 00:00",
+            "types": [
+              "meeting"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "ls.40",
+      "category": "граница со списком поиска",
+      "turns": [
+        {
+          "text": "Что записано на воскресенье?",
+          "expect": {
+            "action": "list_records",
+            "date_from": "2026-10-25 00:00",
+            "date_to": "2026-10-26 00:00",
+            "types": "all"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ls.41",
+      "category": "разговорные формы",
+      "turns": [
+        {
+          "text": "Чё там у меня на завтра?",
+          "expect": {
+            "action": "list_records",
+            "date_from": "2026-10-22 00:00",
+            "date_to": "2026-10-23 00:00",
+            "types": "all"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ls.42",
+      "category": "разговорные формы",
+      "turns": [
+        {
+          "text": "Я свободен в пятницу?",
+          "expect": {
+            "action": "list_records",
+            "date_from": "2026-10-23 00:00",
+            "date_to": "2026-10-24 00:00",
+            "types": "all"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ls.43",
+      "category": "разговорные формы",
+      "turns": [
+        {
+          "text": "Слушай, а что у меня сегодня по делам?",
+          "expect": {
+            "action": "list_records",
+            "date_from": "2026-10-21 00:00",
+            "date_to": "2026-10-22 00:00"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ls.44",
+      "category": "разговорные формы",
+      "turns": [
+        {
+          "text": "Глянь, какие созвоны на четверг висят",
+          "expect": {
+            "action": "list_records",
+            "date_from": "2026-10-22 00:00",
+            "date_to": "2026-10-23 00:00",
+            "types": [
+              "meeting"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "ls.45",
+      "category": "разговорные формы",
+      "turns": [
+        {
+          "text": "Ну-ка подскажи, что на эти выходные запланировано?",
+          "expect": {
+            "action": "list_records",
+            "date_from": "2026-10-24 00:00",
+            "date_to": "2026-10-26 00:00",
+            "types": "all"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ls.46",
+      "category": "разговорные формы",
+      "turns": [
+        {
+          "text": "А чё у нас на сегодня вообще?",
+          "expect": {
+            "action": "list_records",
+            "date_from": "2026-10-21 00:00",
+            "date_to": "2026-10-22 00:00",
+            "types": "all"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ls.47",
+      "category": "разговорные формы",
+      "turns": [
+        {
+          "text": "Есть че по встречам на завтра?",
+          "expect": {
+            "action": "list_records",
+            "date_from": "2026-10-22 00:00",
+            "date_to": "2026-10-23 00:00",
+            "types": [
+              "meeting"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "ls.48",
+      "category": "разговорные формы",
+      "turns": [
+        {
+          "text": "Короче, напомни, что у меня на этой неделе",
+          "expect": {
+            "action": "list_records",
+            "date_from": "2026-10-19 00:00",
+            "date_to": "2026-10-26 00:00",
+            "types": "all"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ls.49",
+      "category": "разговорные формы",
+      "turns": [
+        {
+          "text": "Слушай, глянь расписание на завтрашний день",
+          "expect": {
+            "action": "list_records",
+            "date_from": "2026-10-22 00:00",
+            "date_to": "2026-10-23 00:00",
+            "types": "all"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ls.50",
+      "category": "разговорные формы",
+      "turns": [
+        {
+          "text": "Что у меня завтра вечером?",
+          "expect": {
+            "action": "list_records",
+            "date_from": "2026-10-22 18:00",
+            "date_to": "2026-10-23 00:00",
+            "types": "all"
+          }
+        }
+      ]
+    }
+  ]
+}

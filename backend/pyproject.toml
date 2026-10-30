@@ -33,6 +33,7 @@ dev = [
     "ruff>=0.6.0",
 ]
 eval = [
+    "fpdf2>=2.9.0",
     "matplotlib>=3.11.2",
     "seaborn>=0.13.2",
 ]

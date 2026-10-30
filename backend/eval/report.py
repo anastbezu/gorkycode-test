@@ -1,14 +1,16 @@
-"""Отчёт по прогону агента: md с таблицами и графики PNG.
+"""Отчёт по прогону агента: md — общий и по каждому набору, графики PNG и PDF.
 
     cd backend
-    uv run --group eval python -m eval.report develop-1        # eval/results/agent/develop-1.jsonl
+    uv run --group eval python -m eval.report final        # eval/results/agent/final.jsonl
 
-Пишет `eval/reports/agent-<label>/report.md` и рядом графики: доля пройденных по категориям
-с 95 % интервалом, матрица ошибок выбора инструмента, доля верных по полям.
+Пишет в `eval/reports/agent-<label>/`: `report.md` (общий), `<набор>.md` (по набору),
+`report.pdf` (общий отчёт целиком, с графиками) и графики: доля пройденных по наборам и
+категориям, матрица ошибок выбора инструмента, доля верных по полям.
 Цифры — только из файла прогона (`eval.metrics`); отчёт своих не добавляет.
 """
 
 import argparse
+import json
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
@@ -30,18 +32,44 @@ FIELD_NAMES = {
     "target_text": "цель: описание", "ok": "исполнено", "awaiting": "ждёт ответа",
 }
 
+# Что проверяет каждый набор — для таблицы «Метод».
+DATASETS = {
+    "test-cases": "кейсы команды (`docs/test-cases.md`): примеры из задания и сценарии продукта",
+    "create": "создание: тип, название, начало, срок, конец, «время названо»",
+    "list": "список за период: границы периода, типы записей",
+    "search": "поиск: запрос, фильтры, отличие от списка",
+    "update": "изменение: цель (номер, «её», описание), новые значения, исходы",
+    "status": "выполнено / отменено / вернуть, массовые, «не эту, а ту»",
+    "dialog": "диалог: уточнение, выбор, подтверждение, отказ, смена темы",
+    "traps": "подвохи выбора инструмента: справка, посторонняя тема, две команды, отрицание",
+    "undo": "«верни как было» после создания, переноса, смены статуса",
+}
 
-def _bars_with_interval(ax, labels: list[str], shares: list[Share], title: str) -> None:
+LIMITS = [
+    "Кейсы наборов, кроме `test-cases`, сгенерированы моделью Gemini 3.8 Flash (high "
+    "reasoning) по контрактам репозитория (`docs/contracts/`); ожидание — то, что однозначно "
+    "следует из контракта. Набор `test-cases` составлен командой.",
+    "Один прогон, повторов 1: разброс ответов модели между прогонами не измерен.",
+    "Измерена одна модель агента; другие модели не сравнивались.",
+    "Проверяются вызов инструмента, его поля и исход действия на настоящей базе, а не "
+    "формулировка ответа пользователю.",
+    "Голос (распознавание и синтез речи) не измерялся: на вход агенту подаётся текст.",
+    "Время реплики — от текста пользователя до готового ответа, с исполнением на локальной "
+    "базе; без пауз, которые прогон делает между вызовами модели.",
+]
+
+
+def _bars(ax, labels: list[str], shares: list[Share], title: str) -> None:
     rates = [s.rate * 100 for s in shares]
-    lows = [(s.rate - s.interval[0]) * 100 for s in shares]
-    highs = [(s.interval[1] - s.rate) * 100 for s in shares]
     y = range(len(labels))
-    ax.barh(list(y), rates, xerr=[lows, highs], color="#4C72B0", ecolor="#333333", capsize=3)
+    ax.barh(list(y), rates, color="#4C72B0")
     ax.set_yticks(list(y), [f"{label} (n={s.total})" for label, s in zip(labels, shares,
                                                                         strict=True)])
+    for i, rate in enumerate(rates):
+        ax.text(min(rate + 1, 92), i, f"{rate:.0f}%", va="center", fontsize=8)
     ax.invert_yaxis()
     ax.set_xlim(0, 100)
-    ax.set_xlabel("%, с 95 % интервалом Уилсона")
+    ax.set_xlabel("%")
     ax.set_title(title)
 
 
@@ -54,13 +82,21 @@ def draw(metrics: AgentMetrics, out_dir: Path) -> dict[str, str]:
 
     files = {}
 
-    fig, ax = plt.subplots(figsize=(8, 0.45 * len(metrics.by_category) + 1.5))
-    _bars_with_interval(ax, list(metrics.by_category), list(metrics.by_category.values()),
-                        "Пройдено кейсов по категориям")
-    fig.tight_layout()
-    fig.savefig(out_dir / "categories.png", dpi=150)
-    plt.close(fig)
-    files["categories"] = "categories.png"
+    def save(fig, name: str) -> None:
+        fig.tight_layout()
+        fig.savefig(out_dir / f"{name}.png", dpi=150)
+        plt.close(fig)
+        files[name] = f"{name}.png"
+
+    fig, ax = plt.subplots(figsize=(8, 0.45 * len(metrics.by_dataset) + 1.5))
+    _bars(ax, list(metrics.by_dataset), list(metrics.by_dataset.values()),
+          "Пройдено кейсов по наборам")
+    save(fig, "datasets")
+
+    fig, ax = plt.subplots(figsize=(8, 0.3 * len(metrics.by_category) + 1.5))
+    _bars(ax, list(metrics.by_category), list(metrics.by_category.values()),
+          "Пройдено кейсов по категориям")
+    save(fig, "categories")
 
     expected = list(metrics.confusion)
     observed = sorted({g for row in metrics.confusion.values() for g in row} | set(expected))
@@ -72,55 +108,33 @@ def draw(metrics: AgentMetrics, out_dir: Path) -> dict[str, str]:
     ax.set_ylabel("что ожидали")
     ax.set_title("Выбор инструмента: матрица ошибок (реплики)")
     plt.setp(ax.get_xticklabels(), rotation=35, ha="right")
-    fig.tight_layout()
-    fig.savefig(out_dir / "tools.png", dpi=150)
-    plt.close(fig)
-    files["tools"] = "tools.png"
+    save(fig, "tools")
 
     names = list(metrics.fields)
     fig, ax = plt.subplots(figsize=(8, 0.4 * len(names) + 1.5))
-    _bars_with_interval(ax, [FIELD_NAMES.get(n, n) for n in names],
-                        [metrics.fields[n] for n in names], "Верные поля вызова")
-    fig.tight_layout()
-    fig.savefig(out_dir / "fields.png", dpi=150)
-    plt.close(fig)
-    files["fields"] = "fields.png"
+    _bars(ax, [FIELD_NAMES.get(n, n) for n in names], [metrics.fields[n] for n in names],
+          "Верные поля вызова")
+    save(fig, "fields")
     return files
 
 
-def render(metrics: AgentMetrics, files: dict[str, str], source: Path) -> str:
-    m = metrics
-    lines = [
-        f"# Агент: прогон «{m.label}»",
-        "",
-        f"Модель `{m.model}`, коммит {', '.join(f'`{c}`' for c in m.commits)}, "
-        f"повторов {m.runs}. Файл прогона — `{source.name}`. "
-        f"Отчёт собран {datetime.now(UTC):%Y-%m-%d %H:%M} UTC.",
-        "",
-        "## Итог",
-        "",
-        "| Метрика | Значение |",
-        "|---|---|",
-        f"| Пройдено кейсов (кейс × повтор) | {m.cases.text()} |",
-        f"| pass^{m.runs}: кейс прошёл во всех повторах | {m.pass_k.text()} |",
-        f"| Выбор инструмента, macro-F1 | {m.macro_f1:.3f} |",
-        f"| Время реплики, медиана / 95-й процентиль | {m.latency_p50_ms / 1000:.2f} с / "
-        f"{m.latency_p95_ms / 1000:.2f} с |",
-        f"| Пропущено кейсов (нет базы или своя причина) | {m.skipped} |",
-        "",
-        "В скобках — 95 % интервал Уилсона: где правда с такой выборкой.",
-        "",
-        "## По категориям",
-        "",
-        f"![категории]({files['categories']})",
-        "",
-        "| Категория | Пройдено |",
-        "|---|---|",
-        *(f"| {c} | {s.text()} |" for c, s in m.by_category.items()),
-        "",
+def _expected_text(expected: dict) -> str:
+    return json.dumps(expected, ensure_ascii=False)
+
+
+def summary_rows(m: AgentMetrics) -> list[tuple[str, str]]:
+    return [
+        ("Пройдено кейсов", m.cases.text()),
+        ("Выбор инструмента, macro-F1", f"{m.macro_f1:.3f}"),
+        ("Время реплики, медиана / 95-й процентиль",
+         f"{m.latency_p50_ms / 1000:.2f} с / {m.latency_p95_ms / 1000:.2f} с"),
+        ("Не прогонялись (проверка в интерфейсе или другим набором)", str(m.skipped)),
+    ]
+
+
+def _tables(m: AgentMetrics) -> list[str]:
+    return [
         "## Выбор инструмента",
-        "",
-        f"![инструменты]({files['tools']})",
         "",
         "| Инструмент | Precision | Recall | F1 | Реплик |",
         "|---|---|---|---|---|",
@@ -131,33 +145,91 @@ def render(metrics: AgentMetrics, files: dict[str, str], source: Path) -> str:
         "",
         "## Поля вызова",
         "",
-        f"![поля]({files['fields']})",
-        "",
         "| Поле | Верно |",
         "|---|---|",
         *(f"| {FIELD_NAMES.get(n, n)} | {s.text()} |" for n, s in m.fields.items()),
         "",
         "Неверный инструмент — поля засчитаны неверными.",
         "",
-        f"## Провалы ({len(m.failed)})",
-        "",
     ]
+
+
+def _failures(m: AgentMetrics) -> list[str]:
+    lines = [f"## Ошибки ({len(m.failed)})", ""]
     for row in m.failed:
-        turn = row["turns"][-1]
+        turn = next(t for t in reversed(row["turns"]) if t["problems"])
         lines += [
-            f"- **{row['case_id']}** ({row['category']}, повтор {row['run']}) — "
-            f"«{turn['text']}»",
-            f"  - ожидалось: `{turn['expected']}`",
-            f"  - вызвано: `{turn['observed_text']}`; ok={turn['ok']}, "
-            f"awaiting={turn['awaiting']}",
+            f"- **{row['case_id']}** ({row['category']}) — «{turn['text']}»",
+            f"  - ожидалось: `{_expected_text(turn['expected'])}`",
+            f"  - вызвано: `{turn['observed_text']}`",
             *(f"  - {p}" for p in turn["problems"]),
         ]
-    lines += [
+    return lines + [""]
+
+
+def render(m: AgentMetrics, files: dict[str, str], source: Path) -> str:
+    lines = [
+        f"# Агент: прогон «{m.label}»",
         "",
-        "## Не измерено",
+        f"Модель агента `{m.model}`, коммит {', '.join(f'`{c}`' for c in m.commits)}. "
+        f"Файл прогона — `{source.name}`. Отчёт собран {datetime.now(UTC):%Y-%m-%d %H:%M} UTC. "
+        "Тот же отчёт с графиками — `report.pdf`.",
         "",
-        "- Токены на реплику: прогон видит только действие модели, не `usage` ответа "
-        "(закроется логами бэкенда).",
+        "## Итог",
+        "",
+        "| Метрика | Значение |",
+        "|---|---|",
+        *(f"| {k} | {v} |" for k, v in summary_rows(m)),
+        "",
+        "## По наборам",
+        "",
+        f"![наборы]({files['datasets']})",
+        "",
+        "| Набор | Что проверяет | Пройдено |",
+        "|---|---|---|",
+        *(f"| [{d}]({d}.md) | {DATASETS.get(d, '')} | {s.text()} |"
+          for d, s in m.by_dataset.items()),
+        "",
+        "## По категориям",
+        "",
+        f"![категории]({files['categories']})",
+        "",
+        "| Категория | Пройдено |",
+        "|---|---|",
+        *(f"| {c} | {s.text()} |" for c, s in m.by_category.items()),
+        "",
+        f"![инструменты]({files['tools']})",
+        "",
+        *_tables(m),
+        f"![поля]({files['fields']})",
+        "",
+        *_failures(m),
+        "## Ограничения",
+        "",
+        *(f"- {limit}" for limit in LIMITS),
+    ]
+    return "\n".join(lines) + "\n"
+
+
+def render_dataset(name: str, m: AgentMetrics) -> str:
+    lines = [
+        f"# Набор `{name}`",
+        "",
+        f"{DATASETS.get(name, '')}. Модель агента `{m.model}`. "
+        "Общий отчёт — [report.md](report.md).",
+        "",
+        "| Метрика | Значение |",
+        "|---|---|",
+        *(f"| {k} | {v} |" for k, v in summary_rows(m)),
+        "",
+        "## По категориям",
+        "",
+        "| Категория | Пройдено |",
+        "|---|---|",
+        *(f"| {c} | {s.text()} |" for c, s in m.by_category.items()),
+        "",
+        *_tables(m),
+        *_failures(m),
     ]
     return "\n".join(lines) + "\n"
 
@@ -170,12 +242,23 @@ def main() -> int:
     if not source.exists():
         print(f"нет файла прогона {source}", file=sys.stderr)
         return 2
-    metrics = agent_metrics(load_rows(source))
+    rows = load_rows(source)
+    metrics = agent_metrics(rows)
+    metrics.label = args.label  # склеенный из частей прогон — метка файла, не первой строки
     out_dir = REPORTS_DIR / f"agent-{args.label}"
     out_dir.mkdir(parents=True, exist_ok=True)
     files = draw(metrics, out_dir)
     (out_dir / "report.md").write_text(render(metrics, files, source), encoding="utf-8")
-    print(f"готово: {out_dir / 'report.md'}")
+    per_dataset = {}
+    for name in metrics.by_dataset:
+        part = agent_metrics([r for r in rows if r["dataset"] == name])
+        per_dataset[name] = part
+        (out_dir / f"{name}.md").write_text(render_dataset(name, part), encoding="utf-8")
+
+    from eval.report_pdf import build_pdf
+
+    build_pdf(metrics, per_dataset, files, out_dir)
+    print(f"готово: {out_dir}")
     return 0
 
 

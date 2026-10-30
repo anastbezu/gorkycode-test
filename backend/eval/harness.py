@@ -42,7 +42,7 @@ class TurnReport:
     observed: Observed
     reply: str
     problems: list[str]
-    latency_ms: float = 0.0  # вся реплика: состояние, модель, исполнение, ответ
+    latency_ms: float = 0.0  # вся реплика: состояние, модель, исполнение, ответ; без пауз прогона
 
 
 @dataclass
@@ -70,6 +70,7 @@ class Harness:
         self.result: ActionResult | None = None
         self.provider_failures = 0  # кейсы подряд, где модель не ответила
         self.last_latency_ms = 0.0
+        self.waited = 0.0  # паузы прогона внутри реплики, с: в время ответа не входят
 
         if db is None:
             monkeypatch.setattr(agent_module, "get_or_create_conversation_state", self._load)
@@ -119,7 +120,7 @@ class Harness:
     async def _get_action(self, *args, **kwargs):
         for attempt in range(self.retries + 1):
             if self.pause:
-                await asyncio.sleep(self.pause)
+                await self._wait(self.pause)
             try:
                 self.raw = await self.model(*args, **kwargs)
                 self.provider_failures = 0
@@ -128,16 +129,21 @@ class Harness:
                 if attempt == self.retries:
                     self.provider_failures += 1
                     raise
-                await asyncio.sleep(max(self.pause, 1.0) * 3)
+                await self._wait(max(self.pause, 1.0) * 3)
+
+    async def _wait(self, seconds: float) -> None:
+        self.waited += seconds
+        await asyncio.sleep(seconds)
 
     def run_turn(self, text: str, user_id, conversation_id) -> tuple[Observed, str]:
         """Одна реплика в разговоре: что дошло до исполнения и текст ответа."""
         self.raw = self.executed = self.result = None
+        self.waited = 0.0
         started = time.perf_counter()
         response = asyncio.run(agent_module.process_user_turn(
             self.db, user_id, conversation_id, text, TIMEZONE, now=FIXED_NOW,
         ))
-        self.last_latency_ms = (time.perf_counter() - started) * 1000
+        self.last_latency_ms = (time.perf_counter() - started - self.waited) * 1000
         # До исполнения доходит действие с дописанным черновиком — его и сверяем;
         # если исполнения не было (вопрос, ошибка) — то, что вернула модель.
         observed = Observed(

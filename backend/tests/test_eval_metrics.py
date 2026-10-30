@@ -15,7 +15,7 @@ def turn(expected, observed, fields=None, latency=1000.0):
     return {"expected": {"action": expected}, "observed_action": observed,
             "fields": {"action": expected.split("|")[0] == observed or observed in
                        expected.split("|"), **(fields or {})},
-            "latency_ms": latency}
+            "latency_ms": latency, "latency_clean": True}
 
 
 def test_wilson_interval_is_inside_zero_one_and_contains_rate():
