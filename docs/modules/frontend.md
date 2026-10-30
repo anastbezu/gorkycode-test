@@ -154,7 +154,7 @@ npm run build                                # проверка типов и с
 ```
 Образ: `docker compose build frontend` (для стенда его так же собирает CI, см. `docs/infra.md`).
 
-Тесты в CI не запускаются (CI — ruff и pytest бэкенда); перед PR — `npm test` и `npm run build` локально.
+CI запускает `npm ci`, `npm test` и `npm run build` на каждый PR (`docs/infra.md`, «Что проверяет CI»); перед PR полезно прогнать их локально.
 
 ## Чего нет и почему
 Макета или бэкенда для этого ещё нет — не делалось, в том числе заглушками:
