@@ -678,7 +678,7 @@ JSONB `last_action -> 'record_ids' @> '["<id>"]'`). Иначе голосом «
 
 ## Внешний календарь
 
-Задача [calendar-01](../tasks/calendar-01-vneshniy-kalendar.md), контракт — [`api.md`](../contracts/api.md), «Внешний календарь (Google)». Решения этапа 1 утверждены техлидом 28.10.2026.
+Задача [calendar-01](../tasks/archive/calendar-01-vneshniy-kalendar.md), контракт — [`api.md`](../contracts/api.md), «Внешний календарь (Google)». Решения этапа 1 утверждены техлидом 28.10.2026.
 
 ### Calendar API, а не MCP
 
