@@ -50,6 +50,15 @@ import {
   type ThemeChoice,
 } from './lib/storage';
 
+const CALENDAR_NOTIFICATIONS: { [key: string]: string } = {
+  connected:
+    'Google Календарь подключён. Записи на ближайшие 2 недели появятся в календаре «Голосовой ассистент».',
+  no_access:
+    'Нужен доступ к календарю: подключите ещё раз и отметьте его на странице Google.',
+  error:
+    'Не удалось подключить Google Календарь. Попробуйте ещё раз.',
+};
+
 const HINTS = [
   'Что у меня сегодня?',
   'Напомни завтра в 10 позвонить Ивану',
@@ -179,6 +188,25 @@ export function App() {
   });
 
   useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const calendarResult = params.get('calendar');
+      if (calendarResult) {
+        if (CALENDAR_NOTIFICATIONS[calendarResult]) {
+          setToast({ message: CALENDAR_NOTIFICATIONS[calendarResult] });
+        }
+        params.delete('calendar');
+        const remaining = params.toString();
+        const nextUrl =
+          window.location.pathname + (remaining ? `?${remaining}` : '') + window.location.hash;
+        window.history.replaceState(null, '', nextUrl);
+      }
+    } catch {
+      // Игнорируем ошибки URL
+    }
+  }, []);
+
+  useEffect(() => {
     if (typeof window === 'undefined' || !window.matchMedia) return;
     const mq = window.matchMedia('(prefers-color-scheme: dark)');
     const onChange = (e: MediaQueryListEvent) => setSystemDark(e.matches);
@@ -252,7 +280,7 @@ export function App() {
         void panel.load();
         setCalendarReloadKey((k) => k + 1);
         updateRecordInFeed({ ...record, status: 'cancelled' });
-        setToast({ recordId: record.id, title: record.title });
+        setToast({ recordId: record.id, message: `Удалено: «${record.title}»` });
       } catch (err) {
         if (err instanceof ApiError && err.kind === 'rejected') {
           setBanner({ text: err.detail });
@@ -358,7 +386,7 @@ export function App() {
   }, [chat.messages.length, pending, banner]);
 
   const send = useCallback(
-    async (text: string, isRetry = false, replaceErrorId?: string) => {
+    async (text: string, isRetry = false, replaceErrorId?: string, onError?: () => void) => {
       const trimmed = text.trim();
       if (!trimmed || sending.current) return;
       sending.current = true;
@@ -390,6 +418,7 @@ export function App() {
           setBanner({ text: NO_VOICE_TEXT });
         });
       } catch (err) {
+        onError?.();
         if (err instanceof ApiError && err.kind === 'rejected') {
           const errorMsg: ChatMessage = {
             id: newId(),
@@ -420,6 +449,30 @@ export function App() {
       }
     },
     [tz, llmConfig, panel],
+  );
+
+  const handleQuickReply = useCallback(
+    (replyText: string, chipId: string, assistantMessageId: string) => {
+      setChat((c) => ({
+        ...c,
+        messages: c.messages.map((m) =>
+          m.id === assistantMessageId && m.role === 'assistant'
+            ? { ...m, selectedChip: chipId }
+            : m,
+        ),
+      }));
+      void send(replyText, false, undefined, () => {
+        setChat((c) => ({
+          ...c,
+          messages: c.messages.map((m) =>
+            m.id === assistantMessageId && m.role === 'assistant'
+              ? { ...m, selectedChip: null }
+              : m,
+          ),
+        }));
+      });
+    },
+    [send],
   );
 
   /** Голос: первое нажатие — запись, второе (или 30-я секунда) — распознать и отправить как реплику. */
@@ -580,7 +633,9 @@ export function App() {
             </div>
           )}
 
-          {chat.messages.map((m) => {
+          {(() => {
+            const lastAssistantIndex = chat.messages.map((item) => item.role).lastIndexOf('assistant');
+            return chat.messages.map((m, idx) => {
             if (m.role === 'user') {
               return (
                 <div key={m.id} className="bubble bubble--user">
@@ -646,6 +701,7 @@ export function App() {
                 </div>
               );
             }
+            const isLastAssistant = idx === lastAssistantIndex;
             return (
               <div key={m.id} className="assistant">
                 <div className="bubble bubble--assistant">{m.reply}</div>
@@ -653,6 +709,10 @@ export function App() {
                   result={m.result}
                   awaiting={m.awaiting}
                   tz={tz}
+                  isLastMessage={isLastAssistant}
+                  isPending={pending}
+                  selectedChip={m.selectedChip}
+                  onSendQuickReply={(replyText, chipId) => handleQuickReply(replyText, chipId, m.id)}
                   onOpen={openRecord}
                   onSetStatus={handleSetStatus}
                   onDelete={handleDeleteRecord}
@@ -660,7 +720,8 @@ export function App() {
                 />
               </div>
             );
-          })}
+          });
+          })()}
 
           {pending && (
             <div className="thinking" role="status">
@@ -764,7 +825,7 @@ export function App() {
       )}
 
       {settingsOpen && (
-        <SettingsModal initial={llmConfig} onSave={saveSettings} onClose={() => setSettingsOpen(false)} />
+        <SettingsModal initial={llmConfig} isLoggedIn={account !== null} tz={tz} onSave={saveSettings} onClose={() => setSettingsOpen(false)} />
       )}
 
       {authOpen && (

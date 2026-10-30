@@ -100,4 +100,27 @@ describe('theme storage and logic', () => {
     expect(loaded.messages).toHaveLength(3);
     expect(loaded.messages.map((m) => m.role)).toEqual(['user', 'user', 'assistant']);
   });
+
+  it('saveChat сохраняет awaiting и selectedChip у ассистента', () => {
+    const messages: ChatMessage[] = [
+      {
+        id: 'msg-1',
+        role: 'assistant',
+        reply: 'Какую встречу перенести?',
+        result: null,
+        awaiting: 'choice',
+        selectedChip: 'choice-2',
+      },
+    ];
+
+    saveChat({ conversationId: 'conv-2', messages });
+    const loaded = loadChat();
+
+    expect(loaded.messages).toHaveLength(1);
+    const msg = loaded.messages[0];
+    if (msg.role === 'assistant') {
+      expect(msg.awaiting).toBe('choice');
+      expect(msg.selectedChip).toBe('choice-2');
+    }
+  });
 });

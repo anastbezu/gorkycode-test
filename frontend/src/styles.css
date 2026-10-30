@@ -988,6 +988,140 @@ button:disabled {
   font-variant-numeric: tabular-nums;
 }
 
+/* ---------- быстрые ответы (frontend-08) ---------- */
+
+.quick-replies-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: min(560px, 100%);
+}
+
+.quick-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.quick-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: 12px;
+  background: var(--surface-glass);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, opacity 0.15s ease, transform 0.1s ease;
+  user-select: none;
+}
+
+.quick-chip:hover:not(:disabled) {
+  background: var(--surface);
+  border-color: var(--violet);
+  transform: translateY(-1px);
+}
+
+.quick-chip:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+/* Выбранный чип (после ответа) */
+.quick-chip--selected {
+  background: var(--violet) !important;
+  border-color: var(--violet) !important;
+  color: #ffffff !important;
+  cursor: default;
+}
+
+.quick-chip--selected .quick-chip__badge {
+  background: #ffffff !important;
+  color: var(--violet) !important;
+}
+
+.quick-chip--selected .quick-chip__sublabel,
+.quick-chip--selected .quick-chip__period {
+  color: rgba(255, 255, 255, 0.85) !important;
+}
+
+/* Затухшие / неактивные чипы (в прошлых сообщениях или когда выбран другой) */
+.quick-chip--faded,
+.quick-chip:disabled:not(.quick-chip--selected) {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.quick-chip__badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  min-width: 22px;
+  border-radius: 50%;
+  background: var(--violet);
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.quick-chip__label {
+  font-weight: 600;
+  color: inherit;
+}
+
+.quick-chip__sublabel {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 400;
+}
+
+.quick-chip__time {
+  font-weight: 600;
+  color: inherit;
+}
+
+.quick-chip__period {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 400;
+}
+
+/* Кнопки подтверждения */
+.quick-chip--confirm-yes {
+  background: var(--orange);
+  border: 1px solid var(--orange);
+  color: #ffffff;
+  font-weight: 600;
+  padding: 10px 20px;
+  border-radius: 10px;
+}
+
+.quick-chip--confirm-yes:hover:not(:disabled) {
+  background: var(--orange);
+  filter: brightness(0.95);
+  border-color: var(--orange);
+}
+
+.quick-chip--confirm-cancel {
+  background: var(--surface-glass);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-weight: 500;
+  padding: 10px 20px;
+  border-radius: 10px;
+}
+
+.quick-chip--confirm-cancel:hover:not(:disabled) {
+  background: var(--surface);
+  border-color: var(--violet);
+}
+
 /* ---------- ожидание и ошибки ---------- */
 
 .thinking {
@@ -1929,6 +2063,15 @@ button:disabled {
     max-width: 88%;
   }
 
+  .quick-chips {
+    gap: 8px;
+  }
+
+  .quick-chip {
+    padding: 8px 12px;
+    font-size: 13px;
+  }
+
   .composer {
     padding: 10px 16px calc(12px + env(safe-area-inset-bottom));
   }
@@ -2108,4 +2251,172 @@ button:disabled {
     animation: none;
     opacity: 1;
   }
+}
+
+/* ---------- Google Календарь в настройках (frontend-09) ---------- */
+
+.gcal-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+}
+
+.gcal-section__title {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0;
+  color: var(--text);
+}
+
+.gcal-loading {
+  font-size: 14px;
+  color: var(--muted);
+  padding: 8px 0;
+}
+
+.gcal-card {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  padding: 16px;
+  border-radius: var(--radius-card);
+  background: var(--surface-glass);
+  border: 1px solid var(--border);
+}
+
+.gcal-card__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  border-radius: 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--violet);
+}
+
+.gcal-card__icon--error {
+  color: var(--orange);
+}
+
+.gcal-card__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.gcal-card__header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.gcal-card__state-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.gcal-card__email {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.gcal-card__desc {
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.gcal-card__desc--error {
+  color: var(--orange);
+}
+
+.gcal-card__pending {
+  font-size: 13px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.gcal-card__error-msg {
+  font-size: 13px;
+  color: var(--orange);
+  line-height: 1.4;
+}
+
+.gcal-card__actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.gcal-btn {
+  height: 36px;
+  min-height: 36px;
+  padding: 0 16px;
+  font-size: 13px;
+  border-radius: 10px;
+}
+
+.gcal-btn--disconnect {
+  color: var(--muted);
+}
+
+.gcal-btn--disconnect:hover {
+  color: var(--orange);
+  border-color: var(--orange);
+}
+
+.tag--connected {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: rgba(106, 92, 201, 0.12);
+  color: var(--violet);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.tag--error {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: rgba(255, 90, 36, 0.12);
+  color: var(--orange);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.settings-privacy {
+  display: flex;
+  justify-content: center;
+  padding-top: 16px;
+  margin-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.settings-privacy__link {
+  font-size: 13px;
+  color: var(--muted);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  transition: color 0.15s;
+}
+
+.settings-privacy__link:hover {
+  color: var(--text);
 }

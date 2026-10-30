@@ -7,7 +7,7 @@
 // localStorage бывает недоступен (приватный режим, запрет сайта) — тогда страница работает,
 // но ничего не переживает перезагрузку. Ошибки чтения не роняют страницу.
 
-import type { ActionResult, AuthResponse, LLMConfig } from '../api/types';
+import type { ActionResult, AuthResponse, AwaitingKind, LLMConfig } from '../api/types';
 
 const KEY_USER = 'gorky.userId';
 const KEY_AUTH = 'gorky.auth';
@@ -26,7 +26,8 @@ export interface AssistantMessage {
   role: 'assistant';
   reply: string;
   result: ActionResult | null;
-  awaiting: 'answer' | 'choice' | null;
+  awaiting: AwaitingKind;
+  selectedChip?: string | null;
 }
 
 export interface ErrorMessage {

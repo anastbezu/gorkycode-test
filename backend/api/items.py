@@ -6,6 +6,7 @@
   что у действий агента; один запрос — одна транзакция.
 """
 
+import logging
 from collections.abc import Callable
 from typing import Annotated
 from uuid import UUID
@@ -18,6 +19,7 @@ from pydantic import AwareDatetime
 from sqlalchemy.orm import Session
 
 from db import get_session
+from gcal.sync import changed_record_ids, mark_pending, sync_after_turn
 from schemas import (
     ActionResult,
     CreateItem,
@@ -43,6 +45,7 @@ from services.records import get_record
 from .deps import CurrentUser, get_current_user_id, parse_timezone
 
 router = APIRouter(prefix="/api", tags=["items"])
+log = logging.getLogger("uvicorn.error")
 
 TzQuery = Annotated[
     str | None,
@@ -177,9 +180,13 @@ def _result_in_tz(result: ActionResult, tz: ZoneInfo) -> ActionResult:
     )
 
 
-def _in_one_transaction(db: Session, change: Callable[[], ActionResult]) -> ActionResult:
+def _in_one_transaction(db: Session, user: CurrentUser, zone: ZoneInfo,
+                        change: Callable[[], ActionResult]) -> ActionResult:
     """Один запрос — одна транзакция: успех — `commit`, отказ сервиса (`ok=False`) — 422 с его
-    текстом, любая ошибка — откат всего, что запрос успел сделать."""
+    текстом, любая ошибка — откат всего, что запрос успел сделать.
+
+    У учётки с Google Календарём изменённые записи в той же транзакции помечаются «ждут
+    отправки», а после коммита уходят в Google (calendar-01) — как после реплики в чате."""
     try:
         result = change()
         if not result.ok:
@@ -187,11 +194,25 @@ def _in_one_transaction(db: Session, change: Callable[[], ActionResult]) -> Acti
                 status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail=result.error or "Не получилось сохранить запись.",
             )
+        if user.is_account:
+            mark_pending(db, user.id, changed_record_ids(result))
         db.commit()
     except BaseException:
         db.rollback()
         raise
+    if user.is_account:
+        _sync_google(db, user.id, zone.key)
     return result
+
+
+def _sync_google(db: Session, user_id: UUID, tz: str) -> None:
+    """Сбой Google не ломает кнопку: запись уже сохранена, уйдёт при следующем запросе, а
+    «ждут отправки» видно в настройках."""
+    try:
+        sync_after_turn(db, user_id, tz)
+    except Exception:  # noqa: BLE001 — синхронизация не должна ронять ответ
+        db.rollback()
+        log.exception("Синхронизация с Google Календарём упала")
 
 
 def _existing(db: Session, user_id: UUID, record_id: UUID) -> None:
@@ -216,7 +237,7 @@ def create_item(
     пересечения: запись всё равно сохраняется, интерфейс предупреждает."""
     zone = parse_timezone(tz)
     action = CreateRecord(**body.model_dump())
-    result = _in_one_transaction(db, lambda: create_record(db, user.id, action))
+    result = _in_one_transaction(db, user, zone, lambda: create_record(db, user.id, action))
     return _result_in_tz(result, zone)
 
 
@@ -249,7 +270,7 @@ def update_item(
             forget_last_action_for_record(db, user.id, record_id)
         return result
 
-    return _result_in_tz(_in_one_transaction(db, change), zone)
+    return _result_in_tz(_in_one_transaction(db, user, zone, change), zone)
 
 
 @router.post(
@@ -279,4 +300,4 @@ def set_item_status(
             forget_last_action_for_record(db, user.id, record_id)
         return result
 
-    return _result_in_tz(_in_one_transaction(db, change), zone)
+    return _result_in_tz(_in_one_transaction(db, user, zone, change), zone)

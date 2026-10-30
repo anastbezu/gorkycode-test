@@ -98,4 +98,15 @@ describe('NumberedList — сворачивание длинного списк�
     expect(visibleRows[4].dayHeader).toBe('Среда, 28 октября');
     expect(visibleRows[4].displayIndex).toBe(5);
   });
+
+  it('confirm с 12 кандидатами сворачивает список до 8 и оставляет 4 скрытыми', () => {
+    const records = Array.from({ length: 12 }, (_, i) =>
+      makeRec('rec-' + (i + 1), 'Дело ' + (i + 1)),
+    );
+    const { visibleRows, hiddenCount } = buildListRows(records, MSK, NOW, false);
+
+    expect(visibleRows).toHaveLength(8);
+    expect(hiddenCount).toBe(4);
+    expect(formatExpandButtonText(hiddenCount)).toBe('Показать ещё 4');
+  });
 });

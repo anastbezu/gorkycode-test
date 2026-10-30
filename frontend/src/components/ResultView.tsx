@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import type { ActionResult, Record } from '../api/types';
+import type { ActionResult, AwaitingKind, Record } from '../api/types';
+import { resolveQuickReplies, type QuickChip, type QuickReplyModel } from '../lib/quickReplies';
 import {
   dayKey,
   listDayHeader,
@@ -79,8 +80,12 @@ export function buildListRows(
 
 interface Props {
   result: ActionResult | null;
-  awaiting: string | null;
+  awaiting: AwaitingKind;
   tz: string;
+  isLastMessage?: boolean;
+  isPending?: boolean;
+  selectedChip?: string | null;
+  onSendQuickReply?: (sendText: string, chipId: string) => void;
   onOpen?: (record: Record) => void;
   onSetStatus?: (record: Record, status: 'done' | 'active' | 'cancelled') => void;
   onDelete?: (record: Record) => void;
@@ -91,11 +96,33 @@ export function ResultView({
   result,
   awaiting,
   tz,
+  isLastMessage = false,
+  isPending = false,
+  selectedChip = null,
+  onSendQuickReply,
   onOpen,
   onSetStatus,
   onDelete,
   onRestore,
 }: Props) {
+  const quickReplies = resolveQuickReplies(awaiting, result?.candidates, tz);
+  if (quickReplies) {
+    return (
+      <div className="quick-replies-wrap">
+        {quickReplies.candidates && quickReplies.candidates.length > 0 && (
+          <NumberedList records={quickReplies.candidates} tz={tz} onOpen={onOpen} />
+        )}
+        <QuickReplyChips
+          model={quickReplies}
+          isLastMessage={isLastMessage}
+          isPending={isPending}
+          selectedChip={selectedChip}
+          onSendQuickReply={onSendQuickReply}
+        />
+      </div>
+    );
+  }
+
   const model = resolveResultView(result, awaiting, tz);
   if (!model) return null;
 
@@ -397,6 +424,97 @@ export function NumberedList({
           )}
         </button>
       )}
+    </div>
+  );
+}
+
+
+export function QuickReplyChips({
+  model,
+  isLastMessage,
+  isPending,
+  selectedChip,
+  onSendQuickReply,
+}: {
+  model: QuickReplyModel;
+  isLastMessage: boolean;
+  isPending: boolean;
+  selectedChip?: string | null;
+  onSendQuickReply?: (sendText: string, chipId: string) => void;
+}) {
+  const isAnswered = Boolean(selectedChip);
+  const isActive = isLastMessage && !isPending && !isAnswered;
+
+  const handleClick = (chip: QuickChip) => {
+    if (!isActive || !onSendQuickReply) return;
+    onSendQuickReply(chip.sendText, chip.id);
+  };
+
+  return (
+    <div className={`quick-chips quick-chips--${model.kind}`}>
+      {model.chips.map((chip) => {
+        const isSelected = selectedChip === chip.id;
+        const isFaded = (!isActive && !isSelected) || (isAnswered && !isSelected);
+
+        if (chip.variant === 'confirm-yes') {
+          return (
+            <button
+              key={chip.id}
+              type="button"
+              className={`quick-chip quick-chip--confirm-yes ${isSelected ? 'quick-chip--selected' : ''} ${isFaded ? 'quick-chip--faded' : ''}`}
+              disabled={!isActive}
+              onClick={() => handleClick(chip)}
+            >
+              {chip.label}
+            </button>
+          );
+        }
+
+        if (chip.variant === 'confirm-cancel') {
+          return (
+            <button
+              key={chip.id}
+              type="button"
+              className={`quick-chip quick-chip--confirm-cancel ${isSelected ? 'quick-chip--selected' : ''} ${isFaded ? 'quick-chip--faded' : ''}`}
+              disabled={!isActive}
+              onClick={() => handleClick(chip)}
+            >
+              {chip.label}
+            </button>
+          );
+        }
+
+        if (chip.variant === 'choice') {
+          return (
+            <button
+              key={chip.id}
+              type="button"
+              className={`quick-chip quick-chip--choice ${isSelected ? 'quick-chip--selected' : ''} ${isFaded ? 'quick-chip--faded' : ''}`}
+              disabled={!isActive}
+              onClick={() => handleClick(chip)}
+            >
+              {chip.indexBadge !== undefined && (
+                <span className="quick-chip__badge">{chip.indexBadge}</span>
+              )}
+              <span className="quick-chip__label">{chip.label}</span>
+              {chip.subLabel && <span className="quick-chip__sublabel">{chip.subLabel}</span>}
+            </button>
+          );
+        }
+
+        return (
+          <button
+            key={chip.id}
+            type="button"
+            className={`quick-chip quick-chip--time ${isSelected ? 'quick-chip--selected' : ''} ${isFaded ? 'quick-chip--faded' : ''}`}
+            disabled={!isActive}
+            onClick={() => handleClick(chip)}
+          >
+            <span className="quick-chip__time">{chip.label}</span>
+            {chip.subLabel && <span className="quick-chip__period">{chip.subLabel}</span>}
+          </button>
+        );
+      })}
     </div>
   );
 }
