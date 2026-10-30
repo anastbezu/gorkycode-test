@@ -37,7 +37,7 @@ async def handle_list_records(
 async def handle_search_records(
     db, user_id, action: SearchRecords, now: datetime | None = None
 ) -> ActionResult:
-    hits = await asyncio.to_thread(search, db, user_id, action.query, action.filters)
+    hits = await asyncio.to_thread(search, db, user_id, action.query, action.filters, now=now)
     similar = bool(hits) and all(hit.match == "similar" for hit in hits)
     return SearchResult(
         action="search_records", ok=True, records=[hit.record for hit in hits], similar=similar

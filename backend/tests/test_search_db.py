@@ -67,16 +67,27 @@ def user(db):
 
 # ---------- search() ----------
 
-def test_exact_hits_only_newest_first_undated_last(db, user):
-    old = add(db, user, "Согласовать смету с Максимом", at(1))
-    new = add(db, user, "Отправить смету Ивану", at(20))
+def test_exact_hits_nearest_upcoming_then_past_undated_last(db, user):
+    past_old = add(db, user, "Согласовать смету с Максимом", at(1))
+    past_new = add(db, user, "Отправить смету Ивану", at(8))
+    soon = add(db, user, "Смета на дизайн", at(12))
+    later = add(db, user, "Проверить смету подрядчика", at(25))
     undated = add(db, user, "Проверить смету")
     add(db, user, "Подписать договор", at(5))  # не про смету — не в «точно»
 
-    hits = search(db, user, "смета", SearchFilters())
+    hits = search(db, user, "смета", SearchFilters(), now=at(10))
 
-    assert [h.record.id for h in hits] == [new.id, old.id, undated.id]
+    # Будущие от ближних к дальним, затем прошедшие от новых к старым, без даты — в конце.
+    assert [h.record.id for h in hits] == [
+        soon.id, later.id, past_new.id, past_old.id, undated.id]
     assert {h.match for h in hits} == {"exact"}
+
+
+def test_exact_hits_are_all_returned_without_limit(db, user):
+    # «Задачи по Максиму» — 43 записи: число в ответе — все, а не первые 10.
+    rows = [add(db, user, "Позвонить Ивану", at(d)) for d in range(1, 16)]
+    hits = search(db, user, "позвонить Ивану", SearchFilters(), now=at(10))
+    assert {h.record.id for h in hits} == {r.id for r in rows}
 
 
 def test_levels_do_not_mix_when_exact_found(db, user):
@@ -130,10 +141,10 @@ def test_period_uses_deadline_when_no_start(db, user):
     assert [h.record.id for h in hits] == [due.id]
 
 
-def test_limit_keeps_newest_exact(db, user):
+def test_limit_keeps_nearest_exact(db, user):
     rows = [add(db, user, "Позвонить Ивану", at(d)) for d in range(1, 6)]
-    hits = search(db, user, "позвонить Ивану", SearchFilters(), limit=2)
-    assert [h.record.id for h in hits] == [rows[4].id, rows[3].id]
+    hits = search(db, user, "позвонить Ивану", SearchFilters(), limit=2, now=at(3))
+    assert [h.record.id for h in hits] == [rows[2].id, rows[3].id]
 
 
 def test_limit_keeps_closest_similar_shown_by_date(db, user):

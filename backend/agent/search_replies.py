@@ -19,7 +19,8 @@ def reply_for_search(
     records: list[Record], query: str, timezone_name: str, now: datetime, *,
     similar: bool = False,
 ) -> str:
-    """Порядок групп совпадает с shown; представитель повторов — последний по дате.
+    """Порядок групп совпадает с shown; представитель повторов — первый в порядке поиска
+    (ближайший, search.md): будущий — «ближайший …», прошедший — «последний …».
 
     similar — точных нет, это похожие по смыслу (search.md): «Точно не нашёл …. Похожие: …».
     """
@@ -43,9 +44,9 @@ def reply_for_search(
 
     n = len(records)
     noun = plural(n, "запись", "записи", "записей")
-    groups = group_records(records)
+    groups = group_records(records, first_in_order=True)
     phrases = [
-        group_phrase(group, tz) if group.count > 1
+        group_phrase(group, tz, now) if group.count > 1
         else f"«{group.record.title}» — {when_phrase(group.record, tz, today)}"
         for group in groups[:MAX_SPOKEN]
     ]
