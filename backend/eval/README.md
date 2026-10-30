@@ -20,7 +20,7 @@ eval/
 └── reports/                отчёты
 ```
 
-Быстрый слой в CI (без модели) лежит в `tests/` и импортирует отсюда: `test_agent_cases_sync.py`, `test_agent_compare.py`, `test_agent_harness.py`, `test_agent_harness_db.py`, `test_eval_cases.py`, `test_eval_metrics.py`.
+Быстрый слой в CI (без модели) лежит в `tests/` и импортирует отсюда: `test_agent_compare.py`, `test_agent_harness.py`, `test_agent_harness_db.py`, `test_eval_cases.py`, `test_eval_metrics.py`.
 
 ## Наборы агента
 | Файл | Откуда | Кейсов |

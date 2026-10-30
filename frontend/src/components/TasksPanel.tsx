@@ -1,8 +1,9 @@
+import { formatTzLabel } from '../lib/timezones';
 // Панель «Мои дела»: лента из плитки «Без срока» и 5 дней, листание, карточки выбранного дня.
 // Данные — один GET /api/items на 5 дней (usePanel в App), раскладка по дням — здесь.
 import type { Record, RecordType } from '../api/types';
 import { addDaysToKey, dayKey, formatDaysRange, recordAnchor, recordWhen, weekdayShort } from '../lib/dates';
-import { CalendarIcon, CloseIcon, NextIcon, PlusIcon, PrevIcon } from './icons';
+import { CalendarIcon, CloseIcon, GlobeIcon, NextIcon, PlusIcon, PrevIcon } from './icons';
 
 export type PanelState =
   | { status: 'loading'; records: Record[] }
@@ -72,6 +73,7 @@ export function activeUndatedCount(records: Record[]): number {
 interface Props {
   state: PanelState;
   tz: string;
+  browserTz?: string;
   firstDayKey: string;
   selectedDay: number | 'undated';
   onSelectDay: (selection: number | 'undated') => void;
@@ -86,6 +88,7 @@ interface Props {
 export function TasksPanel({
   state,
   tz,
+  browserTz,
   firstDayKey,
   selectedDay,
   onSelectDay,
@@ -149,6 +152,13 @@ export function TasksPanel({
           </button>
         </div>
       </div>
+
+      {browserTz && tz !== browserTz && (
+        <div className="panel__tz-badge">
+          <GlobeIcon />
+          <span>{formatTzLabel(tz)}</span>
+        </div>
+      )}
 
       <div className="days" role="tablist">
         <button
