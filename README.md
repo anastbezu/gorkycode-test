@@ -193,6 +193,10 @@ docker-compose.yaml      база, бэкенд, страница
 
 Отчёт с графиками, матрицей ошибок выбора инструмента и разбором каждой ошибки — [`report.md`](backend/eval/reports/agent-final/report.md) и [`report.pdf`](backend/eval/reports/agent-final/report.pdf); отчёт по каждому набору — рядом. Как запустить прогон и собрать отчёт — [`backend/eval/README.md`](backend/eval/README.md).
 
+Поиск измерен отдельно на стартовом наборе из 1000 записей: на 457 запросах с ответом нужная запись найдена в 441 (96,5 %), ни одна из 587 целей изменения не привела к действию над чужой записью — [`backend/eval/reports/search/report.md`](backend/eval/reports/search/report.md).
+
+**Статья** с архитектурой, устройством агента и поиска и разбором замеров — [`docs/paper/gorky.pdf`](docs/paper/gorky.pdf).
+
 Кроме того, в CI на каждый PR — тесты бэкенда (pytest на настоящем PostgreSQL, модель подменена) и фронтенда (Vitest), автотест агента по эталонным фразам [`docs/test-cases.md`](docs/test-cases.md) на сценарии вместо модели.
 
 ---
@@ -238,7 +242,7 @@ docker-compose.yaml      база, бэкенд, страница
 
 ## Документация
 
-- [Архитектура](docs/architecture.md) · [Принятые решения](docs/decisions.md) · [Возможности](docs/features.md)
+- [Статья (PDF)](docs/paper/gorky.pdf) · [Архитектура](docs/architecture.md) · [Принятые решения](docs/decisions.md) · [Возможности](docs/features.md)
 - [Эталонные фразы](docs/test-cases.md) · [Тексты ассистента](docs/assistant-texts.md) · [Идеи](docs/ideas.md)
 - [Контракты модулей](docs/contracts/) · [Модули](docs/modules/) · [Сервер и деплой](docs/infra.md)
 - [Правила работы в репозитории](docs/dev-guide.md) · [Задачи](docs/tasks/)
