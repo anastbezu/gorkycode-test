@@ -106,22 +106,16 @@ def test_ask_with_draft_keeps_reminder_time_3_5(db: Session, monkeypatch) -> Non
     assert get_conversation_state(db, conversation_id, user_id).pending is None
 
 
-def test_meeting_time_without_day_asks_day_3_8(db: Session, monkeypatch) -> None:
-    from schemas import AskDraft, AskUser
-
-    ask = AskUser(question="На какой день?", missing=["start"], draft=AskDraft(
-        type="meeting", title="встреча с Сергеем", time="14:45"))
+def test_meeting_time_without_day_is_today_3_8(db: Session, monkeypatch) -> None:
     answer = CreateRecord(type="meeting", title="встреча с Сергеем",
-                          start=datetime(2026, 10, 22, tzinfo=TZ), time_given=False)
-    harness = Harness(monkeypatch, scripted(ask, answer), db=db)
+                          start=datetime(2026, 10, 21, 14, 45, tzinfo=TZ), time_given=True)
+    harness = Harness(monkeypatch, scripted(answer), db=db)
     user_id, conversation_id = uuid4(), uuid4()
 
     observed, _ = harness.run_turn("Встреча с Сергеем в 14:45", user_id, conversation_id)
     assert compare(expect("3.8", 0), observed, TZ) == []
-    observed, _ = harness.run_turn("Завтра", user_id, conversation_id)
-    assert compare(expect("3.8", 1), observed, TZ) == []
     [row] = records(db, user_id)
-    assert row.start == datetime(2026, 10, 22, 14, 45, tzinfo=TZ)
+    assert row.start == datetime(2026, 10, 21, 14, 45, tzinfo=TZ)
     assert row.all_day is False
 
 
