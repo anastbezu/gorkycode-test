@@ -80,8 +80,7 @@ macro-F1 0,967, медиана времени реплики — 1,12\,с. По�
 GORKY решает это разделением ответственности:
 \begin{itemize}
   \item \textbf{один вызов модели на реплику}: модель возвращает одно действие из восьми
-    по строгой схеме (tool calling, \citealp{schick2023toolformer}), всё остальное
-    делает код; в отличие от цикла ReAct \citep{yao2023react} нет многошаговых
+    по строгой схеме (tool calling), всё остальное делает код; нет многошаговых
     рассуждений и повторных вызовов — поведение предсказуемо, запросов к модели мало;
   \item \textbf{состояние разговора на сервере}: вместо истории сообщений модель получает
     короткую выжимку — показанные записи под номерами, запись «в фокусе», черновик;
@@ -284,7 +283,7 @@ PostgreSQL с настоящим поиском; каждый кейс испо�
 Кейс пройден, если верны все его реплики. Выбор инструмента оценивается по матрице
 ошибок: precision, recall и F1 по каждому инструменту и macro-F1 — среднее F1. Для
 полей считается доля верных значений; если инструмент выбран неверно, все поля реплики
-засчитываются неверными, как в оценке заполнения слотов \citep{coucke2018snips}. Время
+засчитываются неверными. Время
 реплики — от текста пользователя до готового ответа, включая исполнение на базе.
 
 \subsection{Результаты}
@@ -375,10 +374,6 @@ undo & откат & 20 & 95,0\,\% \\
 \begin{thebibliography}{9}
 \expandafter\ifx\csname url\endcsname\relax\def\url#1{\texttt{#1}}\fi
 
-\bibitem[Coucke et~al.(2018)]{coucke2018snips}
-Alice Coucke, Alaa Saade, Adrien Ball, et~al. 2018. Snips Voice Platform: an embedded spoken language understanding system for
-private-by-design voice interfaces. \emph{arXiv preprint arXiv:1805.10190}.
-
 \bibitem[Korobov(2015)]{korobov2015morphological}
 Mikhail Korobov. 2015. Morphological analyzer and generator for Russian and Ukrainian
 languages. In \emph{Analysis of Images, Social Networks and Texts (AIST 2015)},
@@ -388,20 +383,9 @@ pages 320--332.
 Martin F. Porter. 2001. Snowball: A language for stemming algorithms.
 \url{https://snowballstem.org}.
 
-\bibitem[Schick et~al.(2023)]{schick2023toolformer}
-Timo Schick, Jane Dwivedi-Yu, Roberto Dessì, Roberta Raileanu, Maria Lomeli, Luke
-Zettlemoyer, Nicola Cancedda, and Thomas Scialom. 2023. Toolformer: Language models can
-teach themselves to use tools. In \emph{Advances in Neural Information Processing
-Systems 36}.
-
 \bibitem[rubert-mini-frida()]{frida2024}
 rubert-mini-frida: компактная модель эмбеддингов для русского языка, дистилляция модели
 FRIDA. \url{https://huggingface.co/sergeyzh/rubert-mini-frida}.
-
-\bibitem[Yao et~al.(2023)]{yao2023react}
-Shunyu Yao, Jeffrey Zhao, Dian Yu, Nan Du, Izhak Shafran, Karthik Narasimhan, and Yuan
-Cao. 2023. ReAct: Synergizing reasoning and acting in language models. In
-\emph{International Conference on Learning Representations (ICLR)}.
 
 \bibitem[Yao et~al.(2024)]{yao2024taubench}
 Shunyu Yao, Noah Shinn, Pedram Razavi, and Karthik Narasimhan. 2024. $\tau$-bench: A
