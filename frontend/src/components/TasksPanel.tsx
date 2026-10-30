@@ -1,27 +1,16 @@
-import { useEffect, useRef, useState } from 'react';
 import { formatTzLabel } from '../lib/timezones';
 // Панель «Мои дела»: лента из плитки «Без срока» и 5 дней, листание, карточки выбранного дня.
 // Данные — один GET /api/items на 5 дней (usePanel в App), раскладка по дням — здесь.
 import type { Record, RecordType } from '../api/types';
 import { addDaysToKey, dayKey, formatDaysRange, recordAnchor, recordWhen, weekdayShort } from '../lib/dates';
-import {
-  CalendarIcon,
-  CheckIcon,
-  CloseIcon,
-  GlobeIcon,
-  MoreHorizontalIcon,
-  NextIcon,
-  PlusIcon,
-  PrevIcon,
-  TrashIcon,
-} from './icons';
+import { CalendarIcon, CloseIcon, GlobeIcon, NextIcon, PlusIcon, PrevIcon } from './icons';
 
 export type PanelState =
   | { status: 'loading'; records: Record[] }
   | { status: 'ready'; records: Record[] }
   | { status: 'error'; records: Record[]; message: string };
 
-export const TYPE_TAG: { [K in RecordType]: string } = {
+const TYPE_TAG: { [K in RecordType]: string } = {
   task: 'Задача',
   meeting: 'Встреча',
   reminder: 'Напоминание',
@@ -60,24 +49,25 @@ export function groupByDay(records: Record[], tz: string): { byDay: Map<string, 
       return Date.parse(recordAnchor(a)!) - Date.parse(recordAnchor(b)!);
     });
   }
-  undated.sort((a, b) => ((a.status === 'done') !== (b.status === 'done') ? (a.status === 'done' ? 1 : -1) : 0));
+  undated.sort((a, b) => {
+    if ((a.status === 'done') !== (b.status === 'done')) return a.status === 'done' ? 1 : -1;
+    return a.title.localeCompare(b.title);
+  });
   return { byDay, undated };
 }
 
-/** Количество невыполненных дел без срока для бейджа в плитке. */
-export function activeUndatedCount(records: Record[]): number {
-  return records.filter((r) => !recordAnchor(r) && r.status === 'active').length;
-}
-
-/** Количество невыполненных дел на сегодня для шапки чата (только активные со сроком на сегодня). */
-export function activeTodayCount(records: Record[], tz: string, now: Date): number {
+/** «Мои дела · N» — активные записи на сегодня. */
+export function activeTodayCount(records: Record[], tz: string, now: Date = new Date()): number {
   const today = dayKey(now, tz);
   return records.filter((r) => {
-    if (r.status !== 'active') return false;
     const anchor = recordAnchor(r);
-    if (!anchor) return false;
-    return dayKey(new Date(anchor), tz) === today;
+    return r.status === 'active' && anchor !== null && dayKey(new Date(anchor), tz) === today;
   }).length;
+}
+
+/** Число активных записей без даты (для плитки «Без срока»). */
+export function activeUndatedCount(records: Record[]): number {
+  return records.filter((r) => r.status === 'active' && !recordAnchor(r)).length;
 }
 
 interface Props {
@@ -92,9 +82,6 @@ interface Props {
   onRetry: () => void;
   onClose: () => void;
   onOpen?: (record: Record) => void;
-  onEdit?: (record: Record) => void;
-  onToggleStatus?: (record: Record) => void;
-  onDelete?: (record: Record) => void;
   onCreate?: (dayKey?: string) => void;
 }
 
@@ -110,9 +97,6 @@ export function TasksPanel({
   onRetry,
   onClose,
   onOpen,
-  onEdit,
-  onToggleStatus,
-  onDelete,
   onCreate,
 }: Props) {
   const now = new Date();
@@ -176,28 +160,33 @@ export function TasksPanel({
         </div>
       )}
 
-      {/* Горизонтальная лента 5 дней + «Без срока» */}
-      <div className="days" role="tablist" aria-label="Дни недели">
+      <div className="days" role="tablist">
         <button
           type="button"
           role="tab"
           aria-selected={isUndatedSelected}
-          className={`days__tile days__tile--undated${isUndatedSelected ? ' days__tile--active' : ''}`}
+          className={`days__day days__day--undated${isUndatedSelected ? ' days__day--selected' : ''}`}
           onClick={() => onSelectDay('undated')}
         >
-          <span className="days__undated-title">Без срока</span>
-          <span className="days__undated-count">{loaded ? activeUndated : '—'}</span>
+          <span className="days__name">
+            Без
+            <br />
+            срока
+          </span>
+          <span className="days__num">{activeUndated}</span>
         </button>
 
         {keys.map((key, i) => {
-          const isSelected = selectedDay === i;
           const isToday = key === todayKey;
           const isTomorrow = key === tomorrowKey;
-          const dayNum = Number(key.slice(8));
-          const hasItems = (byDay.get(key)?.length ?? 0) > 0;
-          const weekday = weekdayShort(key);
+          const isSelected = selectedDay === i;
+          const isTodayOutline = isToday && isUndatedSelected;
+          const dayActiveCount = (byDay.get(key) ?? []).filter((r) => r.status === 'active').length;
+          const hasActive = dayActiveCount > 0;
 
-          const title = isToday ? 'Сегодня' : isTomorrow ? 'Завтра' : weekday;
+          let dayName = weekdayShort(key);
+          if (isToday) dayName = 'Сегодня';
+          else if (isTomorrow) dayName = 'Завтра';
 
           return (
             <button
@@ -205,31 +194,34 @@ export function TasksPanel({
               type="button"
               role="tab"
               aria-selected={isSelected}
-              className={`days__tile${isSelected ? ' days__tile--active' : ''}${isToday ? ' days__tile--today' : ''}`}
+              className={`days__day${isSelected ? ' days__day--selected' : ''}${isTodayOutline ? ' days__day--today-outline' : ''}`}
               onClick={() => onSelectDay(i)}
             >
-              <span className="days__weekday">{title}</span>
-              <span className="days__num">{dayNum}</span>
-              <span className={`days__dot${hasItems ? ' days__dot--on' : ''}`} />
+              <span className="days__name">{dayName}</span>
+              <span className="days__num">{Number(key.slice(8))}</span>
+              <span className={`days__dot${hasActive ? ' days__dot--on' : ''}`} />
             </button>
           );
         })}
       </div>
 
-      {/* Список дел выбранного дня */}
-      <div className="panel__list">
+      <div className="panel__body">
         {state.status === 'error' && (
-          <div className="panel__note panel__note--error">
-            <p>Не удалось загрузить дела.</p>
-            <p className="panel__note-detail">{state.message}</p>
-            <button type="button" className="btn btn--glass" onClick={onRetry}>
+          <div className="panel__error-card">
+            <p className="panel__error-text">Не удалось загрузить дела.</p>
+            <button type="button" className="btn panel__error-btn" onClick={onRetry}>
               Повторить
             </button>
           </div>
         )}
 
         {state.status === 'loading' && state.records.length === 0 && (
-          <div className="panel__loading" aria-label="Загрузка списка">
+          <div className="panel__skeletons" aria-label="Загрузка">
+            <div className="card card--skeleton">
+              <div className="skeleton-bar skeleton-bar--tag" />
+              <div className="skeleton-bar skeleton-bar--title" />
+              <div className="skeleton-bar skeleton-bar--time" />
+            </div>
             <div className="card card--skeleton">
               <div className="skeleton-bar skeleton-bar--tag" />
               <div className="skeleton-bar skeleton-bar--title" />
@@ -265,71 +257,32 @@ export function TasksPanel({
           state.status !== 'error' &&
           (isUndatedSelected
             ? undated.map((record) => (
-                <TaskCard
-                  key={record.id}
-                  record={record}
-                  tz={tz}
-                  now={now}
-                  when=""
-                  onOpen={onOpen}
-                  onToggleStatus={onToggleStatus}
-                  onEdit={onEdit}
-                  onDelete={onDelete}
-                />
+                <TaskCard key={record.id} record={record} tz={tz} now={now} when="" onOpen={onOpen} />
               ))
             : dayRecords.map((record) => (
-                <TaskCard
-                  key={record.id}
-                  record={record}
-                  tz={tz}
-                  now={now}
-                  onOpen={onOpen}
-                  onToggleStatus={onToggleStatus}
-                  onEdit={onEdit}
-                  onDelete={onDelete}
-                />
+                <TaskCard key={record.id} record={record} tz={tz} now={now} onOpen={onOpen} />
               )))}
       </div>
     </aside>
   );
 }
 
-/** Компонент «Карточка дела». Поддерживает чекбокс выполнения, тег, меню «···» и открытие деталей. */
+/** Компонент «Карточка дела». `when` — своя подпись времени (в календаре — без даты: она в заголовке дня). */
 export function TaskCard({
   record,
   tz,
   now,
   when,
   onOpen,
-  onToggleStatus,
-  onEdit,
-  onDelete,
 }: {
   record: Record;
   tz: string;
   now: Date;
   when?: string;
   onOpen?: (record: Record) => void;
-  onToggleStatus?: (record: Record) => void;
-  onEdit?: (record: Record) => void;
-  onDelete?: (record: Record) => void;
 }) {
-  const [menuOpen, setMenuOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
   const done = record.status === 'done';
   const clickable = Boolean(onOpen);
-
-  useEffect(() => {
-    if (!menuOpen) return;
-    const handleClick = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setMenuOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
-  }, [menuOpen]);
-
   return (
     <div
       className={`card${done ? ' card--done' : ''}${clickable ? ' card--clickable' : ''}`}
@@ -342,71 +295,10 @@ export function TaskCard({
           : undefined
       }
     >
-      <div className="card__header">
-        <button
-          type="button"
-          className={`card__checkbox ${done ? 'card__checkbox--done' : ''}`}
-          onClick={(e) => {
-            e.stopPropagation();
-            onToggleStatus?.(record);
-          }}
-          aria-label={done ? 'Отметить как не выполнено' : 'Отметить как выполнено'}
-        >
-          {done && <CheckIcon width={12} height={12} />}
-        </button>
-
-        <span className={`tag ${done ? 'tag--done' : 'tag--type'}`}>
-          {TYPE_TAG[record.type]}
-          {done ? ' · выполнено' : ''}
-        </span>
-
-        {(onEdit || onDelete) && (
-          <div className="card__menu-anchor" ref={menuRef}>
-            <button
-              type="button"
-              className="icon-btn card__more-btn"
-              onClick={(e) => {
-                e.stopPropagation();
-                setMenuOpen((v) => !v);
-              }}
-              aria-label="Действия с записью"
-            >
-              <MoreHorizontalIcon />
-            </button>
-            {menuOpen && (
-              <div className="card-menu-dropdown" onClick={(e) => e.stopPropagation()}>
-                {onEdit && (
-                  <button
-                    type="button"
-                    className="card-menu-item"
-                    onClick={() => {
-                      setMenuOpen(false);
-                      onEdit(record);
-                    }}
-                  >
-                    <CalendarIcon />
-                    <span>Перенести / изменить</span>
-                  </button>
-                )}
-                {onDelete && (
-                  <button
-                    type="button"
-                    className="card-menu-item card-menu-item--danger"
-                    onClick={() => {
-                      setMenuOpen(false);
-                      onDelete(record);
-                    }}
-                  >
-                    <TrashIcon width={14} height={14} />
-                    <span>Удалить</span>
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
+      <span className={`tag ${done ? 'tag--done' : 'tag--type'}`}>
+        {TYPE_TAG[record.type]}
+        {done ? ' · выполнено' : ''}
+      </span>
       <div className="card__title">{record.title}</div>
       <div className="card__when">{when ?? recordWhen(record, tz, now)}</div>
     </div>

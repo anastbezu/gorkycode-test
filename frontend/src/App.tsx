@@ -18,7 +18,6 @@ import type { Account, ActionResult, LLMConfig, Record } from './api/types';
 import { AuthModal } from './components/AuthModal';
 import { Background } from './components/Background';
 import { CalendarView } from './components/CalendarView';
-import { RecordDetailsModal } from './components/RecordDetailsModal';
 import { RecordDialog, type RecordDialogTarget } from './components/RecordDialog';
 import { ResultView } from './components/ResultView';
 import { SettingsModal } from './components/SettingsModal';
@@ -276,9 +275,6 @@ export function App() {
   conversationId.current = chat.conversationId;
   const voiceAvailable = canRecord();
   const [recording, setRecording] = useState<Recording | null>(null);
-  const [detailsRecord, setDetailsRecord] = useState<Record | null>(null);
-
-
   // «Озвучка недоступна» — одно сообщение за всё время страницы
   const noVoiceShown = useRef(false);
 
@@ -349,27 +345,6 @@ export function App() {
         } else {
           updateRecordInFeed({ ...record, status });
         }
-      } catch (err) {
-        if (err instanceof ApiError && err.kind === 'rejected') {
-          setBanner({ text: err.detail });
-        } else {
-          setBanner({ text: 'Нет ответа от сервера, проверьте список.' });
-        }
-      }
-    },
-    [tz, panel, updateRecordInFeed],
-  );
-
-  const handleToggleRecordStatus = useCallback(
-    async (record: Record) => {
-      const nextStatus = record.status === 'done' ? 'active' : 'done';
-      try {
-        const res = await setItemStatus(record.id, nextStatus, tz);
-        void panel.load();
-        setCalendarReloadKey((k) => k + 1);
-        const updated = res.records?.[0] ?? { ...record, status: nextStatus };
-        updateRecordInFeed(updated);
-        setDetailsRecord((prev) => (prev?.id === record.id ? updated : prev));
       } catch (err) {
         if (err instanceof ApiError && err.kind === 'rejected') {
           setBanner({ text: err.detail });
@@ -903,23 +878,6 @@ export function App() {
       )}
 
       <Toast toast={toast} onRestore={handleRestoreRecord} onDismiss={() => setToast(null)} />
-
-      {detailsRecord && (
-        <RecordDetailsModal
-          record={detailsRecord}
-          tz={tz}
-          onClose={() => setDetailsRecord(null)}
-          onEdit={(record) => {
-            setDetailsRecord(null);
-            setDialogTarget({ mode: 'edit', record });
-          }}
-          onToggleStatus={handleToggleRecordStatus}
-          onDelete={(record) => {
-            setDetailsRecord(null);
-            void handleDeleteRecord(record);
-          }}
-        />
-      )}
 
       {dialogTarget && (
         <RecordDialog
