@@ -20,6 +20,8 @@ import type {
   Record,
   RecordStatus,
   UpdateItem,
+  GoogleCalendarStatus,
+  GoogleConnectResponse,
 } from './types';
 
 const USER_HEADER = 'X-User-Id';
@@ -436,4 +438,67 @@ export async function fetchMe(): Promise<Account> {
 
 export function currentAccount(): Account | null {
   return auth?.account ?? null;
+}
+
+// --- Google Календарь (frontend-09) ------------------------------------------------------
+
+const CALENDAR_TIMEOUT_MS = 15_000;
+
+export async function fetchGoogleCalendarStatus(): Promise<GoogleCalendarStatus | null> {
+  if (!auth?.token) {
+    return null;
+  }
+  const { res } = await asUser((_id, token) =>
+    fetchWithTimeout('/api/calendar/google', { headers: headersFor(null, token) }, CALENDAR_TIMEOUT_MS),
+  );
+  if (res.status === 403) {
+    return null;
+  }
+  if (res.status === 503) {
+    return {
+      state: 'not_connected',
+      email: null,
+      error: null,
+      pending: 0,
+      unavailable: true,
+    };
+  }
+  return parse<GoogleCalendarStatus>(res);
+}
+
+export async function connectGoogleCalendar(tz: string): Promise<string> {
+  if (!auth?.token) {
+    throw new ApiError('rejected', 401, 'Не выполнен вход');
+  }
+  const { res } = await asUser((_id, token) =>
+    fetchWithTimeout(
+      `/api/calendar/google/connect?tz=${encodeURIComponent(tz)}`,
+      {
+        method: 'POST',
+        headers: headersFor(null, token),
+      },
+      CALENDAR_TIMEOUT_MS,
+    ),
+  );
+  const data = await parse<GoogleConnectResponse>(res);
+  return data.auth_url;
+}
+
+export async function disconnectGoogleCalendar(): Promise<void> {
+  if (!auth?.token) {
+    throw new ApiError('rejected', 401, 'Не выполнен вход');
+  }
+  const { res } = await asUser((_id, token) =>
+    fetchWithTimeout(
+      '/api/calendar/google',
+      {
+        method: 'DELETE',
+        headers: headersFor(null, token),
+      },
+      CALENDAR_TIMEOUT_MS,
+    ),
+  );
+  if (res.status !== 204 && !res.ok) {
+    await parse(res);
+  }
 }
