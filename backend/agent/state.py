@@ -24,7 +24,12 @@ from schemas import (
 
 MUTATIONS = {"create_record", "update_record", "set_status"}
 LIST_ACTIONS = {"list_records", "search_records"}
-REFUSALS = {"не надо", "забудь", "отмена", "проехали", "забей", "неважно", "отбой", "стоп"}
+REFUSALS = {
+    "не надо", "забудь", "отмена", "проехали", "забей", "неважно", "отбой", "стоп",
+    "передумал", "я передумал", "не надо наверное",
+}
+# «Нет» — отказ только на подтверждение «Отменить N …?»: в уточнении «нет, в 16» — ответ.
+CONFIRM_REFUSALS = {"нет"}
 # Ждём выбора записи из кандидатов: одной (`choice`) или подтверждения всех (`confirm`).
 CHOOSING = {"choice", "confirm"}
 NUMBER = re.compile(r"номер (\d{1,3})")
@@ -42,7 +47,8 @@ def _normalized(text: str) -> str:
 def is_refusal(text: str, state: ConversationState) -> bool:
     if state.awaiting is None:
         return False
-    return _normalized(text) in REFUSALS
+    phrase = _normalized(text)
+    return phrase in REFUSALS or (state.awaiting == "confirm" and phrase in CONFIRM_REFUSALS)
 
 
 def chosen_number(text: str, state: ConversationState) -> int | None:
