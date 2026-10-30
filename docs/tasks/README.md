@@ -31,7 +31,8 @@ backend-01-model-dannyh.md
 | [frontend-08](frontend-08-chipy-vybora-i-podtverzhdeniya.md) | `frontend` | Ася | Чипы выбора записи, «Да, все / Отмена», чипы времени встречи (после frontend-06 и agent-10) |
 | [product-06](product-06-makety-tema-vid-kalendarya-napominaniya.md) | `product` | Маша | Макеты: тема «как в системе», календарь «день» и «неделя», напоминания в браузере, часовой пояс |
 | [product-07](product-07-teksty-po-novomu-kodu.md) | `product` | Маша | Тексты ассистента по коду develop: `awaiting` из четырёх значений, массовое «выполнено», шаблоны agent-07 в разделе 14, две поправки к эталонам (после product-03) |
-| [frontend-09](frontend-09-google-kalendar-v-nastroykah.md) | `frontend` | Ася | Google Календарь в настройках: подключить, состояние, переподключить, отключить, уведомление после возврата; страница `privacy.html` и ссылка на неё |
+| [frontend-09](frontend-09-google-kalendar-v-nastroykah.md) | `frontend` | Ася  | Google Календарь в настройках: подключить, состояние, переподключить, отключить, уведомление после возврата; страница `privacy.html` и ссылка на неё |
+| [agent-11](agent-11-shablony-po-tekstam-assistenta.md) | `agent` | Илья | Шаблоны ответов по `assistant-texts.md`: даты словами, «Добавил задачу…», ошибки с «ничего не сохранено», проверка правил раздела 13 тестами |
 
 ## Архив — выполненные задачи
 
