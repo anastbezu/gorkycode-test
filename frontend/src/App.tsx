@@ -1,3 +1,4 @@
+import { checkUpcomingReminders } from './lib/notifications';
 // Страница ассистента: чат слева, «Мои дела» справа (на телефоне — шторкой), настройки LLM.
 // Состояние разговора и ленты — здесь; сеть — api/client.ts; показ дат — lib/dates.ts.
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -25,6 +26,8 @@ import { activeTodayCount, panelDayKeys, PANEL_DAYS, TasksPanel, type PanelState
 import { RecordingIndicator } from './components/RecordingIndicator';
 import {
   AlertCircleIcon,
+  ChevronDownIcon,
+  LogoutIcon,
   BackIcon,
   CalendarIcon,
   MicIcon,
@@ -41,10 +44,17 @@ import {
   applyTheme,
   loadChat,
   loadLLMConfig,
+  loadReminderSettings,
   loadTheme,
+  loadTimezone,
+  loadVoiceOutput,
   saveChat,
   saveLLMConfig,
+  saveReminderSettings,
   saveTheme,
+  saveTimezone,
+  saveVoiceOutput,
+  type ReminderSettings,
   type ChatMessage,
   type StoredChat,
   type ThemeChoice,
@@ -166,7 +176,16 @@ function usePanel(tz: string) {
 }
 
 export function App() {
-  const tz = browserTimeZone();
+  const browserTz = browserTimeZone();
+  const [customTz, setCustomTz] = useState<string | null>(loadTimezone);
+  const tz = customTz || browserTz;
+
+  const [voiceOutput, setVoiceOutput] = useState<boolean>(loadVoiceOutput);
+  const [reminders, setReminders] = useState<ReminderSettings>(loadReminderSettings);
+  const notifiedReminders = useRef<Set<string>>(new Set());
+
+  const [profileOpen, setProfileOpen] = useState(false);
+  const profileRef = useRef<HTMLDivElement>(null);
   const [account, setAccount] = useState<Account | null>(currentAccount);
   const [authOpen, setAuthOpen] = useState(false);
   const [dialogTarget, setDialogTarget] = useState<RecordDialogTarget | null>(null);
@@ -216,6 +235,19 @@ export function App() {
 
   const isDark = theme ? theme === 'dark' : systemDark;
 
+  useEffect(() => {
+    const onDocClick = (e: MouseEvent) => {
+      if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
+        setProfileOpen(false);
+      }
+    };
+    if (profileOpen) {
+      document.addEventListener('mousedown', onDocClick);
+    }
+    return () => document.removeEventListener('mousedown', onDocClick);
+  }, [profileOpen]);
+
+
   const toggleTheme = useCallback(() => {
     const next: ThemeChoice = isDark ? 'light' : 'dark';
     saveTheme(next);
@@ -224,6 +256,16 @@ export function App() {
   }, [isDark]);
 
   const panel = usePanel(tz);
+
+  useEffect(() => {
+    if (!reminders.enabled) return;
+    const runCheck = () => {
+      checkUpcomingReminders(panel.state.records, reminders.leadMinutes, notifiedReminders.current, tz);
+    };
+    runCheck();
+    const interval = setInterval(runCheck, 30 * 1000);
+    return () => clearInterval(interval);
+  }, [panel.state.records, reminders, tz]);
   const [screen, goTo] = useScreen();
   const feedEnd = useRef<HTMLDivElement>(null);
   // Отправка идёт — вторая не начинается, даже если состояние ещё не перерисовалось
@@ -412,11 +454,13 @@ export function App() {
         });
         void panel.load();
         // Озвучивается каждый ответ — и на голос, и на набранный текст
-        void speak(res.reply, () => {
-          if (noVoiceShown.current) return;
-          noVoiceShown.current = true;
-          setBanner({ text: NO_VOICE_TEXT });
-        });
+        if (voiceOutput) {
+          void speak(res.reply, () => {
+            if (noVoiceShown.current) return;
+            noVoiceShown.current = true;
+            setBanner({ text: NO_VOICE_TEXT });
+          });
+        }
       } catch (err) {
         onError?.();
         if (err instanceof ApiError && err.kind === 'rejected') {
@@ -521,11 +565,6 @@ export function App() {
     await send(text, true);
   };
 
-  const saveSettings = (cfg: LLMConfig) => {
-    saveLLMConfig(cfg);
-    setLlmConfig(cfg);
-    setSettingsOpen(false);
-  };
 
   useEffect(() => {
     if (!sheetOpen) return;
@@ -572,17 +611,42 @@ export function App() {
             <SettingsIcon />
           </button>
           {account ? (
-            <div className="header__user">
-              <span className="header__username" title={account.login}>
-                {account.login}
-              </span>
+            <div className="header__profile" ref={profileRef}>
               <button
                 type="button"
-                className="btn btn--glass header__logout-btn"
-                onClick={() => void handleLogout()}
+                className="profile-btn"
+                onClick={() => setProfileOpen((prev) => !prev)}
+                aria-expanded={profileOpen}
+                aria-label={`Профиль ${account.login}`}
               >
-                Выйти
+                <span className="profile-btn__avatar">{account.login.charAt(0).toUpperCase()}</span>
+                <span className="profile-btn__login">{account.login}</span>
+                <ChevronDownIcon />
               </button>
+              {profileOpen && (
+                <div className="profile-dropdown">
+                  <div className="profile-dropdown__info">
+                    <div className="profile-dropdown__head">
+                      <span className="profile-dropdown__name">{account.login}</span>
+                      {account.login.toLowerCase().includes('jury') && (
+                        <span className="badge badge--demo">демо</span>
+                      )}
+                    </div>
+                    <span className="profile-dropdown__sub">Вы вошли</span>
+                  </div>
+                  <button
+                    type="button"
+                    className="profile-dropdown__logout"
+                    onClick={() => {
+                      setProfileOpen(false);
+                      void handleLogout();
+                    }}
+                  >
+                    <LogoutIcon />
+                    <span>Выйти</span>
+                  </button>
+                </div>
+              )}
             </div>
           ) : (
             <button
@@ -798,6 +862,7 @@ export function App() {
         <TasksPanel
           state={panel.state}
           tz={tz}
+          browserTz={browserTz}
           firstDayKey={panel.firstDayKey}
           selectedDay={panel.selectedDay}
           onSelectDay={panel.setSelectedDay}
@@ -825,7 +890,37 @@ export function App() {
       )}
 
       {settingsOpen && (
-        <SettingsModal initial={llmConfig} isLoggedIn={account !== null} tz={tz} onSave={saveSettings} onClose={() => setSettingsOpen(false)} />
+        <SettingsModal
+          initialConfig={llmConfig}
+          initialTheme={theme ?? 'system'}
+          initialTimezone={customTz}
+          initialVoiceOutput={voiceOutput}
+          initialReminders={reminders}
+          browserTz={browserTz}
+          isLoggedIn={account !== null}
+          onSave={(newSettings) => {
+            saveLLMConfig(newSettings.config);
+            setLlmConfig(newSettings.config);
+
+            const nextTheme: ThemeChoice | null =
+              newSettings.theme === 'system' ? null : newSettings.theme;
+            saveTheme(nextTheme);
+            applyTheme(nextTheme);
+            setTheme(nextTheme);
+
+            saveTimezone(newSettings.timezone);
+            setCustomTz(newSettings.timezone);
+
+            saveVoiceOutput(newSettings.voiceOutput);
+            setVoiceOutput(newSettings.voiceOutput);
+
+            saveReminderSettings(newSettings.reminders);
+            setReminders(newSettings.reminders);
+
+            setSettingsOpen(false);
+          }}
+          onClose={() => setSettingsOpen(false)}
+        />
       )}
 
       {authOpen && (
