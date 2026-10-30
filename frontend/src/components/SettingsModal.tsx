@@ -1,11 +1,15 @@
-// Настройки LLM (фреймы «Настройки LLM · сервер» и «· свои»): три поля LLMConfig.
-// Метка показывает сохранённое состояние (сервер / свои). Сброс очищает поля до сохранения.
+// Настройки (фреймы «Настройки LLM · сервер», «· свои» и блок «Google Календарь»):
+// три поля LLMConfig, статус модели, секция внешнего календаря для авторизованных
+// и ссылка на политику конфиденциальности.
 import { useEffect, useState } from 'react';
 import type { LLMConfig } from '../api/types';
 import { CloseIcon, EyeIcon, EyeOffIcon, ServerIcon, UserIcon } from './icons';
+import { GoogleCalendarSection } from './GoogleCalendarSection';
 
 interface Props {
   initial: LLMConfig;
+  isLoggedIn?: boolean;
+  tz?: string;
   onSave: (cfg: LLMConfig) => void;
   onClose: () => void;
 }
@@ -25,7 +29,7 @@ export function sanitizeConfig(fields: { base_url: string; model: string; api_ke
   };
 }
 
-export function SettingsModal({ initial, onSave, onClose }: Props) {
+export function SettingsModal({ initial, isLoggedIn = false, tz, onSave, onClose }: Props) {
   const [baseUrl, setBaseUrl] = useState(initial.base_url ?? '');
   const [model, setModel] = useState(initial.model ?? '');
   const [apiKey, setApiKey] = useState(initial.api_key ?? '');
@@ -56,7 +60,7 @@ export function SettingsModal({ initial, onSave, onClose }: Props) {
       <form className="modal__dialog" onSubmit={save} role="dialog" aria-modal="true" aria-labelledby="settings-title">
         <div className="modal__head">
           <h2 id="settings-title" className="modal__title">
-            Настройки LLM
+            Настройки
           </h2>
           <button type="button" className="icon-btn" onClick={onClose} aria-label="Закрыть">
             <CloseIcon />
@@ -121,6 +125,21 @@ export function SettingsModal({ initial, onSave, onClose }: Props) {
               : 'Заполните поля, чтобы подключить свою модель.'}
           </span>
         </label>
+
+        {isLoggedIn && (
+          <GoogleCalendarSection tz={tz ?? Intl.DateTimeFormat().resolvedOptions().timeZone} />
+        )}
+
+        <div className="settings-privacy">
+          <a
+            href="/privacy.html"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="settings-privacy__link"
+          >
+            Политика конфиденциальности
+          </a>
+        </div>
 
         <div className="modal__actions modal__actions--settings">
           <button

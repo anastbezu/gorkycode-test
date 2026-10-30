@@ -43,11 +43,13 @@ export interface ChatRequest {
   llm_config?: LLMConfig;
 }
 
+export type AwaitingKind = 'answer' | 'choice' | 'confirm' | 'time' | null;
+
 export interface ChatResponse {
   conversation_id: string;
   reply: string;
   result: ActionResult | null;
-  awaiting: 'answer' | 'choice' | null;
+  awaiting: AwaitingKind;
 }
 
 export interface Credentials {
@@ -85,4 +87,18 @@ export interface UpdateItem {
 
 export interface SetItemStatus {
   status: RecordStatus;
+}
+
+export type GoogleCalendarState = 'not_connected' | 'connected' | 'error';
+
+export interface GoogleCalendarStatus {
+  state: GoogleCalendarState;
+  email: string | null;
+  error: string | null;
+  pending: number;
+  unavailable?: boolean;
+}
+
+export interface GoogleConnectResponse {
+  auth_url: string;
 }
