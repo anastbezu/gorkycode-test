@@ -1,0 +1,804 @@
+{
+  "dataset": "traps",
+  "source": "генерация моделью по контрактам docs/contracts",
+  "author": "Claude Sonnet 5.5, 2026-10-29",
+  "now": "2026-10-21 10:00",
+  "timezone": "Europe/Moscow",
+  "cases": [
+    {
+      "id": "tr.1",
+      "category": "справка",
+      "turns": [
+        {
+          "text": "Что ты умеешь?",
+          "expect": {
+            "action": "help",
+            "kind": "help"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tr.2",
+      "category": "справка",
+      "turns": [
+        {
+          "text": "Как с тобой работать?",
+          "expect": {
+            "action": "help",
+            "kind": "help"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tr.3",
+      "category": "справка",
+      "turns": [
+        {
+          "text": "Какие у тебя есть команды?",
+          "expect": {
+            "action": "help",
+            "kind": "help"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tr.4",
+      "category": "справка",
+      "turns": [
+        {
+          "text": "Помоги разобраться, что ты можешь",
+          "expect": {
+            "action": "help",
+            "kind": "help"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tr.5",
+      "category": "справка",
+      "turns": [
+        {
+          "text": "ну а ты вообще что умеешь то",
+          "expect": {
+            "action": "help",
+            "kind": "help"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tr.6",
+      "category": "справка",
+      "turns": [
+        {
+          "text": "Что можно у тебя спросить?",
+          "expect": {
+            "action": "help",
+            "kind": "help"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tr.7",
+      "category": "справка",
+      "turns": [
+        {
+          "text": "Покажи примеры команд",
+          "expect": {
+            "action": "help",
+            "kind": "help"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tr.8",
+      "category": "справка",
+      "turns": [
+        {
+          "text": "Хелп",
+          "expect": {
+            "action": "help",
+            "kind": "help"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tr.9",
+      "category": "справка",
+      "turns": [
+        {
+          "text": "Объясни, как поставить встречу",
+          "expect": {
+            "action": "help",
+            "kind": "help"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tr.10",
+      "category": "справка",
+      "turns": [
+        {
+          "text": "Расскажи, как отменить запись",
+          "expect": {
+            "action": "help",
+            "kind": "help"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tr.11",
+      "category": "посторонняя тема",
+      "turns": [
+        {
+          "text": "Какая завтра погода в Москве?",
+          "expect": {
+            "action": "help",
+            "kind": "offtopic"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tr.12",
+      "category": "посторонняя тема",
+      "turns": [
+        {
+          "text": "Расскажи анекдот",
+          "expect": {
+            "action": "help",
+            "kind": "offtopic"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tr.13",
+      "category": "посторонняя тема",
+      "turns": [
+        {
+          "text": "Какой сейчас курс доллара?",
+          "expect": {
+            "action": "help",
+            "kind": "offtopic"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tr.14",
+      "category": "посторонняя тема",
+      "turns": [
+        {
+          "text": "Какая столица у Австралии?",
+          "expect": {
+            "action": "help",
+            "kind": "offtopic"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tr.15",
+      "category": "посторонняя тема",
+      "turns": [
+        {
+          "text": "Сколько будет пятнадцать умножить на семь?",
+          "expect": {
+            "action": "help",
+            "kind": "offtopic"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tr.16",
+      "category": "посторонняя тема",
+      "turns": [
+        {
+          "text": "Посоветуй фильм на вечер",
+          "expect": {
+            "action": "help",
+            "kind": "offtopic"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tr.17",
+      "category": "посторонняя тема",
+      "turns": [
+        {
+          "text": "Напиши стих про осень",
+          "expect": {
+            "action": "help",
+            "kind": "offtopic"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tr.18",
+      "category": "посторонняя тема",
+      "turns": [
+        {
+          "text": "Как приготовить борщ?",
+          "expect": {
+            "action": "help",
+            "kind": "offtopic"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tr.19",
+      "category": "посторонняя тема",
+      "turns": [
+        {
+          "text": "Включи музыку",
+          "expect": {
+            "action": "help",
+            "kind": "offtopic"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tr.20",
+      "category": "посторонняя тема",
+      "turns": [
+        {
+          "text": "Переведи на английский слово «договор»",
+          "expect": {
+            "action": "help",
+            "kind": "offtopic"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tr.21",
+      "category": "две команды",
+      "turns": [
+        {
+          "text": "Покажи что у меня завтра и перенеси первую встречу на пятницу",
+          "expect": {
+            "action": "list_records",
+            "date_from": "2026-10-22 00:00",
+            "date_to": "2026-10-23 00:00",
+            "types": "all"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tr.22",
+      "category": "две команды",
+      "turns": [
+        {
+          "text": "Что у меня сегодня, и отмени всё на завтра",
+          "expect": {
+            "action": "list_records",
+            "date_from": "2026-10-21 00:00",
+            "date_to": "2026-10-22 00:00",
+            "types": "all"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tr.23",
+      "category": "две команды",
+      "turns": [
+        {
+          "text": "Отмени встречу с Иваном и поставь встречу с Петей на пятницу в 15",
+          "expect": {
+            "action": "set_status",
+            "status": "cancelled",
+            "target_text": [
+              "Иван"
+            ],
+            "ok": true
+          }
+        }
+      ],
+      "records": [
+        {
+          "type": "meeting",
+          "title": "Встреча с Иваном",
+          "start": "2026-10-22 12:00"
+        }
+      ],
+      "db": true
+    },
+    {
+      "id": "tr.24",
+      "category": "две команды",
+      "turns": [
+        {
+          "text": "Поставь встречу с Артёмом завтра в 12, а потом покажи что у меня завтра",
+          "expect": {
+            "action": "create_record",
+            "type": "meeting",
+            "title": [
+              "Арт"
+            ],
+            "start": "2026-10-22 12:00",
+            "ok": true
+          }
+        }
+      ],
+      "db": true
+    },
+    {
+      "id": "tr.25",
+      "category": "две команды",
+      "turns": [
+        {
+          "text": "Найди задачу про договор и отметь её выполненной",
+          "expect": {
+            "action": "search_records",
+            "query": [
+              "договор"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "tr.26",
+      "category": "две команды",
+      "turns": [
+        {
+          "text": "Отметь выполненной задачу про отчёт и покажи что у меня завтра",
+          "expect": {
+            "action": "set_status",
+            "status": "done",
+            "target_text": [
+              "отчёт"
+            ],
+            "ok": true
+          }
+        }
+      ],
+      "records": [
+        {
+          "type": "task",
+          "title": "Сдать отчёт",
+          "deadline": "2026-10-23 23:59"
+        }
+      ],
+      "db": true
+    },
+    {
+      "id": "tr.27",
+      "category": "две команды",
+      "turns": [
+        {
+          "text": "Напомни завтра в 10 позвонить Ивану и найди встречу с Иваном",
+          "expect": {
+            "action": "create_record",
+            "type": "reminder",
+            "title": [
+              "позвонить",
+              "Иван"
+            ],
+            "start": "2026-10-22 10:00",
+            "ok": true
+          }
+        }
+      ],
+      "db": true
+    },
+    {
+      "id": "tr.28",
+      "category": "две команды",
+      "turns": [
+        {
+          "text": "Сначала покажи задачи на неделю, потом перенеси вторую на понедельник",
+          "expect": {
+            "action": "list_records",
+            "date_from": "2026-10-19 00:00",
+            "date_to": "2026-10-26 00:00",
+            "types": [
+              "task",
+              "reminder"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "tr.29",
+      "category": "две команды",
+      "turns": [
+        {
+          "text": "Перенеси встречу с Олегом на пятницу и отмени созвон с Вектором",
+          "expect": {
+            "action": "update_record",
+            "target_text": [
+              "Олег"
+            ],
+            "start": "2026-10-23 11:00",
+            "ok": true
+          }
+        }
+      ],
+      "records": [
+        {
+          "type": "meeting",
+          "title": "Встреча с Олегом",
+          "start": "2026-10-22 11:00"
+        },
+        {
+          "type": "meeting",
+          "title": "Созвон с Вектором",
+          "start": "2026-10-22 14:00"
+        }
+      ],
+      "db": true
+    },
+    {
+      "id": "tr.30",
+      "category": "две команды",
+      "turns": [
+        {
+          "text": "Верни как было и отмени встречу с Лукой",
+          "expect": {
+            "action": "undo_last"
+          }
+        }
+      ],
+      "records": [
+        {
+          "type": "meeting",
+          "title": "Встреча с Лукой",
+          "start": "2026-10-22 11:00"
+        }
+      ],
+      "db": true
+    },
+    {
+      "id": "tr.31",
+      "category": "отрицание",
+      "turns": [
+        {
+          "text": "Не надо пока ничего ставить",
+          "expect": {
+            "action": "help|ask_user"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tr.32",
+      "category": "отрицание",
+      "turns": [
+        {
+          "text": "Ничего не создавай",
+          "expect": {
+            "action": "help|ask_user"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tr.33",
+      "category": "отрицание",
+      "turns": [
+        {
+          "text": "Не отменяй встречу с Иваном",
+          "expect": {
+            "action": "help|ask_user"
+          }
+        }
+      ],
+      "records": [
+        {
+          "type": "meeting",
+          "title": "Встреча с Иваном",
+          "start": "2026-10-22 12:00"
+        }
+      ],
+      "db": true
+    },
+    {
+      "id": "tr.34",
+      "category": "отрицание",
+      "turns": [
+        {
+          "text": "Я не просил переносить, покажи что у меня завтра",
+          "expect": {
+            "action": "list_records",
+            "date_from": "2026-10-22 00:00",
+            "date_to": "2026-10-23 00:00",
+            "types": "all"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tr.35",
+      "category": "отрицание",
+      "turns": [
+        {
+          "text": "Не завтра, а в пятницу покажи планы",
+          "expect": {
+            "action": "list_records",
+            "date_from": "2026-10-23 00:00",
+            "date_to": "2026-10-24 00:00",
+            "types": "all"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tr.36",
+      "category": "отрицание",
+      "turns": [
+        {
+          "text": "Не создавай задачу, просто покажи задачи на неделю",
+          "expect": {
+            "action": "list_records",
+            "date_from": "2026-10-19 00:00",
+            "date_to": "2026-10-26 00:00",
+            "types": [
+              "task",
+              "reminder"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "tr.37",
+      "category": "отрицание",
+      "turns": [
+        {
+          "text": "Не про Ивана, а про Петра найди встречу",
+          "expect": {
+            "action": "search_records",
+            "query": [
+              "Петр|Пет"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "tr.38",
+      "category": "отрицание",
+      "turns": [
+        {
+          "text": "Я передумал ставить встречу",
+          "expect": {
+            "action": "help|ask_user"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tr.39",
+      "category": "отрицание",
+      "turns": [
+        {
+          "text": "Не надо отмечать выполненной задачу про отчёт",
+          "expect": {
+            "action": "help|ask_user"
+          }
+        }
+      ],
+      "records": [
+        {
+          "type": "task",
+          "title": "Сдать отчёт",
+          "deadline": "2026-10-23 23:59"
+        }
+      ],
+      "db": true
+    },
+    {
+      "id": "tr.40",
+      "category": "отрицание",
+      "turns": [
+        {
+          "text": "Ни в коем случае не удаляй мои записи",
+          "expect": {
+            "action": "help|ask_user"
+          }
+        }
+      ],
+      "records": [
+        {
+          "type": "meeting",
+          "title": "Встреча с Иваном",
+          "start": "2026-10-22 12:00"
+        }
+      ],
+      "db": true
+    },
+    {
+      "id": "tr.41",
+      "category": "похожие слова",
+      "turns": [
+        {
+          "text": "Напомни, что у меня завтра",
+          "expect": {
+            "action": "list_records",
+            "date_from": "2026-10-22 00:00",
+            "date_to": "2026-10-23 00:00",
+            "types": "all"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tr.42",
+      "category": "похожие слова",
+      "turns": [
+        {
+          "text": "Напомни, какие у меня сегодня встречи",
+          "expect": {
+            "action": "list_records",
+            "date_from": "2026-10-21 00:00",
+            "date_to": "2026-10-22 00:00",
+            "types": [
+              "meeting"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "tr.43",
+      "category": "похожие слова",
+      "turns": [
+        {
+          "text": "Напомни, когда у меня была встреча с Иваном",
+          "expect": {
+            "action": "search_records",
+            "query": [
+              "Иван"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "tr.44",
+      "category": "похожие слова",
+      "turns": [
+        {
+          "text": "Отложи встречу с Ильёй на час",
+          "expect": {
+            "action": "update_record",
+            "target_text": [
+              "Иль"
+            ],
+            "ok": true
+          }
+        }
+      ],
+      "records": [
+        {
+          "type": "meeting",
+          "title": "Встреча с Ильёй",
+          "start": "2026-10-22 12:00"
+        }
+      ],
+      "db": true
+    },
+    {
+      "id": "tr.45",
+      "category": "похожие слова",
+      "turns": [
+        {
+          "text": "Закрой встречу с Тимуром",
+          "expect": {
+            "action": "set_status",
+            "target_text": [
+              "Тимур"
+            ],
+            "ok": true
+          }
+        }
+      ],
+      "records": [
+        {
+          "type": "meeting",
+          "title": "Встреча с Тимуром",
+          "start": "2026-10-22 12:00"
+        }
+      ],
+      "db": true
+    },
+    {
+      "id": "tr.46",
+      "category": "похожие слова",
+      "turns": [
+        {
+          "text": "Что у меня есть по договору?",
+          "expect": {
+            "action": "search_records",
+            "query": [
+              "договор"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "tr.47",
+      "category": "похожие слова",
+      "turns": [
+        {
+          "text": "Назови мои встречи на завтра",
+          "expect": {
+            "action": "list_records",
+            "date_from": "2026-10-22 00:00",
+            "date_to": "2026-10-23 00:00",
+            "types": [
+              "meeting"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "tr.48",
+      "category": "похожие слова",
+      "turns": [
+        {
+          "text": "Поставь напоминание",
+          "expect": {
+            "action": "ask_user",
+            "awaiting": "answer"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tr.49",
+      "category": "похожие слова",
+      "turns": [
+        {
+          "text": "Запомни: завтра в 10 созвон с Вектором",
+          "expect": {
+            "action": "create_record",
+            "type": "meeting",
+            "title": [
+              "Вектор"
+            ],
+            "start": "2026-10-22 10:00",
+            "ok": true
+          }
+        }
+      ],
+      "db": true
+    },
+    {
+      "id": "tr.50",
+      "category": "похожие слова",
+      "turns": [
+        {
+          "text": "Когда у меня последний раз была планёрка?",
+          "expect": {
+            "action": "search_records",
+            "query": [
+              "планёрк"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

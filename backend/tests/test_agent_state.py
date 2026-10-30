@@ -50,7 +50,7 @@ def draft(state):
 
 @pytest.mark.parametrize("phrase", [
     "Не надо!!!", " ЗАБУДЬ… ", "Отмена", "проехали", "забей", "неважно", "отбой", "стоп",
-    "НЕ\tНАДО", "«не надо»", "не, надо",
+    "НЕ\tНАДО", "«не надо»", "не, надо", "Передумал", "я передумал.", "не надо, наверное",
 ])
 def test_refusal_matches_whole_normalized_phrase_only(state, phrase):
     assert is_refusal(phrase, draft(state))
@@ -60,6 +60,13 @@ def test_refusal_matches_whole_normalized_phrase_only(state, phrase):
 @pytest.mark.parametrize("phrase", ["Отмени встречу с Иваном", "не надо отменять", "стоп кран"])
 def test_commands_are_not_refusals(state, phrase):
     assert not is_refusal(phrase, draft(state))
+
+
+def test_no_refuses_only_confirmation(state):
+    confirm = state.model_copy(update={"candidates": [uuid4()], "awaiting": "confirm"})
+    assert is_refusal("Нет.", confirm)
+    assert not is_refusal("нет", draft(state))
+    assert not is_refusal("нет, в 16", confirm)
 
 
 def test_reset_preserves_history_and_leaves_input_unchanged(state):

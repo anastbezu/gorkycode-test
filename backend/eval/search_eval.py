@@ -4,7 +4,7 @@
 - базовый — из замера техлида при выборе подхода: 30 запросов с ответом (примеры из задания,
   `docs/test-cases.md` раздел 5 и свои — другие формы слов, сокращения, «е» вместо «ё»),
   6 без ответа и 24 цели изменения. Эталон — регулярные выражения по названию;
-- расширенный (`scripts/search_cases.py`) — сотни запросов и целей по группам граничных
+- расширенный (`eval/search_cases.py`) — сотни запросов и целей по группам граничных
   случаев; эталон — понятия, разобранные из названий по шаблонам датасета.
 
 Данные: стартовый набор нового пользователя (`bootstrap_user_data`), пояс Europe/Moscow,
@@ -18,8 +18,8 @@
   которой быть не должно), «какую?» с верными кандидатами, лишний переспрос, «не нашёл».
 
 Запуск (нужны PostgreSQL с pgvector и модель в кэше Hugging Face):
-    cd backend && uv run python -m scripts.search_eval              # базовый набор
-    cd backend && uv run python -m scripts.search_eval --extended   # оба набора
+    cd backend && uv run python -m eval.search_eval              # базовый набор
+    cd backend && uv run python -m eval.search_eval --extended   # оба набора
 Данные пишутся в транзакции, которая откатывается: база не меняется.
 """
 
@@ -371,9 +371,9 @@ def _narrow_gold(rows, when: datetime | None, kind: str | None):
 
 
 def run_extended(db: Session, user_id: UUID | None = None) -> ExtendedResult:
-    """Стартовый набор новому пользователю, затем все случаи `scripts/search_cases.py`."""
+    """Стартовый набор новому пользователю, затем все случаи `eval/search_cases.py`."""
+    from eval.search_cases import parse_title, search_cases, target_cases
     from schemas import Record
-    from scripts.search_cases import parse_title, search_cases, target_cases
     from search import find_target, search
     from search.core import DEFAULT_SEARCH_STATUSES
     from services.bootstrap import bootstrap_user_data

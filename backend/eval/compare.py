@@ -10,7 +10,7 @@ from datetime import date, datetime
 from typing import Any
 from zoneinfo import ZoneInfo
 
-from tests.agent_cases import ALL, NONE, Expect
+from eval.cases import ALL, NONE, Expect
 
 ALL_TYPES = {"task", "meeting", "reminder"}
 _MISSING = object()
@@ -153,3 +153,27 @@ def describe(action: Any, tz: ZoneInfo) -> str:
             value = _fmt(value, tz)
         parts.append(f"{key}={value}")
     return ", ".join(parts)
+
+
+def expected_fields(expect: Expect) -> list[str]:
+    """Поля, которые кейс проверяет, кроме имени инструмента."""
+    return [name for name, value in vars(expect).items()
+            if name != "action" and value not in (None, ())]
+
+
+def field_verdicts(expect: Expect, observed: Observed, tz: ZoneInfo) -> dict[str, bool]:
+    """Верно ли каждое проверяемое поле — для метрик по полям.
+
+    Каждое поле сверяется тем же `compare`, но с ожиданием только из этого поля, поэтому
+    правила сравнения одни. Инструмент выбран неверно — все поля неверны: аргументы чужого
+    инструмента не засчитываются (так считают слоты в метриках понимания фраз).
+    `start` включает и флаг «время названо».
+    """
+    verdicts = {"action": not compare(Expect(action=expect.action), observed, tz)}
+    for name in expected_fields(expect):
+        if not verdicts["action"]:
+            verdicts[name] = False
+            continue
+        single = Expect(action=expect.action, **{name: getattr(expect, name)})
+        verdicts[name] = not compare(single, observed, tz)
+    return verdicts

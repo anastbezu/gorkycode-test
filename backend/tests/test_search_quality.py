@@ -1,8 +1,8 @@
 """Проверочный набор поиска на настоящей модели и стартовом датасете (search-01).
 
 Критерии постановки: hit@5 не ниже 29 из 30; на 6 запросах без ответа ни одного `exact`;
-на 24 целях ни одной чужой записи. Набор и метрики — scripts/search_eval.py (там же
-подробный отчёт: `uv run python -m scripts.search_eval`).
+на 24 целях ни одной чужой записи. Набор и метрики — eval/search_eval.py (там же
+подробный отчёт: `uv run python -m eval.search_eval`).
 
 Нужны PostgreSQL с pgvector и модель в кэше Hugging Face (сеть тест не использует).
 Модели нет — тест пропускается с причиной.
@@ -13,7 +13,7 @@ from pathlib import Path
 
 import pytest
 
-from scripts.search_eval import WRONG_RECORD, report, report_extended, run_eval, run_extended
+from eval.search_eval import WRONG_RECORD, report, report_extended, run_eval, run_extended
 from search import embeddings
 
 pytestmark = pytest.mark.search_model
@@ -38,9 +38,9 @@ def test_check_set(db, model_available):
 
 
 def test_extended_set_safety(db, model_available):
-    # Расширенный набор (scripts/search_cases.py): сотни запросов и целей. Здесь — только то,
+    # Расширенный набор (eval/search_cases.py): сотни запросов и целей. Здесь — только то,
     # что нельзя нарушать никогда: чужая запись при изменении и «точно» там, где ответа нет.
-    # Остальные метрики — в отчёте `uv run python -m scripts.search_eval --extended`.
+    # Остальные метрики — в отчёте `uv run python -m eval.search_eval --extended`.
     result = run_extended(db)
     details = report_extended(result)
 

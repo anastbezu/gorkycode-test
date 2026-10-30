@@ -1,0 +1,1464 @@
+{
+  "dataset": "create",
+  "source": "генерация моделью по контрактам docs/contracts",
+  "author": "Gemini 3.8 Flash (high), 2026-10-29",
+  "now": "2026-10-21 10:00",
+  "timezone": "Europe/Moscow",
+  "cases": [
+    {
+      "id": "cr.1",
+      "category": "тип по смыслу",
+      "turns": [
+        {
+          "text": "Запланируй созвон с техлидом завтра в 14:00",
+          "expect": {
+            "action": "create_record",
+            "type": "meeting",
+            "title": [
+              "созвон",
+              "техлид"
+            ],
+            "start": "2026-10-22 14:00",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "cr.2",
+      "category": "тип по смыслу",
+      "turns": [
+        {
+          "text": "Надо бы организовать интервью с кандидатом на пятницу в 12:00",
+          "expect": {
+            "action": "create_record",
+            "type": "meeting",
+            "title": [
+              "интервью",
+              "кандидат"
+            ],
+            "start": "2026-10-23 12:00",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "cr.3",
+      "category": "тип по смыслу",
+      "turns": [
+        {
+          "text": "Завтра в 11 утра синхронизация разработки",
+          "expect": {
+            "action": "create_record",
+            "type": "meeting",
+            "title": [
+              "синхронизац",
+              "разработк"
+            ],
+            "start": "2026-10-22 11:00",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "cr.4",
+      "category": "тип по смыслу",
+      "turns": [
+        {
+          "text": "Поставь в расписание демо для клиента в понедельник в 16:30",
+          "expect": {
+            "action": "create_record",
+            "type": "meeting",
+            "title": [
+              "демо",
+              "клиент"
+            ],
+            "start": "2026-10-26 16:30",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "cr.5",
+      "category": "тип по смыслу",
+      "turns": [
+        {
+          "text": "Напомни завтра в 9 утра выпить витамины",
+          "expect": {
+            "action": "create_record",
+            "type": "reminder",
+            "title": [
+              "вып",
+              "витамин"
+            ],
+            "start": "2026-10-22 09:00",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "cr.6",
+      "category": "тип по смыслу",
+      "turns": [
+        {
+          "text": "В пятницу в 18:00 напомни поздравить коллегу с днем рождения",
+          "expect": {
+            "action": "create_record",
+            "type": "reminder",
+            "title": [
+              "поздрав",
+              "коллег"
+            ],
+            "start": "2026-10-23 18:00",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "cr.7",
+      "category": "тип по смыслу",
+      "turns": [
+        {
+          "text": "Через час напомни выключить духовку",
+          "expect": {
+            "action": "create_record",
+            "type": "reminder",
+            "title": [
+              "выключ",
+              "духовк"
+            ],
+            "start": "2026-10-21 11:00",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "cr.8",
+      "category": "тип по смыслу",
+      "turns": [
+        {
+          "text": "Запиши дело: составить план спринта на следующую неделю",
+          "expect": {
+            "action": "create_record",
+            "type": "task",
+            "title": [
+              "состав",
+              "план",
+              "спринт"
+            ],
+            "start": "none",
+            "deadline": "2026-11-01 23:59",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "cr.9",
+      "category": "тип по смыслу",
+      "turns": [
+        {
+          "text": "Нужно обновить документацию к проекту",
+          "expect": {
+            "action": "create_record",
+            "type": "task",
+            "title": [
+              "обнов",
+              "документац"
+            ],
+            "start": "none",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "cr.10",
+      "category": "тип по смыслу",
+      "turns": [
+        {
+          "text": "Зафиксируй задачу передать ключи курьеру завтра",
+          "expect": {
+            "action": "create_record",
+            "type": "task",
+            "title": [
+              "переда",
+              "ключ",
+              "курьер"
+            ],
+            "start": "2026-10-22",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "cr.11",
+      "category": "относительная дата",
+      "turns": [
+        {
+          "text": "Завтра в полдень встреча с поставщиком",
+          "expect": {
+            "action": "create_record",
+            "type": "meeting",
+            "title": [
+              "поставщик"
+            ],
+            "start": "2026-10-22 12:00",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "cr.12",
+      "category": "относительная дата",
+      "turns": [
+        {
+          "text": "Послезавтра в 16:00 созвон с бухгалтером",
+          "expect": {
+            "action": "create_record",
+            "type": "meeting",
+            "title": [
+              "созвон",
+              "бухгалтер"
+            ],
+            "start": "2026-10-23 16:00",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "cr.13",
+      "category": "относительная дата",
+      "turns": [
+        {
+          "text": "В пятницу встреча с аудитором в 10:30",
+          "expect": {
+            "action": "create_record",
+            "type": "meeting",
+            "title": [
+              "аудитор"
+            ],
+            "start": "2026-10-23 10:30",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "cr.14",
+      "category": "относительная дата",
+      "turns": [
+        {
+          "text": "В следующую пятницу в 15:00 подведение итогов месяца",
+          "expect": {
+            "action": "create_record",
+            "type": "meeting",
+            "title": [
+              "подведен",
+              "итог"
+            ],
+            "start": "2026-10-30 15:00",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "cr.15",
+      "category": "относительная дата",
+      "turns": [
+        {
+          "text": "Через три дня в 14:00 созвон с маркетологом",
+          "expect": {
+            "action": "create_record",
+            "type": "meeting",
+            "title": [
+              "созвон",
+              "маркетолог"
+            ],
+            "start": "2026-10-24 14:00",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "cr.16",
+      "category": "относительная дата",
+      "turns": [
+        {
+          "text": "На выходных разобрать вещи в гараже",
+          "expect": {
+            "action": "create_record",
+            "type": "task",
+            "title": [
+              "разобр",
+              "вещ",
+              "гараж"
+            ],
+            "start": "2026-10-24",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "cr.17",
+      "category": "относительная дата",
+      "turns": [
+        {
+          "text": "В конце месяца оплатить интернет",
+          "expect": {
+            "action": "create_record",
+            "type": "task",
+            "title": [
+              "оплат",
+              "интернет"
+            ],
+            "start": "2026-10-31",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "cr.18",
+      "category": "относительная дата",
+      "turns": [
+        {
+          "text": "В следующую среду в 11 созвон с регионами",
+          "expect": {
+            "action": "create_record",
+            "type": "meeting",
+            "title": [
+              "созвон",
+              "регион"
+            ],
+            "start": "2026-10-28 11:00",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "cr.19",
+      "category": "относительная дата",
+      "turns": [
+        {
+          "text": "В четверг на следующей неделе в 17:00 встреча с архитектором",
+          "expect": {
+            "action": "create_record",
+            "type": "meeting",
+            "title": [
+              "архитектор"
+            ],
+            "start": "2026-10-29 17:00",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "cr.20",
+      "category": "относительная дата",
+      "turns": [
+        {
+          "text": "Послезавтра подготовить аналитическую записку",
+          "expect": {
+            "action": "create_record",
+            "type": "task",
+            "title": [
+              "подготов",
+              "аналитическ",
+              "записк"
+            ],
+            "start": "2026-10-23",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "cr.21",
+      "category": "время словами",
+      "turns": [
+        {
+          "text": "Завтра утром встреча с юристом",
+          "expect": {
+            "action": "create_record",
+            "type": "meeting",
+            "title": [
+              "юрист"
+            ],
+            "start": "2026-10-22 09:00",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "cr.22",
+      "category": "время словами",
+      "turns": [
+        {
+          "text": "В пятницу в обед встреча с партнерами",
+          "expect": {
+            "action": "create_record",
+            "type": "meeting",
+            "title": [
+              "партнер"
+            ],
+            "start": "2026-10-23 13:00",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "cr.23",
+      "category": "время словами",
+      "turns": [
+        {
+          "text": "Завтра без пятнадцати три созвон с куратором",
+          "expect": {
+            "action": "create_record",
+            "type": "meeting",
+            "title": [
+              "созвон",
+              "куратор"
+            ],
+            "start": "2026-10-22 14:45",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "cr.24",
+      "category": "время словами",
+      "turns": [
+        {
+          "text": "Послезавтра в пол десятого вечера напомни принять лекарство",
+          "expect": {
+            "action": "create_record",
+            "type": "reminder",
+            "title": [
+              "приня",
+              "лекарств"
+            ],
+            "start": "2026-10-23 21:30",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "cr.25",
+      "category": "время словами",
+      "turns": [
+        {
+          "text": "Завтра в 3 встреча с дизайнером интерьера",
+          "expect": {
+            "action": "create_record",
+            "type": "meeting",
+            "title": [
+              "дизайнер"
+            ],
+            "start": "2026-10-22 15:00",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "cr.26",
+      "category": "время словами",
+      "turns": [
+        {
+          "text": "Завтра в 4 созвон с отделом продаж",
+          "expect": {
+            "action": "create_record",
+            "type": "meeting",
+            "title": [
+              "созвон",
+              "отдел",
+              "продаж"
+            ],
+            "start": "2026-10-22 16:00",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "cr.27",
+      "category": "время словами",
+      "turns": [
+        {
+          "text": "В пятницу днём созвон по проекту",
+          "expect": {
+            "action": "create_record",
+            "type": "meeting",
+            "title": [
+              "созвон",
+              "проект"
+            ],
+            "start": "2026-10-23 15:00",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "cr.28",
+      "category": "время словами",
+      "turns": [
+        {
+          "text": "Завтра вечером встреча с ментором",
+          "expect": {
+            "action": "create_record",
+            "type": "meeting",
+            "title": [
+              "ментор"
+            ],
+            "start": "2026-10-22 18:00",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "cr.29",
+      "category": "время словами",
+      "turns": [
+        {
+          "text": "В четверг в 6 утра пробежка в парке",
+          "expect": {
+            "action": "create_record",
+            "title": [
+              "пробежк",
+              "парк"
+            ],
+            "start": "2026-10-22 06:00",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "cr.30",
+      "category": "время словами",
+      "turns": [
+        {
+          "text": "В пятницу в 11 созвон с заказчиком",
+          "expect": {
+            "action": "create_record",
+            "type": "meeting",
+            "title": [
+              "созвон",
+              "заказчик"
+            ],
+            "start": "2026-10-23 11:00",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "cr.31",
+      "category": "срок а не начало",
+      "turns": [
+        {
+          "text": "Поставь задачу подготовить релиз до пятницы",
+          "expect": {
+            "action": "create_record",
+            "type": "task",
+            "title": [
+              "подготов",
+              "релиз"
+            ],
+            "start": "none",
+            "deadline": "2026-10-23 23:59",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "cr.32",
+      "category": "срок а не начало",
+      "turns": [
+        {
+          "text": "Нужно сдать налоговую декларацию к концу недели",
+          "expect": {
+            "action": "create_record",
+            "type": "task",
+            "title": [
+              "сда",
+              "налогов",
+              "декларац"
+            ],
+            "start": "none",
+            "deadline": "2026-10-25 23:59",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "cr.33",
+      "category": "срок а не начало",
+      "turns": [
+        {
+          "text": "Запиши задачу перевести депозит на следующей неделе",
+          "expect": {
+            "action": "create_record",
+            "type": "task",
+            "title": [
+              "перевест",
+              "депозит"
+            ],
+            "start": "none",
+            "deadline": "2026-11-01 23:59",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "cr.34",
+      "category": "срок а не начало",
+      "turns": [
+        {
+          "text": "Надо подписать акт выполненных работ до завтра",
+          "expect": {
+            "action": "create_record",
+            "type": "task",
+            "title": [
+              "подписа",
+              "акт"
+            ],
+            "start": "none",
+            "deadline": "2026-10-22 23:59",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "cr.35",
+      "category": "срок а не начало",
+      "turns": [
+        {
+          "text": "Поставь задачу починить кран до конца месяца",
+          "expect": {
+            "action": "create_record",
+            "type": "task",
+            "title": [
+              "почин",
+              "кран"
+            ],
+            "start": "none",
+            "deadline": "2026-10-31 23:59",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "cr.36",
+      "category": "срок а не начало",
+      "turns": [
+        {
+          "text": "Нужно закрыть вакансию аналитика к понедельнику",
+          "expect": {
+            "action": "create_record",
+            "type": "task",
+            "title": [
+              "закры",
+              "ваканс",
+              "аналитик"
+            ],
+            "start": "none",
+            "deadline": "2026-10-26 23:59",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "cr.37",
+      "category": "срок а не начало",
+      "turns": [
+        {
+          "text": "Сделай задачу отправить коммерческое предложение до 18:00 завтра",
+          "expect": {
+            "action": "create_record",
+            "type": "task",
+            "title": [
+              "отправ",
+              "кп|коммерческ"
+            ],
+            "start": "none",
+            "deadline": "2026-10-22 18:00",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "cr.38",
+      "category": "срок а не начало",
+      "turns": [
+        {
+          "text": "До вечера пятницы надо подготовить отчет по расходам",
+          "expect": {
+            "action": "create_record",
+            "type": "task",
+            "title": [
+              "подготов",
+              "отчет",
+              "расход"
+            ],
+            "start": "none",
+            "deadline": "2026-10-23",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "cr.39",
+      "category": "срок а не начало",
+      "turns": [
+        {
+          "text": "Собрать отзывы клиентов до конца недели",
+          "expect": {
+            "action": "create_record",
+            "type": "task",
+            "title": [
+              "собр",
+              "отзыв",
+              "клиент"
+            ],
+            "start": "none",
+            "deadline": "2026-10-25 23:59",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "cr.40",
+      "category": "срок а не начало",
+      "turns": [
+        {
+          "text": "Запиши задачу обновить резюме на следующей неделе",
+          "expect": {
+            "action": "create_record",
+            "type": "task",
+            "title": [
+              "обнов",
+              "резюме"
+            ],
+            "start": "none",
+            "deadline": "2026-11-01 23:59",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "cr.41",
+      "category": "не хватает данных",
+      "turns": [
+        {
+          "text": "Поставь встречу с Кириллом завтра",
+          "expect": {
+            "action": "create_record|ask_user",
+            "awaiting": "time"
+          }
+        }
+      ]
+    },
+    {
+      "id": "cr.42",
+      "category": "не хватает данных",
+      "turns": [
+        {
+          "text": "Добавь в календарь созвон с разработчиками в пятницу",
+          "expect": {
+            "action": "create_record|ask_user",
+            "awaiting": "time"
+          }
+        }
+      ]
+    },
+    {
+      "id": "cr.43",
+      "category": "не хватает данных",
+      "turns": [
+        {
+          "text": "Запланируй встречу с инвестором на следующей неделе",
+          "expect": {
+            "action": "create_record|ask_user",
+            "awaiting": "answer"
+          }
+        }
+      ]
+    },
+    {
+      "id": "cr.44",
+      "category": "не хватает данных",
+      "turns": [
+        {
+          "text": "Поставь планёрку отдела послезавтра",
+          "expect": {
+            "action": "create_record|ask_user",
+            "awaiting": "time"
+          }
+        }
+      ]
+    },
+    {
+      "id": "cr.45",
+      "category": "не хватает данных",
+      "turns": [
+        {
+          "text": "В четверг у меня встреча с аудиторами",
+          "expect": {
+            "action": "create_record|ask_user",
+            "awaiting": "time"
+          }
+        }
+      ]
+    },
+    {
+      "id": "cr.46",
+      "category": "не хватает данных",
+      "turns": [
+        {
+          "text": "Напомни мне завтра в 10 утра",
+          "expect": {
+            "action": "ask_user",
+            "awaiting": "answer"
+          }
+        }
+      ]
+    },
+    {
+      "id": "cr.47",
+      "category": "не хватает данных",
+      "turns": [
+        {
+          "text": "Поставь напоминание на пятницу в 14:00",
+          "expect": {
+            "action": "ask_user",
+            "awaiting": "answer"
+          }
+        }
+      ]
+    },
+    {
+      "id": "cr.48",
+      "category": "не хватает данных",
+      "turns": [
+        {
+          "text": "Напомни через два часа",
+          "expect": {
+            "action": "ask_user",
+            "awaiting": "answer"
+          }
+        }
+      ]
+    },
+    {
+      "id": "cr.49",
+      "category": "время без дня",
+      "turns": [
+        {
+          "text": "Встреча с генеральным директором в 15:30",
+          "expect": {
+            "action": "create_record",
+            "type": "meeting",
+            "title": [
+              "директор"
+            ],
+            "start": "2026-10-21 15:30",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "cr.50",
+      "category": "время без дня",
+      "turns": [
+        {
+          "text": "Поставь созвон с проектировщиками в 11:00",
+          "expect": {
+            "action": "create_record",
+            "type": "meeting",
+            "title": [
+              "проектировщик"
+            ],
+            "start": "2026-10-21 11:00",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "cr.51",
+      "category": "конец встречи и длительность",
+      "turns": [
+        {
+          "text": "Завтра с 15:00 до 16:30 встреча с финансовым директором",
+          "expect": {
+            "action": "create_record",
+            "type": "meeting",
+            "title": [
+              "финансов",
+              "директор"
+            ],
+            "start": "2026-10-22 15:00",
+            "end": "2026-10-22 16:30",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "cr.52",
+      "category": "конец встречи и длительность",
+      "turns": [
+        {
+          "text": "В пятницу в 12 созвон с дизайнером на полчаса",
+          "expect": {
+            "action": "create_record",
+            "type": "meeting",
+            "title": [
+              "созвон",
+              "дизайнер"
+            ],
+            "start": "2026-10-23 12:00",
+            "end": "2026-10-23 12:30",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "cr.53",
+      "category": "конец встречи и длительность",
+      "turns": [
+        {
+          "text": "Послезавтра с 10 до 12 стратегическая сессия",
+          "expect": {
+            "action": "create_record",
+            "type": "meeting",
+            "title": [
+              "стратегическ",
+              "сесс"
+            ],
+            "start": "2026-10-23 10:00",
+            "end": "2026-10-23 12:00",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "cr.54",
+      "category": "конец встречи и длительность",
+      "turns": [
+        {
+          "text": "Завтра в 17:00 планёрка с командой на сорок пять минут",
+          "expect": {
+            "action": "create_record",
+            "type": "meeting",
+            "title": [
+              "планерк|планёрк",
+              "команд"
+            ],
+            "start": "2026-10-22 17:00",
+            "end": "2026-10-22 17:45",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "cr.55",
+      "category": "конец встречи и длительность",
+      "turns": [
+        {
+          "text": "В понедельник в 14:00 встреча с подрядчиком на полтора часа",
+          "expect": {
+            "action": "create_record",
+            "type": "meeting",
+            "title": [
+              "подрядчик"
+            ],
+            "start": "2026-10-26 14:00",
+            "end": "2026-10-26 15:30",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "cr.56",
+      "category": "конец встречи и длительность",
+      "turns": [
+        {
+          "text": "Завтра в 11:30 созвон по интеграции до часу дня",
+          "expect": {
+            "action": "create_record",
+            "type": "meeting",
+            "title": [
+              "созвон",
+              "интеграц"
+            ],
+            "start": "2026-10-22 11:30",
+            "end": "2026-10-22 13:00",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "cr.57",
+      "category": "конец встречи и длительность",
+      "turns": [
+        {
+          "text": "В пятницу в 16:00 встреча с юристами на два часа",
+          "expect": {
+            "action": "create_record",
+            "type": "meeting",
+            "title": [
+              "юрист"
+            ],
+            "start": "2026-10-23 16:00",
+            "end": "2026-10-23 18:00",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "cr.58",
+      "category": "конец встречи и длительность",
+      "turns": [
+        {
+          "text": "Послезавтра в 15 созвон с отделом тестирования на 20 минут",
+          "expect": {
+            "action": "create_record",
+            "type": "meeting",
+            "title": [
+              "созвон",
+              "отдел",
+              "тестирован"
+            ],
+            "start": "2026-10-23 15:00",
+            "end": "2026-10-23 15:20",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "cr.59",
+      "category": "конец встречи и длительность",
+      "turns": [
+        {
+          "text": "Завтра с 18 до 19:30 лекция по продуктовому дизайну",
+          "expect": {
+            "action": "create_record",
+            "type": "meeting",
+            "title": [
+              "лекц",
+              "дизайн"
+            ],
+            "start": "2026-10-22 18:00",
+            "end": "2026-10-22 19:30",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "cr.60",
+      "category": "конец встречи и длительность",
+      "turns": [
+        {
+          "text": "В четверг в 13:00 собеседование на один час",
+          "expect": {
+            "action": "create_record",
+            "type": "meeting",
+            "title": [
+              "собеседован"
+            ],
+            "start": "2026-10-22 13:00",
+            "end": "2026-10-22 14:00",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "cr.61",
+      "category": "живая речь и шум распознавания",
+      "turns": [
+        {
+          "text": "Ну короче запиши встречу с Антоном завтра в три",
+          "expect": {
+            "action": "create_record",
+            "type": "meeting",
+            "title": [
+              "Антон"
+            ],
+            "start": "2026-10-22 15:00",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "cr.62",
+      "category": "живая речь и шум распознавания",
+      "turns": [
+        {
+          "text": "Эээ так слушай поставь созвон с логистами в пятницу в 12",
+          "expect": {
+            "action": "create_record",
+            "type": "meeting",
+            "title": [
+              "созвон",
+              "логист"
+            ],
+            "start": "2026-10-23 12:00",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "cr.63",
+      "category": "живая речь и шум распознавания",
+      "turns": [
+        {
+          "text": "Завтра в четыре ой нет в пять вечера созвон с Валерием",
+          "expect": {
+            "action": "create_record",
+            "type": "meeting",
+            "title": [
+              "созвон",
+              "Валер"
+            ],
+            "start": "2026-10-22 17:00",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "cr.64",
+      "category": "живая речь и шум распознавания",
+      "turns": [
+        {
+          "text": "Слушай напомни завтра часиков в десять утра позвонить стоматологу",
+          "expect": {
+            "action": "create_record",
+            "type": "reminder",
+            "title": [
+              "позвон",
+              "стоматолог"
+            ],
+            "start": "2026-10-22 10:00",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "cr.65",
+      "category": "живая речь и шум распознавания",
+      "turns": [
+        {
+          "text": "В четверг эээ надо отправить проект договора клиенту",
+          "expect": {
+            "action": "create_record",
+            "type": "task",
+            "title": [
+              "отправ",
+              "проект",
+              "договор"
+            ],
+            "start": "2026-10-22",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "cr.66",
+      "category": "живая речь и шум распознавания",
+      "turns": [
+        {
+          "text": "Блин не забыть бы завтра в полдень забрать посылку из сдэка",
+          "expect": {
+            "action": "create_record",
+            "type": "reminder",
+            "title": [
+              "забр",
+              "посылк"
+            ],
+            "start": "2026-10-22 12:00",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "cr.67",
+      "category": "живая речь и шум распознавания",
+      "turns": [
+        {
+          "text": "Такс запиши задачку: перепроверить расчеты по смете",
+          "expect": {
+            "action": "create_record",
+            "type": "task",
+            "title": [
+              "перепровер",
+              "расчет|расчёт",
+              "смет"
+            ],
+            "start": "none",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "cr.68",
+      "category": "живая речь и шум распознавания",
+      "turns": [
+        {
+          "text": "В пятницу в пол третьего дня встреча с разработчиками",
+          "expect": {
+            "action": "create_record",
+            "type": "meeting",
+            "title": [
+              "разработчик"
+            ],
+            "start": "2026-10-23 14:30",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "cr.69",
+      "category": "живая речь и шум распознавания",
+      "turns": [
+        {
+          "text": "Слушай поставь созвон в четверг нет давай в пятницу в 11 утра с аналитиками",
+          "expect": {
+            "action": "create_record",
+            "type": "meeting",
+            "title": [
+              "созвон",
+              "аналитик"
+            ],
+            "start": "2026-10-23 11:00",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "cr.70",
+      "category": "живая речь и шум распознавания",
+      "turns": [
+        {
+          "text": "Короче завтра в десять утра напомни купить кофе домой",
+          "expect": {
+            "action": "create_record",
+            "type": "reminder",
+            "title": [
+              "куп",
+              "кофе"
+            ],
+            "start": "2026-10-22 10:00",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "cr.71",
+      "category": "время без дня",
+      "turns": [
+        {
+          "text": "Созвон с Вектором в 17",
+          "expect": {
+            "action": "create_record",
+            "type": "meeting",
+            "title": [
+              "Вектор"
+            ],
+            "start": "2026-10-21 17:00",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "cr.72",
+      "category": "время без дня",
+      "turns": [
+        {
+          "text": "Встреча с Петей в 9 утра",
+          "expect": {
+            "action": "create_record",
+            "type": "meeting",
+            "ok": false
+          }
+        }
+      ],
+      "note": "09:00 сегодня уже прошло — запись не создаётся, на завтра не переносится"
+    },
+    {
+      "id": "cr.73",
+      "category": "время без дня",
+      "turns": [
+        {
+          "text": "Напомни в 12 позвонить маме",
+          "expect": {
+            "action": "create_record",
+            "type": "reminder",
+            "title": [
+              "позвон",
+              "мам"
+            ],
+            "start": "2026-10-21 12:00",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "cr.74",
+      "category": "тип по смыслу",
+      "turns": [
+        {
+          "text": "Напомни мне про встречу с директором завтра в 11",
+          "expect": {
+            "action": "create_record",
+            "type": "meeting",
+            "title": [
+              "директор"
+            ],
+            "start": "2026-10-22 11:00",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    },
+    {
+      "id": "cr.75",
+      "category": "конец встречи и длительность",
+      "turns": [
+        {
+          "text": "Встреча с Олегом завтра в 15 на часик",
+          "expect": {
+            "action": "create_record",
+            "type": "meeting",
+            "title": [
+              "Олег"
+            ],
+            "start": "2026-10-22 15:00",
+            "end": "2026-10-22 16:00",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ]
+    }
+  ]
+}
