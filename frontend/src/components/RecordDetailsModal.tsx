@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import type { Record } from '../api/types';
 import { dayKey, dayTitle, wallTime } from '../lib/dates';
 import { CalendarIcon, CheckIcon, CloseIcon, TrashIcon, UndoIcon } from './icons';
@@ -49,6 +50,12 @@ export function RecordDetailsModal({
   onToggleStatus,
   onDelete,
 }: Props) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
   if (!record) return null;
 
   const isDone = record.status === 'done';
@@ -57,7 +64,7 @@ export function RecordDetailsModal({
   const statusStr = isDone ? 'выполнена' : record.status === 'cancelled' ? 'отменена' : 'активна';
 
   return (
-    <div className="modal-backdrop" onClick={onClose} role="presentation">
+    <div className="modal modal--details" onClick={onClose} role="presentation">
       <div
         className="record-details-modal"
         onClick={(e) => e.stopPropagation()}

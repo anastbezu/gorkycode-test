@@ -2028,6 +2028,10 @@ button:disabled {
 
 /* ---------- Модальное окно «Детали записи» (Figma: «Детали записи.png») ---------- */
 
+.modal--details {
+  z-index: 50;
+}
+
 .record-details-modal {
   background: var(--surface);
   border: 1px solid var(--border);
