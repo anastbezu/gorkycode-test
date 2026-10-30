@@ -1,16 +1,27 @@
+import { useEffect, useState } from 'react';
 import { formatTzLabel } from '../lib/timezones';
 // Панель «Мои дела»: лента из плитки «Без срока» и 5 дней, листание, карточки выбранного дня.
 // Данные — один GET /api/items на 5 дней (usePanel в App), раскладка по дням — здесь.
 import type { Record, RecordType } from '../api/types';
 import { addDaysToKey, dayKey, formatDaysRange, recordAnchor, recordWhen, weekdayShort } from '../lib/dates';
-import { CalendarIcon, CloseIcon, GlobeIcon, NextIcon, PlusIcon, PrevIcon } from './icons';
+import {
+  CalendarIcon,
+  CheckIcon,
+  CloseIcon,
+  GlobeIcon,
+  MoreHorizontalIcon,
+  NextIcon,
+  PlusIcon,
+  PrevIcon,
+  TrashIcon,
+} from './icons';
 
 export type PanelState =
   | { status: 'loading'; records: Record[] }
   | { status: 'ready'; records: Record[] }
   | { status: 'error'; records: Record[]; message: string };
 
-const TYPE_TAG: { [K in RecordType]: string } = {
+export const TYPE_TAG: { [K in RecordType]: string } = {
   task: 'Задача',
   meeting: 'Встреча',
   reminder: 'Напоминание',
@@ -82,6 +93,9 @@ interface Props {
   onRetry: () => void;
   onClose: () => void;
   onOpen?: (record: Record) => void;
+  onToggleStatus?: (record: Record) => void;
+  onEdit?: (record: Record) => void;
+  onDelete?: (record: Record) => void;
   onCreate?: (dayKey?: string) => void;
 }
 
@@ -97,6 +111,9 @@ export function TasksPanel({
   onRetry,
   onClose,
   onOpen,
+  onToggleStatus,
+  onEdit,
+  onDelete,
   onCreate,
 }: Props) {
   const now = new Date();
@@ -105,6 +122,7 @@ export function TasksPanel({
   const keys = panelDayKeys(firstDayKey, PANEL_DAYS);
   const { byDay, undated } = groupByDay(state.records, tz);
   const activeUndated = activeUndatedCount(state.records);
+  const isCustomTz = Boolean(browserTz && tz !== browserTz);
 
   const isUndatedSelected = selectedDay === 'undated';
   const currentDayKey = typeof selectedDay === 'number' ? keys[selectedDay] : null;
@@ -153,14 +171,14 @@ export function TasksPanel({
         </div>
       </div>
 
-      {browserTz && tz !== browserTz && (
-        <div className="panel__tz-badge">
-          <GlobeIcon />
-          <span>{formatTzLabel(tz)}</span>
+      {isCustomTz && (
+        <div className="panel__tz-banner" role="note">
+          <GlobeIcon width={14} height={14} />
+          <span>Показываю по вашему поясу {formatTzLabel(tz)}</span>
         </div>
       )}
 
-      <div className="days" role="tablist">
+      <div className="days" role="tablist" aria-label="Дни">
         <button
           type="button"
           role="tab"
@@ -257,32 +275,66 @@ export function TasksPanel({
           state.status !== 'error' &&
           (isUndatedSelected
             ? undated.map((record) => (
-                <TaskCard key={record.id} record={record} tz={tz} now={now} when="" onOpen={onOpen} />
+                <TaskCard
+                  key={record.id}
+                  record={record}
+                  tz={tz}
+                  now={now}
+                  when=""
+                  onOpen={onOpen}
+                  onToggleStatus={onToggleStatus}
+                  onEdit={onEdit}
+                  onDelete={onDelete}
+                />
               ))
             : dayRecords.map((record) => (
-                <TaskCard key={record.id} record={record} tz={tz} now={now} onOpen={onOpen} />
+                <TaskCard
+                  key={record.id}
+                  record={record}
+                  tz={tz}
+                  now={now}
+                  onOpen={onOpen}
+                  onToggleStatus={onToggleStatus}
+                  onEdit={onEdit}
+                  onDelete={onDelete}
+                />
               )))}
       </div>
     </aside>
   );
 }
 
-/** Компонент «Карточка дела». `when` — своя подпись времени (в календаре — без даты: она в заголовке дня). */
+/** Компонент «Карточка дела» по макету Figma («Карточка дела.png», «Меню записи.png»). */
 export function TaskCard({
   record,
   tz,
   now,
   when,
   onOpen,
+  onToggleStatus,
+  onEdit,
+  onDelete,
 }: {
   record: Record;
   tz: string;
   now: Date;
   when?: string;
   onOpen?: (record: Record) => void;
+  onToggleStatus?: (record: Record) => void;
+  onEdit?: (record: Record) => void;
+  onDelete?: (record: Record) => void;
 }) {
+  const [menuOpen, setMenuOpen] = useState(false);
   const done = record.status === 'done';
   const clickable = Boolean(onOpen);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const handleClose = () => setMenuOpen(false);
+    window.addEventListener('click', handleClose);
+    return () => window.removeEventListener('click', handleClose);
+  }, [menuOpen]);
+
   return (
     <div
       className={`card${done ? ' card--done' : ''}${clickable ? ' card--clickable' : ''}`}
@@ -295,10 +347,73 @@ export function TaskCard({
           : undefined
       }
     >
-      <span className={`tag ${done ? 'tag--done' : 'tag--type'}`}>
-        {TYPE_TAG[record.type]}
-        {done ? ' · выполнено' : ''}
-      </span>
+      <div className="card__header">
+        {onToggleStatus && (
+          <button
+            type="button"
+            className={`card__checkbox ${done ? 'card__checkbox--done' : ''}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleStatus(record);
+            }}
+            aria-label={done ? 'Отметить невыполненным' : 'Отметить выполненным'}
+          >
+            {done && <CheckIcon width={12} height={12} />}
+          </button>
+        )}
+
+        <span className={`tag ${done ? 'tag--done' : 'tag--type'}`}>
+          {TYPE_TAG[record.type]}
+          {done ? ' · выполнено' : ''}
+        </span>
+
+        {(onEdit || onDelete) && (
+          <div className="card__menu-anchor">
+            <button
+              type="button"
+              className="icon-btn card__more-btn"
+              onClick={(e) => {
+                e.stopPropagation();
+                setMenuOpen((v) => !v);
+              }}
+              aria-label="Действия с записью"
+            >
+              <MoreHorizontalIcon width={16} height={16} />
+            </button>
+            {menuOpen && (
+              <div className="card-menu-dropdown" onClick={(e) => e.stopPropagation()}>
+                {onEdit && (
+                  <button
+                    type="button"
+                    className="card-menu-item"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      onEdit(record);
+                    }}
+                  >
+                    <CalendarIcon />
+                    <span>Перенести / изменить</span>
+                  </button>
+                )}
+                {onDelete && (
+                  <button
+                    type="button"
+                    className="card-menu-item card-menu-item--danger"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      onDelete(record);
+                    }}
+                  >
+                    <TrashIcon width={14} height={14} />
+                    <span>Удалить</span>
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
       <div className="card__title">{record.title}</div>
       <div className="card__when">{when ?? recordWhen(record, tz, now)}</div>
     </div>

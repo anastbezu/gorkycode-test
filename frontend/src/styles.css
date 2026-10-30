@@ -573,6 +573,114 @@ button:disabled {
   transform: translateY(-1px);
 }
 
+/* ---------- Карточка дела (Figma: «Карточка дела.png», «Меню записи.png») ---------- */
+
+.card__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  position: relative;
+}
+
+.card__checkbox {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  color: #fff;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.card__checkbox:hover {
+  border-color: var(--violet);
+  background: rgba(106, 92, 201, 0.1);
+}
+
+.card__checkbox--done {
+  background: var(--violet);
+  border-color: var(--violet);
+}
+
+.card__checkbox--done:hover {
+  background: var(--violet-hover, #5a4db8);
+  border-color: var(--violet-hover, #5a4db8);
+}
+
+.card__menu-anchor {
+  margin-left: auto;
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.card__more-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  color: var(--muted);
+  opacity: 0.7;
+  transition: opacity 0.15s ease, background 0.15s ease;
+}
+
+.card:hover .card__more-btn,
+.card__more-btn:focus-visible {
+  opacity: 1;
+}
+
+.card-menu-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 4px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
+  z-index: 50;
+  min-width: 190px;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.card-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.12s ease;
+  width: 100%;
+}
+
+.card-menu-item:hover {
+  background: var(--surface-glass);
+}
+
+.card-menu-item--danger {
+  color: var(--danger, #ff453a);
+}
+
+.card-menu-item--danger:hover {
+  background: rgba(255, 69, 58, 0.1);
+}
+
 .list__row--clickable:hover {
   background: var(--surface-glass);
 }
@@ -1918,6 +2026,106 @@ button:disabled {
   gap: 8px;
 }
 
+/* ---------- Модальное окно «Детали записи» (Figma: «Детали записи.png») ---------- */
+
+.modal--details {
+  z-index: 50;
+}
+
+.record-details-modal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 24px;
+  width: min(480px, calc(100vw - 32px));
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.25);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  box-sizing: border-box;
+}
+
+.record-details-modal__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.record-details-modal__close {
+  width: 32px;
+  height: 32px;
+  color: var(--muted);
+}
+
+.record-details-modal__title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.3;
+  word-break: break-word;
+}
+
+.record-details-modal__title--done {
+  text-decoration: line-through;
+  opacity: 0.65;
+}
+
+.record-details-modal__info {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 14px;
+  background: var(--surface-glass);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.record-details-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.record-details-row__label {
+  font-size: 13px;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.record-details-row__value {
+  font-size: 14px;
+  color: var(--text);
+  font-weight: 600;
+  text-align: right;
+}
+
+.record-details-modal__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.record-details-modal__actions .btn {
+  flex: 1;
+}
+
+.btn--danger-icon {
+  flex: 0 0 44px !important;
+  color: var(--danger, #ff453a);
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn--danger-icon:hover {
+  background: rgba(255, 69, 58, 0.1);
+  border-color: var(--danger, #ff453a);
+}
+
 .modal__conflict-warning {
   font-size: 15px;
   font-weight: 500;
@@ -2960,10 +3168,12 @@ button:disabled {
 }
 
 /* ==========================================================================
-   Product-06: Календарь (Виды «День» и «Неделя»)
+   Product-06: Календарь (Виды «Месяц», «День» и «Неделя»)
    ========================================================================== */
 
 .calendar-container {
+  grid-column: 1 / -1;
+  grid-row: 2;
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -2972,25 +3182,23 @@ button:disabled {
   background: var(--bg);
 }
 
-.cal-header {
+/* Шапка внутри карточки календаря */
+.cal-card__head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 14px 24px;
-  border-bottom: 1px solid var(--border);
-  background: var(--header-bg);
-  backdrop-filter: blur(8px);
-  flex-shrink: 0;
+  margin-bottom: 20px;
+  gap: 16px;
 }
 
-.cal-header__title {
-  font-size: 18px;
+.cal-card__title {
+  margin: 0;
+  font-size: 22px;
   font-weight: 700;
   color: var(--text);
-  margin: 0;
 }
 
-.cal-header__controls {
+.cal-card__controls {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -3002,15 +3210,102 @@ button:disabled {
   gap: 4px;
 }
 
-/* Вид День */
-.cal-day-view {
+/* --- ВИД «МЕСЯЦ» --- */
+.cal-month-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(340px, 1fr);
+  gap: 24px;
+  padding: 24px 32px;
+  height: 100%;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.cal-month-card {
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-glass);
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  padding: 28px 30px 24px;
+  overflow: hidden;
+}
+
+.cal-month-sidebar {
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-glass);
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  padding: 28px 24px 24px;
+  overflow: hidden;
+}
+
+.cal-month-sidebar__list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.cal-month-add-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 14px 16px;
+  border: 1px dashed var(--border);
+  border-radius: 16px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  margin-top: 12px;
+  flex-shrink: 0;
+}
+
+.cal-month-add-btn:hover {
+  border-color: var(--violet);
+  color: var(--violet);
+  background: rgba(106, 92, 201, 0.05);
+}
+
+/* --- ОБЩИЙ КОНТЕЙНЕР ДЛЯ ДНЯ И НЕДЕЛИ --- */
+.cal-view-wrap {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 24px 32px;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.cal-card {
   display: flex;
   flex-direction: column;
   flex: 1;
-  overflow-y: auto;
-  padding: 16px 24px;
+  background: var(--surface-glass);
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  padding: 24px 28px;
+  overflow: hidden;
+  min-height: 0;
 }
 
+/* Скролл контейнер для временной шкалы (единый надежный скролл без конфликтов) */
+.timeline-scroll-wrap {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  position: relative;
+  margin-top: 8px;
+}
+
+/* Вид День */
 .cal-day-view__col-header {
   display: flex;
   flex-direction: column;
@@ -3075,8 +3370,7 @@ button:disabled {
 .timeline-wrap {
   display: flex;
   position: relative;
-  margin-top: 12px;
-  height: 780px;
+  height: 1440px; /* 24 часа * 60px */
 }
 
 .timeline-hours {
@@ -3187,30 +3481,44 @@ button:disabled {
 }
 
 /* Вид Неделя */
-.cal-week-view {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  overflow-y: auto;
-}
-
 .cal-week-desktop {
   display: flex;
   flex-direction: column;
   flex: 1;
   min-width: 760px;
-  padding: 0 16px 16px;
+  overflow: hidden;
 }
 
 .cal-week-mobile {
   display: none;
   padding: 16px;
+  overflow-y: auto;
+}
+
+@media (max-width: 900px) {
+  .cal-month-layout {
+    grid-template-columns: 1fr;
+    overflow-y: auto;
+  }
 }
 
 @media (max-width: 768px) {
+  .cal-month-layout,
+  .cal-view-wrap {
+    padding: 16px;
+  }
+
+  .cal-month-card,
+  .cal-month-sidebar,
+  .cal-card {
+    padding: 18px 16px;
+    border-radius: 18px;
+  }
+
   .cal-week-desktop {
     display: none;
   }
+
   .cal-week-mobile {
     display: flex;
     flex-direction: column;
@@ -3285,7 +3593,7 @@ button:disabled {
 .cal-week-timeline {
   display: flex;
   position: relative;
-  height: 780px;
+  height: 1440px; /* 24 часа * 60px */
 }
 
 .cal-week-cols {

@@ -18,6 +18,7 @@ import type { Account, ActionResult, LLMConfig, Record } from './api/types';
 import { AuthModal } from './components/AuthModal';
 import { Background } from './components/Background';
 import { CalendarView } from './components/CalendarView';
+import { RecordDetailsModal } from './components/RecordDetailsModal';
 import { RecordDialog, type RecordDialogTarget } from './components/RecordDialog';
 import { ResultView } from './components/ResultView';
 import { SettingsModal } from './components/SettingsModal';
@@ -275,15 +276,12 @@ export function App() {
   conversationId.current = chat.conversationId;
   const voiceAvailable = canRecord();
   const [recording, setRecording] = useState<Recording | null>(null);
+  const [detailsRecord, setDetailsRecord] = useState<Record | null>(null);
   // «Озвучка недоступна» — одно сообщение за всё время страницы
   const noVoiceShown = useRef(false);
 
   const openRecord = useCallback((record: Record) => {
-    setDialogTarget({ mode: 'edit', record });
-  }, []);
-
-  const openCreate = useCallback((initialDay?: string) => {
-    setDialogTarget({ mode: 'create', initialDay });
+    setDetailsRecord(record);
   }, []);
 
   const updateRecordInFeed = useCallback((updated: Record) => {
@@ -302,6 +300,31 @@ export function App() {
       });
       return changed ? { ...prev, messages: nextMessages } : prev;
     });
+  }, []);
+
+  const handleToggleRecordStatus = useCallback(
+    async (record: Record) => {
+      const nextStatus = record.status === 'done' ? 'active' : 'done';
+      try {
+        const res = await setItemStatus(record.id, nextStatus, tz);
+        void panel.load();
+        setCalendarReloadKey((k) => k + 1);
+        const updated = res.records?.[0] ?? { ...record, status: nextStatus };
+        updateRecordInFeed(updated);
+        setDetailsRecord((prev) => (prev?.id === record.id ? updated : prev));
+      } catch (err) {
+        if (err instanceof ApiError && err.kind === 'rejected') {
+          setBanner({ text: err.detail });
+        } else {
+          setBanner({ text: 'Нет ответа от сервера, проверьте список.' });
+        }
+      }
+    },
+    [tz, panel, updateRecordInFeed],
+  );
+
+  const openCreate = useCallback((initialDay?: string) => {
+    setDialogTarget({ mode: 'create', initialDay });
   }, []);
 
   const handleActionSuccess = useCallback(
@@ -666,6 +689,9 @@ export function App() {
           tz={tz}
           reloadKey={calendarReloadKey}
           onOpen={openRecord}
+          onEdit={(r) => setDialogTarget({ mode: 'edit', record: r })}
+          onToggleStatus={handleToggleRecordStatus}
+          onDelete={(r) => void handleDeleteRecord(r)}
           onCreate={openCreate}
         />
       ) : (
@@ -871,6 +897,9 @@ export function App() {
           onRetry={() => void panel.load()}
           onClose={() => setSheetOpen(false)}
           onOpen={openRecord}
+          onToggleStatus={handleToggleRecordStatus}
+          onEdit={(r) => setDialogTarget({ mode: 'edit', record: r })}
+          onDelete={(r) => void handleDeleteRecord(r)}
           onCreate={openCreate}
         />
       </div>
@@ -878,6 +907,23 @@ export function App() {
       )}
 
       <Toast toast={toast} onRestore={handleRestoreRecord} onDismiss={() => setToast(null)} />
+
+      {detailsRecord && (
+        <RecordDetailsModal
+          record={detailsRecord}
+          tz={tz}
+          onClose={() => setDetailsRecord(null)}
+          onEdit={(record) => {
+            setDetailsRecord(null);
+            setDialogTarget({ mode: 'edit', record });
+          }}
+          onToggleStatus={handleToggleRecordStatus}
+          onDelete={(record) => {
+            setDetailsRecord(null);
+            void handleDeleteRecord(record);
+          }}
+        />
+      )}
 
       {dialogTarget && (
         <RecordDialog
