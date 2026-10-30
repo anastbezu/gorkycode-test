@@ -8,7 +8,7 @@
 
 import type { Record } from '../api/types';
 
-const MONTHS_GENITIVE = [
+export const MONTHS_GENITIVE = [
   'января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
   'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря',
 ];

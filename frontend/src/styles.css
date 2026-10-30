@@ -2420,3 +2420,903 @@ button:disabled {
 .settings-privacy__link:hover {
   color: var(--text);
 }
+
+/* ==========================================================================
+   Product-06: Настройки (многовкладочное окно, часовой пояс, напоминания)
+   ========================================================================== */
+
+.modal__dialog--settings {
+  width: 720px;
+  max-width: 90vw;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+}
+
+.modal__dialog--settings .modal__head {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 0;
+}
+
+.modal__dialog--settings .modal__foot {
+  padding: 14px 20px;
+  border-top: 1px solid var(--border);
+  margin-top: 0;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  background: var(--surface);
+}
+
+.settings-layout {
+  display: flex;
+  flex: 1;
+  min-height: 380px;
+  overflow: hidden;
+}
+
+.settings-nav {
+  width: 170px;
+  border-right: 1px solid var(--border);
+  padding: 12px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: rgba(0, 0, 0, 0.02);
+  flex-shrink: 0;
+}
+
+.settings-nav__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  transition: all 0.15s ease;
+}
+
+.settings-nav__item:hover {
+  background: rgba(0, 0, 0, 0.04);
+  color: var(--text);
+}
+
+.settings-nav__item--active {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  font-weight: 600;
+}
+
+.settings-content {
+  flex: 1;
+  padding: 20px 24px;
+  overflow-y: auto;
+}
+
+.settings-tab-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.settings-mobile-tabs {
+  display: none;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--border);
+  gap: 8px;
+  overflow-x: auto;
+  background: var(--surface);
+}
+
+.settings-mobile-tab {
+  padding: 6px 14px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.settings-mobile-tab--active {
+  background: var(--violet);
+  color: #fff;
+  border-color: var(--violet);
+  font-weight: 600;
+}
+
+@media (max-width: 680px) {
+  .settings-mobile-tabs {
+    display: flex;
+  }
+  .settings-nav {
+    display: none;
+  }
+  .settings-layout {
+    flex-direction: column;
+  }
+  .modal__dialog--settings {
+    width: 100%;
+    max-width: 100%;
+    border-radius: 20px 20px 0 0;
+    max-height: 90vh;
+  }
+}
+
+.settings-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.settings-group__title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.settings-group__hint {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.settings-panel-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 4px;
+  display: block;
+}
+
+/* Сегментированный переключатель */
+.segmented-control {
+  display: inline-flex;
+  background: var(--bg);
+  padding: 3px;
+  border-radius: 12px;
+  gap: 2px;
+  border: 1px solid var(--border);
+  align-self: flex-start;
+}
+
+.segmented-btn {
+  border: none;
+  background: transparent;
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.segmented-btn:hover {
+  color: var(--text);
+}
+
+.segmented-btn--active {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+  font-weight: 600;
+}
+
+/* Выбор часового пояса */
+.tz-select {
+  position: relative;
+  width: 100%;
+}
+
+.tz-select__trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 10px 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  font-size: 14px;
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+}
+
+.tz-select__text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tz-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.14);
+  z-index: 100;
+  max-height: 260px;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.tz-dropdown__search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--bg);
+  border-radius: 10px;
+  margin-bottom: 6px;
+  color: var(--muted);
+}
+
+.tz-dropdown__input {
+  border: none;
+  background: transparent;
+  width: 100%;
+  font-size: 13px;
+  color: var(--text);
+  outline: none;
+}
+
+.tz-dropdown__header {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  padding: 6px 10px;
+  display: block;
+}
+
+.tz-dropdown__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text);
+  text-align: left;
+}
+
+.tz-dropdown__item:hover {
+  background: var(--bg);
+}
+
+.tz-dropdown__item--selected {
+  background: rgba(106, 92, 201, 0.12);
+  color: var(--violet);
+  font-weight: 600;
+}
+
+.tz-dropdown__offset {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.tz-dropdown__empty {
+  padding: 12px;
+  font-size: 13px;
+  color: var(--muted);
+  text-align: center;
+}
+
+/* Тумблер переключатель (Toggle Switch) */
+.toggle-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  margin: 4px 0;
+}
+
+.toggle-switch {
+  position: relative;
+  width: 44px;
+  height: 24px;
+  border-radius: 12px;
+  background: var(--border);
+  border: none;
+  cursor: pointer;
+  transition: background 0.2s ease;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.toggle-switch--on {
+  background: var(--violet);
+}
+
+.toggle-switch__thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 20px;
+  height: 20px;
+  border-radius: 10px;
+  background: #ffffff;
+  transition: transform 0.2s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.toggle-switch--on .toggle-switch__thumb {
+  transform: translateX(20px);
+}
+
+.toggle-row__content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.toggle-row__label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.toggle-row__hint {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+/* Уведомления и алерты */
+.settings-notif-box {
+  background: var(--bg);
+  border-radius: 12px;
+  padding: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.settings-notif-box__text {
+  font-size: 13px;
+  color: var(--text);
+  margin: 0;
+}
+
+.settings-notif-alert {
+  background: rgba(255, 90, 36, 0.08);
+  border: 1px solid var(--orange);
+  border-radius: 12px;
+  padding: 12px 14px;
+  font-size: 13px;
+  color: var(--text);
+  line-height: 1.4;
+  margin-top: 8px;
+}
+
+.settings-empty-auth {
+  padding: 24px 16px;
+  text-align: center;
+  background: var(--bg);
+  border-radius: 12px;
+}
+
+.settings-empty-auth__text {
+  font-size: 14px;
+  color: var(--muted);
+  margin: 0;
+}
+
+/* ==========================================================================
+   Бейдж пояса в «Моих делах» и профиль в шапке
+   ========================================================================== */
+
+.panel__tz-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: rgba(106, 92, 201, 0.08);
+  border-radius: 8px;
+  font-size: 12px;
+  color: var(--violet);
+  margin: 0 16px 8px 16px;
+  font-weight: 500;
+  align-self: flex-start;
+}
+
+.header__profile {
+  position: relative;
+}
+
+.profile-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 4px 10px 4px 4px;
+  cursor: pointer;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 500;
+  transition: background 0.15s ease;
+}
+
+.profile-btn:hover {
+  background: var(--surface);
+}
+
+.profile-btn__avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--violet);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.profile-btn__login {
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profile-dropdown {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  width: 180px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.14);
+  padding: 8px;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.profile-dropdown__info {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.profile-dropdown__head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.profile-dropdown__name {
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--text);
+}
+
+.badge--demo {
+  background: var(--sun);
+  color: #1e1d1f;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 6px;
+  text-transform: uppercase;
+}
+
+.profile-dropdown__sub {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.profile-dropdown__logout {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  text-align: left;
+}
+
+.profile-dropdown__logout:hover {
+  background: rgba(255, 90, 36, 0.1);
+  color: var(--orange);
+}
+
+/* ==========================================================================
+   Product-06: Календарь (Виды «День» и «Неделя»)
+   ========================================================================== */
+
+.calendar-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+.cal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 24px;
+  border-bottom: 1px solid var(--border);
+  background: var(--header-bg);
+  backdrop-filter: blur(8px);
+  flex-shrink: 0;
+}
+
+.cal-header__title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0;
+}
+
+.cal-header__controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.cal-header__nav {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Вид День */
+.cal-day-view {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 24px;
+}
+
+.cal-day-view__col-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.cal-day-view__col-weekday {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.cal-day-view__col-num {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.cal-day-view__col-num--today {
+  color: var(--violet);
+}
+
+/* Строка весь день */
+.timeline-allday {
+  display: flex;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+  min-height: 42px;
+}
+
+.timeline-allday__label {
+  width: 65px;
+  font-size: 11px;
+  color: var(--muted);
+  font-weight: 500;
+  text-align: right;
+  padding-right: 12px;
+  flex-shrink: 0;
+}
+
+.timeline-allday__content {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  flex: 1;
+}
+
+.timeline-badge {
+  border: 1px solid var(--violet);
+  background: rgba(106, 92, 201, 0.1);
+  color: var(--violet);
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.timeline-wrap {
+  display: flex;
+  position: relative;
+  margin-top: 12px;
+  height: 780px;
+}
+
+.timeline-hours {
+  width: 65px;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  flex-shrink: 0;
+  border-right: 1px solid var(--border);
+}
+
+.timeline-hour {
+  height: 60px;
+  font-size: 12px;
+  color: var(--muted);
+  text-align: right;
+  padding-right: 12px;
+  transform: translateY(-7px);
+}
+
+.timeline-grid {
+  flex: 1;
+  position: relative;
+  height: 100%;
+}
+
+.timeline-grid__line {
+  height: 60px;
+  border-bottom: 1px solid var(--border);
+  box-sizing: border-box;
+}
+
+.timeline-now-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: #ff3b30;
+  z-index: 10;
+  pointer-events: none;
+}
+
+.timeline-now-line::before {
+  content: '';
+  position: absolute;
+  left: -4px;
+  top: -3px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ff3b30;
+}
+
+.timeline-event {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  border-radius: 8px;
+  padding: 6px 10px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow: hidden;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+  transition: transform 0.1s ease;
+  z-index: 5;
+}
+
+.timeline-event:hover {
+  transform: translateY(-1px);
+}
+
+.timeline-event--meeting {
+  background: var(--violet);
+  color: #ffffff;
+}
+
+.timeline-event--task {
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+.timeline-event--reminder {
+  background: var(--surface);
+  color: var(--text);
+  border: 1px dashed var(--violet);
+}
+
+.timeline-event--done {
+  opacity: 0.55;
+  text-decoration: line-through;
+}
+
+.timeline-event__time {
+  font-size: 11px;
+  font-weight: 600;
+  opacity: 0.85;
+}
+
+.timeline-event__title {
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Вид Неделя */
+.cal-week-view {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow-y: auto;
+}
+
+.cal-week-desktop {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 760px;
+  padding: 0 16px 16px;
+}
+
+.cal-week-mobile {
+  display: none;
+  padding: 16px;
+}
+
+@media (max-width: 768px) {
+  .cal-week-desktop {
+    display: none;
+  }
+  .cal-week-mobile {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+}
+
+.cal-week-grid__header {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  padding-left: 65px;
+}
+
+.cal-week-col-header {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px 0;
+  border-left: 1px solid var(--border);
+}
+
+.cal-week-col-header__day {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.cal-week-col-header__num {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.cal-week-col-header--today {
+  color: var(--violet);
+}
+
+.cal-week-col-header--today .cal-week-col-header__num {
+  color: var(--violet);
+}
+
+.cal-week-allday {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  min-height: 38px;
+}
+
+.cal-week-allday__gutter {
+  width: 65px;
+  font-size: 11px;
+  color: var(--muted);
+  text-align: right;
+  padding: 8px 12px 0 0;
+  flex-shrink: 0;
+}
+
+.cal-week-allday__cols {
+  display: flex;
+  flex: 1;
+}
+
+.cal-week-allday__col {
+  flex: 1;
+  border-left: 1px solid var(--border);
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cal-week-timeline {
+  display: flex;
+  position: relative;
+  height: 780px;
+}
+
+.cal-week-cols {
+  display: flex;
+  flex: 1;
+  position: relative;
+  height: 100%;
+}
+
+.cal-week-col {
+  flex: 1;
+  position: relative;
+  border-left: 1px solid var(--border);
+  height: 100%;
+}
+
+.cal-week-mobile__day-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cal-week-mobile__day-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--muted);
+  padding: 4px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.cal-week-mobile__day-title--today {
+  color: var(--violet);
+  font-weight: 700;
+}

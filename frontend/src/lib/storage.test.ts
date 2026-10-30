@@ -124,3 +124,30 @@ describe('theme storage and logic', () => {
     }
   });
 });
+
+describe('new settings in storage', () => {
+  it('timezone defaults to null and saves value', async () => {
+    const { loadTimezone, saveTimezone } = await import('./storage');
+    expect(loadTimezone()).toBeNull();
+    saveTimezone('Asia/Yekaterinburg');
+    expect(loadTimezone()).toBe('Asia/Yekaterinburg');
+    saveTimezone(null);
+    expect(loadTimezone()).toBeNull();
+  });
+
+  it('voiceOutput defaults to true and saves boolean', async () => {
+    const { loadVoiceOutput, saveVoiceOutput } = await import('./storage');
+    expect(loadVoiceOutput()).toBe(true);
+    saveVoiceOutput(false);
+    expect(loadVoiceOutput()).toBe(false);
+    saveVoiceOutput(true);
+    expect(loadVoiceOutput()).toBe(true);
+  });
+
+  it('reminderSettings defaults to disabled and saves state', async () => {
+    const { loadReminderSettings, saveReminderSettings } = await import('./storage');
+    expect(loadReminderSettings()).toEqual({ enabled: false, leadMinutes: 15 });
+    saveReminderSettings({ enabled: true, leadMinutes: 30 });
+    expect(loadReminderSettings()).toEqual({ enabled: true, leadMinutes: 30 });
+  });
+});
