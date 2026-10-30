@@ -24,7 +24,7 @@ backend-01-model-dannyh.md
 ## Текущие постановки задач
 
 | Задача | Модуль | Исполнитель | Описание |
-|---|---|---|---|
+|---|---|------|---|
 | [product-03](product-03-teksty-assistenta.md) | `product` | Маша | Тексты ассистента: один текст для чата и голоса, приведённый к принятым решениям, — `docs/assistant-texts.md` |
 | [product-04](product-04-dorabotka-maketa.md) | `product` | Маша | Доработка макета: номера в списках и чипах, все виды результата, пустые состояния и ошибки, «Без срока», календарь, голос |
 | [search-01](search-01-modul-poiska.md) | `search` | Родион | Модуль поиска: `search()` в два уровня («точно» и «похоже»), `find_target()` для цели изменения, векторы на текст, локальная модель |
@@ -33,10 +33,11 @@ backend-01-model-dannyh.md
 | [voice-02](voice-02-neyrosetevaya-ozvuchka.md) | `voice` | Давид | Нейросетевая озвучка: сравнение сервисов → выбор техлида → `POST /api/tts`, браузер — запасной |
 | [calendar-01](calendar-01-vneshniy-kalendar.md) | `calendar` | Илья | Google Календарь у учётки: наши функции синхронизируют, правда в нашей базе; API или MCP — выбор исполнителя |
 | [agent-10](agent-10-bystrye-otvety.md) | `agent` | Денис | Быстрые ответы: `awaiting` — выбор, подтверждение, время встречи; «номер N» без модели |
-| [frontend-08](frontend-08-chipy-vybora-i-podtverzhdeniya.md) | `frontend` | Ася | Чипы выбора записи, «Да, все / Отмена», чипы времени встречи (после frontend-06 и agent-10) |
+| [frontend-08](frontend-08-chipy-vybora-i-podtverzhdeniya.md) | `frontend` | Ася  | Чипы выбора записи, «Да, все / Отмена», чипы времени встречи (после frontend-06 и agent-10) |
 | [product-06](product-06-makety-tema-vid-kalendarya-napominaniya.md) | `product` | Маша | Макеты: тема «как в системе», календарь «день» и «неделя», напоминания в браузере, часовой пояс |
 | [product-07](product-07-teksty-po-novomu-kodu.md) | `product` | Маша | Тексты ассистента по коду develop: `awaiting` из четырёх значений, массовое «выполнено», шаблоны agent-07 в разделе 14, две поправки к эталонам (после product-03) |
-| [frontend-09](frontend-09-google-kalendar-v-nastroykah.md) | `frontend` | Ася | Google Календарь в настройках: подключить, состояние, переподключить, отключить, уведомление после возврата; страница `privacy.html` и ссылка на неё |
+| [frontend-09](frontend-09-google-kalendar-v-nastroykah.md) | `frontend` | Ася  | Google Календарь в настройках: подключить, состояние, переподключить, отключить, уведомление после возврата; страница `privacy.html` и ссылка на неё |
+| [agent-11](agent-11-shablony-po-tekstam-assistenta.md) | `agent` | Илья | Шаблоны ответов по `assistant-texts.md`: даты словами, «Добавил задачу…», ошибки с «ничего не сохранено», проверка правил раздела 13 тестами |
 
 ## Архив — выполненные задачи
 
