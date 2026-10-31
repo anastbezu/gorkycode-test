@@ -53,7 +53,8 @@ class CreateRecord(BaseModel):
     end: AwareDatetime | None = Field(
         default=None,
         description="Конец, ISO 8601 со смещением пояса пользователя на эту дату: "
-        "{ISO_EXAMPLE}. Не назван — null, не придумывать.",
+        "{ISO_EXAMPLE}. Названа длительность, в том числе «на часик», «минут на сорок» — "
+        "start + длительность. Не назван — null, не придумывать.",
     )
     time_given: bool = Field(
         description="true, только если время названо явно (в том числе «утром», «вечером»); "
@@ -69,7 +70,7 @@ class CreateRecord(BaseModel):
 
 class ListRecords(BaseModel):
     """Показать записи за календарный интервал: «что у меня сегодня»,
-    «планы на неделю», «какие у меня задачи». НЕ для поиска по теме."""
+    «планы на неделю», «какие у меня задачи». НЕ для поиска по теме или человеку."""
 
     action: Literal["list_records"] = "list_records"
     date_from: AwareDatetime = Field(
@@ -88,7 +89,8 @@ class ListRecords(BaseModel):
 
 
 class SearchRecords(BaseModel):
-    """Найти старые записи по смыслу: «задачу про договор»."""
+    """Найти записи по теме или человеку: «задачу про договор», «покажи встречу с Иваном»,
+    «что у меня с Иваном на неделе» — период в filters."""
 
     action: Literal["search_records"] = "search_records"
     query: str = Field(
@@ -163,8 +165,8 @@ class SetStatus(BaseModel):
     action: Literal["set_status"] = "set_status"
     target: TargetRef
     status: RecordStatus = Field(
-        description="done — «выполнено», «я позвонил»; cancelled — «отмени»; "
-        "active — «не выполнено», «верни»"
+        description="done — «выполнено», «я позвонил», «закрой»; cancelled — «отмени»; "
+        "active — «не выполнено», «верни в активные», «сними отметку»"
     )
     replaces_last: bool = Field(
         default=False,

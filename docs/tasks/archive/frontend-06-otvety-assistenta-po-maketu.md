@@ -39,7 +39,7 @@
 3. **Нужен точный цвет, отступ или шрифт** — в Figma выделить элемент, справа вкладка **Inspect** (или Dev Mode): там значения. Цвета берутся из уже существующих переменных в `frontend/src/styles.css`; нового цвета, которого нет в палитре из фрейма «Состояния», не заводить.
 
 ### Что приходит от сервера — факты, не обсуждаются
-Ответ чата — `ChatResponse` ([`api.md`](../contracts/api.md)): `reply` — текст, `result` — `ActionResult` ([`agent-tools.md`](../contracts/agent-tools.md), «Результат действия»), `awaiting`. В `ActionResult`:
+Ответ чата — `ChatResponse` ([`api.md`](../../contracts/api.md)): `reply` — текст, `result` — `ActionResult` ([`agent-tools.md`](../../contracts/agent-tools.md), «Результат действия»), `awaiting`. В `ActionResult`:
 - `action` — `create_record`, `list_records`, `search_records`, `update_record`, `set_status`, `undo_last`, `ask_user`, `help`;
 - `ok` — выполнено или нет;
 - `records` — созданные, изменённые, найденные записи; у `set_status` — записи с новым статусом (`done`, `cancelled` или `active`);
@@ -92,7 +92,7 @@
 По фрейму «Чат · пустой»: иконка микрофона в кружке (это картинка, не кнопка), заголовок «Чем помочь?», строка «Скажите или напишите — я запишу задачу, встречу или напоминание.», четыре подсказки: «Что у меня сегодня?», «Напомни завтра в 10 позвонить Ивану», «Назначь встречу в пятницу в 15:00», «Что у меня на неделе?». Нажатие подсказки отправляет её как реплику (как сейчас `HINTS`).
 
 ### Стек — не меняется
-React 19 + TypeScript, Vite, Vitest — как в [`modules/frontend.md`](../modules/frontend.md). **Новых зависимостей не добавлять.** Иконки — в `components/icons.tsx` по образцу существующих (SVG из Figma: выделить иконку → Export → SVG). Даты и время — только функциями из `src/lib/dates.ts` (`recordWhen`, `recordWhenInDay`), без `toISOString()` и `toLocaleString()` в компонентах. Бэкенд и контракты не трогать.
+React 19 + TypeScript, Vite, Vitest — как в [`modules/frontend.md`](../../modules/frontend.md). **Новых зависимостей не добавлять.** Иконки — в `components/icons.tsx` по образцу существующих (SVG из Figma: выделить иконку → Export → SVG). Даты и время — только функциями из `src/lib/dates.ts` (`recordWhen`, `recordWhenInDay`), без `toISOString()` и `toLocaleString()` в компонентах. Бэкенд и контракты не трогать.
 
 ### Что меняется в коде
 - `src/components/ResultView.tsx` — рисует все карточки из таблицы; список — с кружками и сворачиванием.

@@ -78,6 +78,17 @@ function fakeServer(delayMs = 5) {
       }
       return json(200, [], issued);
     }
+    if (url.startsWith('/api/calendar/google')) {
+      if (url.includes('unavailable')) return json(503, { detail: 'Подключение не настроено' });
+      if (!authHeader) return json(403, { detail: 'Нужен вход' });
+      if (init.method === 'POST') {
+        return json(200, { auth_url: 'https://accounts.google.com/auth-url' });
+      }
+      if (init.method === 'DELETE') {
+        return new Response(null, { status: 204 });
+      }
+      return json(200, { state: 'connected', email: 'user@example.com', error: null, pending: 2 });
+    }
     if (body?.conversation_id === 'gone') return json(404, { detail: 'Разговор не найден' });
     return json(200, { conversation_id: 'c1', reply: 'ок', result: null, awaiting: null }, issued);
   });
@@ -417,5 +428,59 @@ describe('действия с записями', () => {
     const lastCall = calls[calls.length - 1];
     expect(lastCall.url).toBe('/api/items/rec-123/status?tz=Europe%2FMoscow');
     expect(lastCall.body).toEqual({ status: 'done' });
+  });
+});
+
+describe('Google Календарь', () => {
+  it('fetchGoogleCalendarStatus: у гостя (нет токена) возвращает null без запроса', async () => {
+    const client = await freshClient(NEW_ID, null);
+    const initialCallCount = calls.length;
+    const status = await client.fetchGoogleCalendarStatus();
+
+    expect(status).toBeNull();
+    expect(calls.length).toBe(initialCallCount);
+  });
+
+  it('fetchGoogleCalendarStatus: у авторизованного возвращает статус с почтой и pending', async () => {
+    const client = await freshClient(null, {
+      token: 'jwt-123',
+      account: { id: 'acc-1', login: 'demo', demo: false },
+    });
+    const status = await client.fetchGoogleCalendarStatus();
+
+    expect(status).toEqual({
+      state: 'connected',
+      email: 'user@example.com',
+      error: null,
+      pending: 2,
+    });
+    const lastCall = calls[calls.length - 1];
+    expect(lastCall.url).toBe('/api/calendar/google');
+    expect(lastCall.authHeader).toBe('Bearer jwt-123');
+  });
+
+  it('connectGoogleCalendar: отправляет POST с tz и возвращает auth_url', async () => {
+    const client = await freshClient(null, {
+      token: 'jwt-123',
+      account: { id: 'acc-1', login: 'demo', demo: false },
+    });
+    const url = await client.connectGoogleCalendar('Europe/Moscow');
+
+    expect(url).toBe('https://accounts.google.com/auth-url');
+    const lastCall = calls[calls.length - 1];
+    expect(lastCall.url).toBe('/api/calendar/google/connect?tz=Europe%2FMoscow');
+    expect(lastCall.authHeader).toBe('Bearer jwt-123');
+  });
+
+  it('disconnectGoogleCalendar: отправляет DELETE на /api/calendar/google', async () => {
+    const client = await freshClient(null, {
+      token: 'jwt-123',
+      account: { id: 'acc-1', login: 'demo', demo: false },
+    });
+    await client.disconnectGoogleCalendar();
+
+    const lastCall = calls[calls.length - 1];
+    expect(lastCall.url).toBe('/api/calendar/google');
+    expect(lastCall.authHeader).toBe('Bearer jwt-123');
   });
 });

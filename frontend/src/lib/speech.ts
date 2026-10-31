@@ -1,20 +1,18 @@
 // Gemini через сервер; при сбое — русский голос браузера. reply передаётся дословно.
 import { synthesizeSpeech } from '../api/client';
-import { loadSpeechEnabled, saveSpeechEnabled } from './storage';
+import { loadVoiceOutput } from './storage';
 
 const VOICES_WAIT_MS = 1500;
-const TTS_TIMEOUT_MS = 16_000;
-let enabled = loadSpeechEnabled();
+const TTS_TIMEOUT_MS = 7_000;
+let enabled = loadVoiceOutput();
 let pending: AbortController | null = null;
 let timer: ReturnType<typeof setTimeout> | undefined;
 let player: HTMLAudioElement | null = null;
 let objectUrl: string | null = null;
 
-export function isSpeechEnabled(): boolean { return enabled; }
-
-export function setSpeechEnabled(value: boolean): void {
+/** Применить единственную настройку voiceOutput; сохранением управляет SettingsModal/App. */
+export function setVoiceOutputEnabled(value: boolean): void {
   enabled = value;
-  saveSpeechEnabled(value);
   if (!value) stopSpeaking();
 }
 
@@ -64,10 +62,22 @@ function loadVoices(): Promise<SpeechSynthesisVoice[]> {
   });
 }
 
-function pickRussian(voices: SpeechSynthesisVoice[]): SpeechSynthesisVoice | null {
+// Чем естественнее голос, тем выше: нейросетевые голоса Edge («… Online (Natural)»),
+// сетевой «Google русский» в Chrome, улучшенные голоса Apple. Системные голоса вроде
+// Microsoft Irina звучат роботом — только если лучше нет.
+const NATURAL_VOICES = [/natural/i, /google/i, /premium|enhanced|siri/i];
+
+function voiceRank(voice: SpeechSynthesisVoice): number {
+  const index = NATURAL_VOICES.findIndex((pattern) => pattern.test(voice.name));
+  if (index >= 0) return index;
+  // Среди остальных локальный работает без сети и начинает говорить быстрее
+  return voice.localService ? NATURAL_VOICES.length : NATURAL_VOICES.length + 1;
+}
+
+export function pickRussian(voices: SpeechSynthesisVoice[]): SpeechSynthesisVoice | null {
   const ru = voices.filter((v) => v.lang.toLowerCase().replace('_', '-').startsWith('ru'));
-  // Локальный голос работает без сети и начинает говорить быстрее
-  return ru.find((v) => v.localService) ?? ru[0] ?? null;
+  if (ru.length === 0) return null;
+  return ru.reduce((best, v) => (voiceRank(v) < voiceRank(best) ? v : best));
 }
 
 /** Остановить текущую озвучку: новая запись или реплика — ассистент не говорит поверх пользователя. */

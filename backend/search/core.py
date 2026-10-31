@@ -14,7 +14,7 @@
 """
 
 from collections.abc import Iterable
-from datetime import datetime
+from datetime import UTC, datetime
 from uuid import UUID
 
 from sqlalchemy import func, select
@@ -26,13 +26,16 @@ from schemas import Record, RecordStatus, RecordType, SearchFilters, SearchHit, 
 from . import embeddings, vectors
 from .text import QueryWords, TitleWords, is_exact
 
-# Порог уровня «похожие» — косинус frida, снят на проверочном наборе (scripts/search_eval.py)
+# Порог уровня «похожие» — косинус frida, снят на проверочном наборе (eval/search_eval.py)
 # 2026-10-27. У запросов, которые не нашлись «точно», но ответ в данных есть, лучший результат —
 # от 0,485 («мобилка» → «…по мобильному приложению») до 0,82; у запросов без ответа — до 0,464
 # («встреча с дизайнером»). Порог взят ниже обоих: пропустить настоящую похожую запись хуже,
 # чем ответить «точно не нашёл, похожие: …» там, где ответа нет. Набор синтетический —
 # переснять на живых фразах.
 SIMILAR_MIN_SCORE = 0.45
+
+# search(): сколько похожих показать. Точные не ограничены — как список за период.
+SIMILAR_LIMIT = 10
 
 # find_target(): сколько похожих предложить вопросом «Может, эту?» (контракт).
 TARGET_SIMILAR_LIMIT = 3
@@ -46,9 +49,22 @@ def _record_date(row: models.Record) -> datetime | None:
     return row.start if row.start is not None else row.deadline
 
 
-def _newest_first(row: models.Record) -> tuple:
-    d = _record_date(row)
-    return (d is None, -d.timestamp() if d else 0.0)
+def _nearest_first(now: datetime):
+    """Ключ сортировки: сначала будущие от ближних к дальним, затем прошедшие от новых
+    к старым, без даты — в конце. «Сейчас» и позже — будущие.
+
+    «Задачи по Максиму» за 4 года: наверху завтрашняя, а не запись через год.
+    """
+
+    def key(row: models.Record) -> tuple:
+        d = _record_date(row)
+        if d is None:
+            return (2, 0.0)
+        if d >= now:
+            return (0, d.timestamp())
+        return (1, -d.timestamp())
+
+    return key
 
 
 def _earliest_first(row: models.Record) -> tuple:
@@ -104,9 +120,19 @@ def _similar_by_meaning(
 
 
 def search(
-    db: Session, user_id: UUID, query: str, filters: SearchFilters, limit: int = 10
+    db: Session,
+    user_id: UUID,
+    query: str,
+    filters: SearchFilters,
+    limit: int | None = None,
+    now: datetime | None = None,
 ) -> list[SearchHit]:
-    """Вопрос пользователя: «точно», иначе «похожие», иначе пусто. Новые записи — первыми."""
+    """Вопрос пользователя: «точно», иначе «похожие», иначе пусто.
+
+    Порядок — ближайшие будущие, затем прошедшие от новых (`_nearest_first`). Точные — все,
+    сколько нашлось, если `limit` не задан; похожие — не больше `SIMILAR_LIMIT`.
+    """
+    nearest_first = _nearest_first(now or datetime.now(UTC))
     rows = _filtered_records(
         db,
         user_id,
@@ -118,17 +144,19 @@ def search(
 
     exact = _exact_by_words(query, rows)
     if exact:
-        # Точные равноценны: при переполнении остаются самые новые.
-        chosen = sorted(exact, key=_newest_first)[:limit]
+        # Точные равноценны: при `limit` остаются ближайшие.
+        chosen = sorted(exact, key=nearest_first)[:limit]
         return [
             SearchHit(record=Record.model_validate(row), score=1.0, match="exact")
             for row in chosen
         ]
 
     similar = _similar_by_meaning(db, query, rows)
-    # При переполнении остаются самые близкие, на экране они идут по дате (номера — по дате).
-    closest = sorted(similar, key=lambda pair: (-pair[1], _newest_first(pair[0])))[:limit]
-    closest.sort(key=lambda pair: _newest_first(pair[0]))
+    # При переполнении остаются самые близкие по смыслу, на экране они идут по дате, как точные.
+    similar_limit = SIMILAR_LIMIT if limit is None else min(limit, SIMILAR_LIMIT)
+    closest = sorted(similar, key=lambda pair: (-pair[1], nearest_first(pair[0])))
+    closest = closest[:similar_limit]
+    closest.sort(key=lambda pair: nearest_first(pair[0]))
     return [
         SearchHit(record=Record.model_validate(row), score=score, match="similar")
         for row, score in closest

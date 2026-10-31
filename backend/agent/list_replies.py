@@ -1,117 +1,139 @@
+"""Ответ на список за период — `docs/assistant-texts.md`, разделы 4 и 8.
+
+Итог и не больше трёх записей по времени, как на экране; дальше «Остальные на экране».
+Полный пронумерованный список интерфейс берёт из `result.records`; повторы в тексте списка
+не сворачиваются.
+"""
+
 from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
-from schemas import ListRecords, Record
+from schemas import ListRecords, Record, RecordType
 
-from .presentation import RecordGroup, group_records, record_moment
+from .presentation import record_moment
+from .spoken import (
+    DEED_WORDS,
+    TYPE_WORDS,
+    capitalized,
+    counted,
+    date_text,
+    day_on,
+    day_words,
+    moment_short,
+    plural,
+    spoken_title,
+)
 
 MAX_SPOKEN = 3
+TASKS_AND_REMINDERS = {RecordType.TASK, RecordType.REMINDER}
 
-MONTHS = ["января", "февраля", "марта", "апреля", "мая", "июня",
-          "июля", "августа", "сентября", "октября", "ноября", "декабря"]
-IN_WEEKDAY = ["в понедельник", "во вторник", "в среду", "в четверг",
-              "в пятницу", "в субботу", "в воскресенье"]
+__all__ = ["MAX_SPOKEN", "Period", "period_of", "plural", "reply_for_list"]
 
 
-def plural(n: int, one: str, few: str, many: str) -> str:
-    if 11 <= n % 100 <= 14:
-        return many
-    if n % 10 == 1:
-        return one
-    if 2 <= n % 10 <= 4:
-        return few
-    return many
+class Period:
+    """Как назвать период по датам (раздел 4, «Названия периодов»).
+
+    `lead` — начало фразы («На этой неделе», «Вчера», «До 25 октября»); `dash` — ставить ли
+    тире перед итогом («На этой неделе — 2 встречи», но «На завтра одно дело»);
+    `one_day` — записи называются без дня («08:00 — …»).
+    """
+
+    def __init__(self, lead: str, *, dash: bool, one_day: bool) -> None:
+        self.lead, self.dash, self.one_day = lead, dash, one_day
 
 
-def spoken_title(title: str) -> str:
-    # «Подготовить акт» -> «подготовить акт», но «CRM планёрка» не трогаем
-    if len(title) > 1 and title[1].isupper():
-        return title
-    return title[:1].lower() + title[1:]
+def _monday(day: date) -> date:
+    return day - timedelta(days=day.weekday())
 
 
-def date_text(day: date, today: date) -> str:
-    text = f"{day.day} {MONTHS[day.month - 1]}"
-    if day.year != today.year:
-        text += f" {day.year} года"
-    return text
+def _clock(moment: datetime) -> str | None:
+    return None if (moment.hour, moment.minute) == (0, 0) else f"{moment:%H:%M}"
 
 
-def day_words(day: date, today: date, weekday: bool = True) -> str:
-    diff = (day - today).days
-    if diff == -1:
-        return "вчера"
-    if diff == 0:
-        return "сегодня"
-    if diff == 1:
-        return "завтра"
-    if diff == 2:
-        return "послезавтра"
-    if weekday and 3 <= diff <= 6:
-        return IN_WEEKDAY[day.weekday()]
-    return date_text(day, today)
+def period_of(date_from: datetime | None, date_to: datetime | None, tz: ZoneInfo,
+              today: date) -> Period | None:
+    """Первая подходящая строка таблицы раздела 4 сверху вниз. `date_to` не включается:
+    называется последний включённый день."""
+    if date_from is None and date_to is None:
+        return None
+    start = date_from.astimezone(tz) if date_from is not None else None
+    end = date_to.astimezone(tz) if date_to is not None else None
+    since = f" с {_clock(start)}" if start is not None and _clock(start) else ""
+    until = f" до {_clock(end)}" if end is not None and _clock(end) else ""
 
+    if start is None:
+        last = (end - timedelta(seconds=1)).date()
+        return Period(f"До {date_text(last, today)}", dash=True, one_day=False)
+    first = start.date()
+    if end is None:
+        return Period(f"Начиная с {date_text(first, today)}", dash=True, one_day=False)
+    last = (end - timedelta(seconds=1)).date()
 
-def period_phrase(action: ListRecords, tz: ZoneInfo, today: date) -> tuple[str, bool]:
-    """Возвращает (фраза периода, период длиннее одного дня)."""
-    first = action.date_from.astimezone(tz).date()
-    if action.date_to is None:
-        return "Начиная с " + date_text(first, today), True
-    last = (action.date_to.astimezone(tz) - timedelta(seconds=1)).date()
     if last <= first:
-        return "На " + day_words(first, today, weekday=False), False
-    return f"С {date_text(first, today)} по {date_text(last, today)}", True
+        if first < today:
+            return Period(capitalized(day_words(first, today)) + since + until,
+                          dash=True, one_day=True)
+        return Period(capitalized(day_on(first, today)) + since + until, dash=False, one_day=True)
+    week = _monday(today)
+    if first.weekday() == 0 and (last - first).days == 6:
+        if first == week:
+            return Period("На этой неделе", dash=True, one_day=False)
+        if first == week + timedelta(days=7):
+            return Period("На следующей неделе", dash=True, one_day=False)
+        if first == week - timedelta(days=7):
+            return Period("На прошлой неделе", dash=True, one_day=False)
+    if first.weekday() == 5 and (last - first).days == 1 and 0 <= (first - today).days <= 6:
+        return Period("На выходных", dash=True, one_day=False)
+    if first == today:
+        return Period(f"До {date_text(last, today)}", dash=True, one_day=False)
+    return Period(f"С {date_text(first, today)} по {date_text(last, today)}",
+                  dash=True, one_day=False)
 
 
-def item_phrase(record: Record, tz: ZoneInfo, today: date, with_day: bool) -> str:
+def _words(action: ListRecords) -> tuple[str, str, str]:
+    """Слово итога по типу в запросе: один тип — его слово; все или «задачи и напоминания» —
+    «дело» (раздел 8.1)."""
+    kinds = set(action.types or [])
+    if len(kinds) == 1:
+        return TYPE_WORDS[next(iter(kinds))]
+    return DEED_WORDS
+
+
+def item_phrase(record: Record, tz: ZoneInfo, today: date, one_day: bool) -> str:
+    """«08:00 — встреча с Марией», «в субботу в 10:45 — …», «отчёт (без срока)»."""
     title = spoken_title(record.title)
     moment = record.start or record.deadline
     if moment is None:
         return f"{title} (без срока)"
     local = moment.astimezone(tz)
-    has_time = record.start is not None and not record.all_day
-    day = day_words(local.date(), today)
-    if has_time:
-        head = f"{day} в {local:%H:%M}" if with_day else f"{local:%H:%M}"
+    if record.start is not None and not record.all_day:
+        head = f"{local:%H:%M}" if one_day else moment_short(local, today)
         return f"{head} — {title}"
-    if with_day:
-        return f"{day} — {title}"
-    return title
-
-
-def group_phrase(group: RecordGroup, tz: ZoneInfo) -> str:
-    last = record_moment(group.record).astimezone(tz)
-    count = group.count
-    return (
-        f"{group.record.title} — {count} {plural(count, 'раз', 'раза', 'раз')}, "
-        f"последний {last:%d.%m.%Y}"
-    )
+    if one_day:
+        return title
+    return f"{day_words(local.date(), today)} — {title}"
 
 
 def reply_for_list(records: list[Record], action: ListRecords,
                    timezone_name: str, now: datetime) -> str:
-    """Короткий ответ на слух. Полный список интерфейс берёт из result.records."""
     tz = ZoneInfo(timezone_name)
     today = now.astimezone(tz).date()
-    period, multi_day = period_phrase(action, tz, today)
-    lead = f"{period} —" if multi_day else period
+    period = period_of(action.date_from, action.date_to, tz, today)
+    lead = period.lead if period else "Всего"
+    words = _words(action)
 
     if not records:
-        return f"{lead} ничего не запланировано."
+        if words is DEED_WORDS:
+            return f"{lead} ничего не запланировано."
+        return f"{lead} {words[2]} нет."
 
-    n = len(records)
-    groups = group_records(records)
-    phrases = [
-        group_phrase(group, tz) if group.count > 1
-        else item_phrase(group.record, tz, today, multi_day)
-        for group in groups[:MAX_SPOKEN]
-    ]
-    # Без номеров: группы повторов не совпадают с номерами на экране (api.md)
+    # По времени, как на экране; без даты — в конце.
+    ordered = sorted(records, key=lambda r: ((r.start or r.deadline) is None, record_moment(r)))
+    one_day = bool(period and period.one_day)
+    phrases = [item_phrase(record, tz, today, one_day) for record in ordered[:MAX_SPOKEN]]
     items = "; ".join(phrases)
-
-    if n == 1:
-        return f"{lead} одно дело: {items}."
-    head = f"{lead} {n} {plural(n, 'дело', 'дела', 'дел')}"
-    if len(groups) <= MAX_SPOKEN:
-        return f"{head}: {items}."
-    return f"{head}. Ближайшие: {items}. Остальные на экране."
+    total = counted(len(records), words)
+    sep = " — " if period is None or period.dash else " "
+    if len(records) <= MAX_SPOKEN:
+        return f"{lead}{sep}{total}: {items}."
+    return f"{lead} — {total}. Первые по времени: {items}. Остальные на экране."

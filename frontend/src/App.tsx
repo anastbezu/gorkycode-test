@@ -1,3 +1,4 @@
+import { checkUpcomingReminders } from './lib/notifications';
 // Страница ассистента: чат слева, «Мои дела» справа (на телефоне — шторкой), настройки LLM.
 // Состояние разговора и ленты — здесь; сеть — api/client.ts; показ дат — lib/dates.ts.
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -17,6 +18,7 @@ import type { Account, ActionResult, LLMConfig, Record } from './api/types';
 import { AuthModal } from './components/AuthModal';
 import { Background } from './components/Background';
 import { CalendarView } from './components/CalendarView';
+import { RecordDetailsModal } from './components/RecordDetailsModal';
 import { RecordDialog, type RecordDialogTarget } from './components/RecordDialog';
 import { ResultView } from './components/ResultView';
 import { SettingsModal } from './components/SettingsModal';
@@ -25,31 +27,48 @@ import { activeTodayCount, panelDayKeys, PANEL_DAYS, TasksPanel, type PanelState
 import { RecordingIndicator } from './components/RecordingIndicator';
 import {
   AlertCircleIcon,
+  ChevronDownIcon,
+  LogoutIcon,
   BackIcon,
   CalendarIcon,
   MicIcon,
   MoonIcon,
   SendIcon,
   SettingsIcon,
-  SpeakerIcon,
   SunIcon,
   WifiOffIcon,
 } from './components/icons';
 import { addDaysToKey, browserTimeZone, dayKey, localMidnightIso } from './lib/dates';
 import { canRecord, microphoneErrorText, startRecording, type Recording } from './lib/recorder';
-import { isSpeechEnabled, prepareSpeech, setSpeechEnabled, speak, stopSpeaking } from './lib/speech';
+import { prepareSpeech, setVoiceOutputEnabled, speak, stopSpeaking } from './lib/speech';
 import {
   applyTheme,
   loadChat,
   loadLLMConfig,
+  loadReminderSettings,
   loadTheme,
+  loadTimezone,
+  loadVoiceOutput,
   saveChat,
   saveLLMConfig,
+  saveReminderSettings,
   saveTheme,
+  saveTimezone,
+  saveVoiceOutput,
+  type ReminderSettings,
   type ChatMessage,
   type StoredChat,
   type ThemeChoice,
 } from './lib/storage';
+
+const CALENDAR_NOTIFICATIONS: { [key: string]: string } = {
+  connected:
+    'Google Календарь подключён. Записи на ближайшие 2 недели появятся в календаре «Голосовой ассистент».',
+  no_access:
+    'Нужен доступ к календарю: подключите ещё раз и отметьте его на странице Google.',
+  error:
+    'Не удалось подключить Google Календарь. Попробуйте ещё раз.',
+};
 
 const HINTS = [
   'Что у меня сегодня?',
@@ -158,7 +177,16 @@ function usePanel(tz: string) {
 }
 
 export function App() {
-  const tz = browserTimeZone();
+  const browserTz = browserTimeZone();
+  const [customTz, setCustomTz] = useState<string | null>(loadTimezone);
+  const tz = customTz || browserTz;
+
+  const [voiceOutput, setVoiceOutput] = useState<boolean>(loadVoiceOutput);
+  const [reminders, setReminders] = useState<ReminderSettings>(loadReminderSettings);
+  const notifiedReminders = useRef<Set<string>>(new Set());
+
+  const [profileOpen, setProfileOpen] = useState(false);
+  const profileRef = useRef<HTMLDivElement>(null);
   const [account, setAccount] = useState<Account | null>(currentAccount);
   const [authOpen, setAuthOpen] = useState(false);
   const [dialogTarget, setDialogTarget] = useState<RecordDialogTarget | null>(null);
@@ -170,7 +198,6 @@ export function App() {
   const [draft, setDraft] = useState('');
   const [llmConfig, setLlmConfig] = useState<LLMConfig>(loadLLMConfig);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [speechEnabled, updateSpeechEnabled] = useState(isSpeechEnabled);
   useEffect(() => () => stopSpeaking(), []);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [theme, setTheme] = useState<ThemeChoice | null>(loadTheme);
@@ -182,6 +209,25 @@ export function App() {
   });
 
   useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const calendarResult = params.get('calendar');
+      if (calendarResult) {
+        if (CALENDAR_NOTIFICATIONS[calendarResult]) {
+          setToast({ message: CALENDAR_NOTIFICATIONS[calendarResult] });
+        }
+        params.delete('calendar');
+        const remaining = params.toString();
+        const nextUrl =
+          window.location.pathname + (remaining ? `?${remaining}` : '') + window.location.hash;
+        window.history.replaceState(null, '', nextUrl);
+      }
+    } catch {
+      // Игнорируем ошибки URL
+    }
+  }, []);
+
+  useEffect(() => {
     if (typeof window === 'undefined' || !window.matchMedia) return;
     const mq = window.matchMedia('(prefers-color-scheme: dark)');
     const onChange = (e: MediaQueryListEvent) => setSystemDark(e.matches);
@@ -191,6 +237,19 @@ export function App() {
 
   const isDark = theme ? theme === 'dark' : systemDark;
 
+  useEffect(() => {
+    const onDocClick = (e: MouseEvent) => {
+      if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
+        setProfileOpen(false);
+      }
+    };
+    if (profileOpen) {
+      document.addEventListener('mousedown', onDocClick);
+    }
+    return () => document.removeEventListener('mousedown', onDocClick);
+  }, [profileOpen]);
+
+
   const toggleTheme = useCallback(() => {
     const next: ThemeChoice = isDark ? 'light' : 'dark';
     saveTheme(next);
@@ -199,6 +258,16 @@ export function App() {
   }, [isDark]);
 
   const panel = usePanel(tz);
+
+  useEffect(() => {
+    if (!reminders.enabled) return;
+    const runCheck = () => {
+      checkUpcomingReminders(panel.state.records, reminders.leadMinutes, notifiedReminders.current, tz);
+    };
+    runCheck();
+    const interval = setInterval(runCheck, 30 * 1000);
+    return () => clearInterval(interval);
+  }, [panel.state.records, reminders, tz]);
   const [screen, goTo] = useScreen();
   const feedEnd = useRef<HTMLDivElement>(null);
   // Отправка идёт — вторая не начинается, даже если состояние ещё не перерисовалось
@@ -208,15 +277,12 @@ export function App() {
   conversationId.current = chat.conversationId;
   const voiceAvailable = canRecord();
   const [recording, setRecording] = useState<Recording | null>(null);
+  const [detailsRecord, setDetailsRecord] = useState<Record | null>(null);
   // «Озвучка недоступна» — одно сообщение за всё время страницы
   const noVoiceShown = useRef(false);
 
   const openRecord = useCallback((record: Record) => {
-    setDialogTarget({ mode: 'edit', record });
-  }, []);
-
-  const openCreate = useCallback((initialDay?: string) => {
-    setDialogTarget({ mode: 'create', initialDay });
+    setDetailsRecord(record);
   }, []);
 
   const updateRecordInFeed = useCallback((updated: Record) => {
@@ -237,6 +303,31 @@ export function App() {
     });
   }, []);
 
+  const handleToggleRecordStatus = useCallback(
+    async (record: Record) => {
+      const nextStatus = record.status === 'done' ? 'active' : 'done';
+      try {
+        const res = await setItemStatus(record.id, nextStatus, tz);
+        void panel.load();
+        setCalendarReloadKey((k) => k + 1);
+        const updated = res.records?.[0] ?? { ...record, status: nextStatus };
+        updateRecordInFeed(updated);
+        setDetailsRecord((prev) => (prev?.id === record.id ? updated : prev));
+      } catch (err) {
+        if (err instanceof ApiError && err.kind === 'rejected') {
+          setBanner({ text: err.detail });
+        } else {
+          setBanner({ text: 'Нет ответа от сервера, проверьте список.' });
+        }
+      }
+    },
+    [tz, panel, updateRecordInFeed],
+  );
+
+  const openCreate = useCallback((initialDay?: string) => {
+    setDialogTarget({ mode: 'create', initialDay });
+  }, []);
+
   const handleActionSuccess = useCallback(
     (res: ActionResult) => {
       void panel.load();
@@ -255,7 +346,7 @@ export function App() {
         void panel.load();
         setCalendarReloadKey((k) => k + 1);
         updateRecordInFeed({ ...record, status: 'cancelled' });
-        setToast({ recordId: record.id, title: record.title });
+        setToast({ recordId: record.id, message: `Удалено: «${record.title}»` });
       } catch (err) {
         if (err instanceof ApiError && err.kind === 'rejected') {
           setBanner({ text: err.detail });
@@ -361,7 +452,7 @@ export function App() {
   }, [chat.messages.length, pending, banner]);
 
   const send = useCallback(
-    async (text: string, isRetry = false, replaceErrorId?: string) => {
+    async (text: string, isRetry = false, replaceErrorId?: string, onError?: () => void) => {
       const trimmed = text.trim();
       if (!trimmed || sending.current) return;
       sending.current = true;
@@ -388,12 +479,14 @@ export function App() {
         });
         void panel.load();
         // Озвучивается каждый ответ — и на голос, и на набранный текст
+        // speak проверяет текущую настройку, а не значение до ожидания ответа LLM.
         void speak(res.reply, () => {
           if (noVoiceShown.current) return;
           noVoiceShown.current = true;
           setBanner({ text: NO_VOICE_TEXT });
         });
       } catch (err) {
+        onError?.();
         if (err instanceof ApiError && err.kind === 'rejected') {
           const errorMsg: ChatMessage = {
             id: newId(),
@@ -424,6 +517,30 @@ export function App() {
       }
     },
     [tz, llmConfig, panel],
+  );
+
+  const handleQuickReply = useCallback(
+    (replyText: string, chipId: string, assistantMessageId: string) => {
+      setChat((c) => ({
+        ...c,
+        messages: c.messages.map((m) =>
+          m.id === assistantMessageId && m.role === 'assistant'
+            ? { ...m, selectedChip: chipId }
+            : m,
+        ),
+      }));
+      void send(replyText, false, undefined, () => {
+        setChat((c) => ({
+          ...c,
+          messages: c.messages.map((m) =>
+            m.id === assistantMessageId && m.role === 'assistant'
+              ? { ...m, selectedChip: null }
+              : m,
+          ),
+        }));
+      });
+    },
+    [send],
   );
 
   /** Голос: первое нажатие — запись, второе (или 30-я секунда) — распознать и отправить как реплику. */
@@ -473,11 +590,6 @@ export function App() {
     await send(text, true);
   };
 
-  const saveSettings = (cfg: LLMConfig) => {
-    saveLLMConfig(cfg);
-    setLlmConfig(cfg);
-    setSettingsOpen(false);
-  };
 
   useEffect(() => {
     if (!sheetOpen) return;
@@ -509,21 +621,6 @@ export function App() {
           <button
             type="button"
             className="icon-btn"
-            aria-label={speechEnabled ? 'Выключить озвучку' : 'Включить озвучку'}
-            title={speechEnabled ? 'Выключить озвучку' : 'Включить озвучку'}
-            aria-pressed={speechEnabled}
-            onClick={() => {
-              const value = !speechEnabled;
-              setSpeechEnabled(value);
-              updateSpeechEnabled(value);
-              if (value) prepareSpeech();
-            }}
-          >
-            <SpeakerIcon enabled={speechEnabled} />
-          </button>
-          <button
-            type="button"
-            className="icon-btn"
             onClick={toggleTheme}
             aria-label={isDark ? 'Включить светлую тему' : 'Включить тёмную тему'}
             title={isDark ? 'Включить светлую тему' : 'Включить тёмную тему'}
@@ -539,17 +636,42 @@ export function App() {
             <SettingsIcon />
           </button>
           {account ? (
-            <div className="header__user">
-              <span className="header__username" title={account.login}>
-                {account.login}
-              </span>
+            <div className="header__profile" ref={profileRef}>
               <button
                 type="button"
-                className="btn btn--glass header__logout-btn"
-                onClick={() => void handleLogout()}
+                className="profile-btn"
+                onClick={() => setProfileOpen((prev) => !prev)}
+                aria-expanded={profileOpen}
+                aria-label={`Профиль ${account.login}`}
               >
-                Выйти
+                <span className="profile-btn__avatar">{account.login.charAt(0).toUpperCase()}</span>
+                <span className="profile-btn__login">{account.login}</span>
+                <ChevronDownIcon />
               </button>
+              {profileOpen && (
+                <div className="profile-dropdown">
+                  <div className="profile-dropdown__info">
+                    <div className="profile-dropdown__head">
+                      <span className="profile-dropdown__name">{account.login}</span>
+                      {account.login.toLowerCase().includes('jury') && (
+                        <span className="badge badge--demo">демо</span>
+                      )}
+                    </div>
+                    <span className="profile-dropdown__sub">Вы вошли</span>
+                  </div>
+                  <button
+                    type="button"
+                    className="profile-dropdown__logout"
+                    onClick={() => {
+                      setProfileOpen(false);
+                      void handleLogout();
+                    }}
+                  >
+                    <LogoutIcon />
+                    <span>Выйти</span>
+                  </button>
+                </div>
+              )}
             </div>
           ) : (
             <button
@@ -569,6 +691,9 @@ export function App() {
           tz={tz}
           reloadKey={calendarReloadKey}
           onOpen={openRecord}
+          onEdit={(r) => setDialogTarget({ mode: 'edit', record: r })}
+          onToggleStatus={handleToggleRecordStatus}
+          onDelete={(r) => void handleDeleteRecord(r)}
           onCreate={openCreate}
         />
       ) : (
@@ -600,7 +725,9 @@ export function App() {
             </div>
           )}
 
-          {chat.messages.map((m) => {
+          {(() => {
+            const lastAssistantIndex = chat.messages.map((item) => item.role).lastIndexOf('assistant');
+            return chat.messages.map((m, idx) => {
             if (m.role === 'user') {
               return (
                 <div key={m.id} className="bubble bubble--user">
@@ -666,6 +793,7 @@ export function App() {
                 </div>
               );
             }
+            const isLastAssistant = idx === lastAssistantIndex;
             return (
               <div key={m.id} className="assistant">
                 <div className="bubble bubble--assistant">{m.reply}</div>
@@ -673,6 +801,10 @@ export function App() {
                   result={m.result}
                   awaiting={m.awaiting}
                   tz={tz}
+                  isLastMessage={isLastAssistant}
+                  isPending={pending}
+                  selectedChip={m.selectedChip}
+                  onSendQuickReply={(replyText, chipId) => handleQuickReply(replyText, chipId, m.id)}
                   onOpen={openRecord}
                   onSetStatus={handleSetStatus}
                   onDelete={handleDeleteRecord}
@@ -680,7 +812,8 @@ export function App() {
                 />
               </div>
             );
-          })}
+          });
+          })()}
 
           {pending && (
             <div className="thinking" role="status">
@@ -757,6 +890,7 @@ export function App() {
         <TasksPanel
           state={panel.state}
           tz={tz}
+          browserTz={browserTz}
           firstDayKey={panel.firstDayKey}
           selectedDay={panel.selectedDay}
           onSelectDay={panel.setSelectedDay}
@@ -765,6 +899,9 @@ export function App() {
           onRetry={() => void panel.load()}
           onClose={() => setSheetOpen(false)}
           onOpen={openRecord}
+          onToggleStatus={handleToggleRecordStatus}
+          onEdit={(r) => setDialogTarget({ mode: 'edit', record: r })}
+          onDelete={(r) => void handleDeleteRecord(r)}
           onCreate={openCreate}
         />
       </div>
@@ -772,6 +909,23 @@ export function App() {
       )}
 
       <Toast toast={toast} onRestore={handleRestoreRecord} onDismiss={() => setToast(null)} />
+
+      {detailsRecord && (
+        <RecordDetailsModal
+          record={detailsRecord}
+          tz={tz}
+          onClose={() => setDetailsRecord(null)}
+          onEdit={(record) => {
+            setDetailsRecord(null);
+            setDialogTarget({ mode: 'edit', record });
+          }}
+          onToggleStatus={handleToggleRecordStatus}
+          onDelete={(record) => {
+            setDetailsRecord(null);
+            void handleDeleteRecord(record);
+          }}
+        />
+      )}
 
       {dialogTarget && (
         <RecordDialog
@@ -784,7 +938,39 @@ export function App() {
       )}
 
       {settingsOpen && (
-        <SettingsModal initial={llmConfig} onSave={saveSettings} onClose={() => setSettingsOpen(false)} />
+        <SettingsModal
+          initialConfig={llmConfig}
+          initialTheme={theme ?? 'system'}
+          initialTimezone={customTz}
+          initialVoiceOutput={voiceOutput}
+          initialReminders={reminders}
+          browserTz={browserTz}
+          isLoggedIn={account !== null}
+          onSave={(newSettings) => {
+            saveLLMConfig(newSettings.config);
+            setLlmConfig(newSettings.config);
+
+            const nextTheme: ThemeChoice | null =
+              newSettings.theme === 'system' ? null : newSettings.theme;
+            saveTheme(nextTheme);
+            applyTheme(nextTheme);
+            setTheme(nextTheme);
+
+            saveTimezone(newSettings.timezone);
+            setCustomTz(newSettings.timezone);
+
+            saveVoiceOutput(newSettings.voiceOutput);
+            setVoiceOutputEnabled(newSettings.voiceOutput);
+            setVoiceOutput(newSettings.voiceOutput);
+            if (newSettings.voiceOutput && !voiceOutput) prepareSpeech();
+
+            saveReminderSettings(newSettings.reminders);
+            setReminders(newSettings.reminders);
+
+            setSettingsOpen(false);
+          }}
+          onClose={() => setSettingsOpen(false)}
+        />
       )}
 
       {authOpen && (

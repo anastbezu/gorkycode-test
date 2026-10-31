@@ -7,22 +7,16 @@
 // localStorage бывает недоступен (приватный режим, запрет сайта) — тогда страница работает,
 // но ничего не переживает перезагрузку. Ошибки чтения не роняют страницу.
 
-import type { ActionResult, AuthResponse, LLMConfig } from '../api/types';
+import type { ActionResult, AuthResponse, AwaitingKind, LLMConfig } from '../api/types';
 
 const KEY_USER = 'gorky.userId';
 const KEY_AUTH = 'gorky.auth';
 const KEY_CHAT = 'gorky.chat';
 const KEY_LLM = 'gorky.llm';
 export const KEY_THEME = 'gorky.theme';
-const KEY_SPEECH = 'gorky.speechEnabled';
-
-export function loadSpeechEnabled(): boolean {
-  return read<boolean>(KEY_SPEECH) !== false;
-}
-
-export function saveSpeechEnabled(enabled: boolean): void {
-  write(KEY_SPEECH, enabled);
-}
+const KEY_TIMEZONE = 'gorky.timezone';
+const KEY_VOICE_OUTPUT = 'gorky.voiceOutput';
+const KEY_REMINDERS = 'gorky.reminders';
 
 export interface UserMessage {
   id: string;
@@ -35,7 +29,8 @@ export interface AssistantMessage {
   role: 'assistant';
   reply: string;
   result: ActionResult | null;
-  awaiting: 'answer' | 'choice' | null;
+  awaiting: AwaitingKind;
+  selectedChip?: string | null;
 }
 
 export interface ErrorMessage {
@@ -164,4 +159,37 @@ export function getActiveTheme(): ThemeChoice {
     return 'dark';
   }
   return 'light';
+}
+
+export type ThemeSetting = 'system' | 'light' | 'dark';
+
+export function loadTimezone(): string | null {
+  return read<string>(KEY_TIMEZONE);
+}
+
+export function saveTimezone(tz: string | null): void {
+  write(KEY_TIMEZONE, tz);
+}
+
+export function loadVoiceOutput(): boolean {
+  const val = read<boolean>(KEY_VOICE_OUTPUT);
+  return val !== null ? val : true;
+}
+
+export function saveVoiceOutput(enabled: boolean): void {
+  write(KEY_VOICE_OUTPUT, enabled);
+}
+
+export interface ReminderSettings {
+  enabled: boolean;
+  leadMinutes: 0 | 5 | 15 | 30;
+}
+
+export function loadReminderSettings(): ReminderSettings {
+  const val = read<ReminderSettings>(KEY_REMINDERS);
+  return val ?? { enabled: false, leadMinutes: 15 };
+}
+
+export function saveReminderSettings(settings: ReminderSettings): void {
+  write(KEY_REMINDERS, settings);
 }

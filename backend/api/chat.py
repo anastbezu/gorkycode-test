@@ -1,6 +1,7 @@
 """`POST /api/chat` — реплика пользователя → ответ ассистента (контракт docs/contracts/api.md)."""
 
 import asyncio
+import logging
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -8,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from agent.agent import process_user_turn
 from db import get_session
+from gcal.sync import NOT_SENT_TEXT, changed_record_ids, mark_pending, sync_after_turn
 from schemas import ChatRequest, ChatResponse
 from services import (
     ConversationAccessError,
@@ -18,6 +20,7 @@ from services import (
 from .deps import CurrentUser, get_current_user_id, parse_timezone
 
 router = APIRouter(prefix="/api", tags=["chat"])
+log = logging.getLogger("uvicorn.error")
 
 
 @router.post(
@@ -72,8 +75,28 @@ async def chat(
         response = await process_user_turn(
             db, user.id, conversation_id, req.text, zone.key, req.llm_config
         )
+        changed = changed_record_ids(response.result)
+        if user.is_account and changed:
+            # «Ждут отправки в Google» — в той же транзакции, что и само изменение.
+            await asyncio.to_thread(mark_pending, db, user.id, changed)
         await asyncio.to_thread(db.commit)
     except BaseException:
         await asyncio.to_thread(db.rollback)
         raise
+    if user.is_account:
+        await _sync_google(db, user.id, zone.key, response, bool(changed))
     return response
+
+
+async def _sync_google(db: Session, user_id, tz: str, response: ChatResponse,
+                       changed: bool) -> None:
+    """Google Календарь — после коммита: реплика уже сохранена, Google её не откатит.
+    Любой сбой здесь не ломает ответ: запись ждёт и уйдёт при следующем запросе."""
+    try:
+        result = await asyncio.to_thread(sync_after_turn, db, user_id, tz)
+    except Exception:  # noqa: BLE001 — сбой синхронизации не должен ронять ответ ассистента
+        await asyncio.to_thread(db.rollback)
+        log.exception("Синхронизация с Google Календарём упала")
+        result = None
+    if result is not None and not result.ok and changed:
+        response.reply = f"{response.reply} {NOT_SENT_TEXT}"

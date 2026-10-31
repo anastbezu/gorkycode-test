@@ -1,5 +1,6 @@
 """Чистые переходы состояния. Вызывающий загружает и сохраняет состояние один раз."""
 
+import re
 import unicodedata
 from copy import deepcopy
 from typing import Any
@@ -8,21 +9,97 @@ from zoneinfo import ZoneInfo
 
 from pydantic import BaseModel
 
-from schemas import ActionResult, AskUser, ConversationState, CreateRecord, LastAction, LLMAction
+from schemas import (
+    ActionResult,
+    AskUser,
+    ConversationState,
+    CreateRecord,
+    LastAction,
+    LLMAction,
+    RecordType,
+    SetStatus,
+    TargetRef,
+    UpdateRecord,
+)
 
 MUTATIONS = {"create_record", "update_record", "set_status"}
 LIST_ACTIONS = {"list_records", "search_records"}
-REFUSALS = {"не надо", "забудь", "отмена", "проехали", "забей", "неважно", "отбой", "стоп"}
+REFUSALS = {
+    "не надо", "забудь", "отмена", "проехали", "забей", "неважно", "отбой", "стоп",
+    "передумал", "я передумал", "не надо наверное",
+}
+# «Нет» — отказ только на подтверждение «Отменить N …?»: в уточнении «нет, в 16» — ответ.
+CONFIRM_REFUSALS = {"нет"}
+# Ждём выбора записи из кандидатов: одной (`choice`) или подтверждения всех (`confirm`).
+CHOOSING = {"choice", "confirm"}
+NUMBER = re.compile(r"номер (\d{1,3})")
+
+
+def _normalized(text: str) -> str:
+    """Без регистра и знаков препинания, пробелы схлопнуты: «Номер 2.» → «номер 2»."""
+    text = "".join(
+        " " if unicodedata.category(char).startswith("P") else char
+        for char in unicodedata.normalize("NFKC", text).casefold()
+    )
+    return " ".join(text.split())
 
 
 def is_refusal(text: str, state: ConversationState) -> bool:
     if state.awaiting is None:
         return False
-    normalized = "".join(
-        " " if unicodedata.category(char).startswith("P") else char
-        for char in unicodedata.normalize("NFKC", text).casefold()
-    )
-    return " ".join(normalized.split()) in REFUSALS
+    phrase = _normalized(text)
+    return phrase in REFUSALS or (state.awaiting == "confirm" and phrase in CONFIRM_REFUSALS)
+
+
+def chosen_number(text: str, state: ConversationState) -> int | None:
+    """«номер N» в ответ на выбор или подтверждение — N, иначе `None`.
+
+    Так отвечает чип «номер N» (api.md, «Правила»); разбирает код, без модели: нажатие должно
+    срабатывать всегда и сразу. Диапазон N проверяет вызывающий.
+    """
+    if state.awaiting not in CHOOSING or not state.candidates or state.pending is None:
+        return None
+    if not isinstance(state.pending.root, UpdateRecord | SetStatus):
+        return None
+    match = NUMBER.fullmatch(_normalized(text))
+    return int(match.group(1)) if match else None
+
+
+def choose_candidate(state: ConversationState, number: int) -> UpdateRecord | SetStatus:
+    """Отложенное действие (`pending`) над N-й записью из кандидатов — как если бы модель
+    вернула «вторую» (`TargetRef(index=N)`). Номер — N-я запись `candidates`, как в чипе."""
+    return state.pending.root.model_copy(update={"target": TargetRef(index=number)}, deep=True)
+
+
+def asks_meeting_time(state: ConversationState) -> bool:
+    """Ждём время встречи, у которой день уже известен (`awaiting = "time"`).
+
+    - Черновик — `CreateRecord` встречи с днём без времени (`time_given = False`), а сервис
+      ответил `missing = ["start"]` («Не названо время встречи»).
+    - Или вопрос модели с черновиком (`AskUser.draft`): встреча, день есть, времени нет
+      (ни `time_given`, ни отдельного `time`), в `missing` — `start` или `time`.
+    Встреча без дня («в 14:45, а когда?») — обычный вопрос (`answer`): спрашиваем день.
+    """
+    if state.pending is None:
+        return False
+    pending = state.pending.root
+    if isinstance(pending, CreateRecord):
+        return (
+            "start" in state.missing
+            and pending.type == RecordType.MEETING
+            and pending.start is not None
+            and not pending.time_given
+        )
+    if isinstance(pending, AskUser) and pending.draft is not None:
+        draft = pending.draft
+        return (
+            bool({"start", "time"} & set(state.missing))
+            and draft.type == RecordType.MEETING
+            and draft.start is not None
+            and not draft.time_given
+            and draft.time is None
+        )
+    return False
 
 
 def reset_pending(state: ConversationState) -> ConversationState:
@@ -114,7 +191,7 @@ def update_state(
         action = action.root
     new = state.model_copy(deep=True)
     continuing = continues_pending(state, action)
-    choosing = state.awaiting == "choice" and continuing
+    choosing = state.awaiting in CHOOSING and continuing
 
     if new.pending is not None:
         if continuing:
@@ -137,8 +214,8 @@ def update_state(
             new.pending = LLMAction(action.model_copy(update={"draft": draft}, deep=True))
         if asking:
             new.missing = list(action.missing)
-        if new.awaiting != "choice":
-            new.awaiting = "answer"
+        if new.awaiting not in CHOOSING:
+            new.awaiting = "time" if asks_meeting_time(new) else "answer"
         return new
     if result is None:
         raise ValueError("Для исполняемого действия нужен ActionResult")
@@ -153,7 +230,10 @@ def update_state(
         new.shown = list(new.candidates)
         new.focus_record_id = None
         new.missing = []
-        new.awaiting = "choice"
+        # Массовое действие («отмени всё на завтра») спрашивает подтверждение всех кандидатов,
+        # остальное — выбор одной записи.
+        mass = isinstance(action, SetStatus) and action.target.all
+        new.awaiting = "confirm" if mass else "choice"
         return new
     if not result.ok:
         if result.missing:
@@ -161,7 +241,7 @@ def update_state(
             new.pending_skipped = False
             new.missing = list(result.missing)
             new.candidates = []
-            new.awaiting = "answer"
+            new.awaiting = "time" if asks_meeting_time(new) else "answer"
         return new
 
     if continuing or new.pending is None:

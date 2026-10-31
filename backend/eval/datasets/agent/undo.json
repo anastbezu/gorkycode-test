@@ -1,0 +1,609 @@
+{
+  "dataset": "undo",
+  "source": "генерация моделью по контрактам docs/contracts",
+  "author": "Claude Sonnet 5.5, 2026-10-29",
+  "now": "2026-10-21 10:00",
+  "timezone": "Europe/Moscow",
+  "cases": [
+    {
+      "id": "un.1",
+      "category": "после создания",
+      "turns": [
+        {
+          "text": "Поставь встречу с Фёдором завтра в 11",
+          "expect": {
+            "action": "create_record",
+            "ok": true,
+            "awaiting": "none",
+            "type": "meeting",
+            "title": [
+              "Фёдор"
+            ],
+            "start": "2026-10-22 11:00"
+          }
+        },
+        {
+          "text": "Верни как было",
+          "expect": {
+            "action": "undo_last",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ],
+      "db": true
+    },
+    {
+      "id": "un.2",
+      "category": "после создания",
+      "turns": [
+        {
+          "text": "Напомни завтра в 9 утра выпить таблетки",
+          "expect": {
+            "action": "create_record",
+            "ok": true,
+            "awaiting": "none",
+            "type": "reminder",
+            "title": [
+              "таблет"
+            ],
+            "start": "2026-10-22 09:00"
+          }
+        },
+        {
+          "text": "Отмени последнее",
+          "expect": {
+            "action": "undo_last",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ],
+      "db": true
+    },
+    {
+      "id": "un.3",
+      "category": "после создания",
+      "turns": [
+        {
+          "text": "Поставь задачу забрать посылку",
+          "expect": {
+            "action": "create_record",
+            "ok": true,
+            "awaiting": "none",
+            "type": "task",
+            "title": [
+              "посылк"
+            ]
+          }
+        },
+        {
+          "text": "Откати",
+          "expect": {
+            "action": "undo_last",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ],
+      "db": true
+    },
+    {
+      "id": "un.4",
+      "category": "после создания",
+      "turns": [
+        {
+          "text": "Добавь встречу с Региной в пятницу в 14",
+          "expect": {
+            "action": "create_record",
+            "ok": true,
+            "awaiting": "none",
+            "type": "meeting",
+            "title": [
+              "Регин"
+            ],
+            "start": "2026-10-23 14:00"
+          }
+        },
+        {
+          "text": "Ой, это лишнее, верни назад",
+          "expect": {
+            "action": "undo_last",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ],
+      "db": true
+    },
+    {
+      "id": "un.5",
+      "category": "после создания",
+      "turns": [
+        {
+          "text": "Создай задачу заказать цветы до пятницы",
+          "expect": {
+            "action": "create_record",
+            "ok": true,
+            "awaiting": "none",
+            "type": "task",
+            "title": [
+              "цвет"
+            ],
+            "deadline": "2026-10-23"
+          }
+        },
+        {
+          "text": "верни",
+          "expect": {
+            "action": "undo_last",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ],
+      "db": true
+    },
+    {
+      "id": "un.6",
+      "category": "после переноса",
+      "turns": [
+        {
+          "text": "Перенеси встречу с Элиной на пятницу",
+          "expect": {
+            "action": "update_record",
+            "ok": true,
+            "awaiting": "none",
+            "target_text": [
+              "Элин"
+            ],
+            "start": "2026-10-23 12:00"
+          }
+        },
+        {
+          "text": "Верни как было",
+          "expect": {
+            "action": "undo_last",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ],
+      "db": true,
+      "records": [
+        {
+          "type": "meeting",
+          "title": "Встреча с Элиной",
+          "start": "2026-10-22 12:00"
+        }
+      ]
+    },
+    {
+      "id": "un.7",
+      "category": "после переноса",
+      "turns": [
+        {
+          "text": "Сдвинь встречу с Русланом на час позже",
+          "expect": {
+            "action": "update_record",
+            "ok": true,
+            "awaiting": "none",
+            "target_text": [
+              "Руслан"
+            ]
+          }
+        },
+        {
+          "text": "Отмени последнее",
+          "expect": {
+            "action": "undo_last",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ],
+      "db": true,
+      "records": [
+        {
+          "type": "meeting",
+          "title": "Встреча с Русланом",
+          "start": "2026-10-22 12:00"
+        }
+      ]
+    },
+    {
+      "id": "un.8",
+      "category": "после переноса",
+      "turns": [
+        {
+          "text": "Переименуй встречу с Ниной в «Встреча с Ниной и Олегом»",
+          "expect": {
+            "action": "update_record",
+            "ok": true,
+            "awaiting": "none",
+            "target_text": [
+              "Нин"
+            ],
+            "title": [
+              "Олег"
+            ]
+          }
+        },
+        {
+          "text": "Верни как было",
+          "expect": {
+            "action": "undo_last",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ],
+      "db": true,
+      "records": [
+        {
+          "type": "meeting",
+          "title": "Встреча с Ниной",
+          "start": "2026-10-22 13:00"
+        }
+      ]
+    },
+    {
+      "id": "un.9",
+      "category": "после переноса",
+      "turns": [
+        {
+          "text": "Срок по декларации подвинь на воскресенье",
+          "expect": {
+            "action": "update_record",
+            "ok": true,
+            "awaiting": "none",
+            "target_text": [
+              "декларац"
+            ],
+            "deadline": "2026-10-25"
+          }
+        },
+        {
+          "text": "Откати назад",
+          "expect": {
+            "action": "undo_last",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ],
+      "db": true,
+      "records": [
+        {
+          "type": "task",
+          "title": "Сдать декларацию",
+          "deadline": "2026-10-23 23:59"
+        }
+      ]
+    },
+    {
+      "id": "un.10",
+      "category": "после переноса",
+      "turns": [
+        {
+          "text": "Поставь встречу с Вадимом завтра в 12",
+          "expect": {
+            "action": "create_record",
+            "ok": true,
+            "awaiting": "none",
+            "type": "meeting",
+            "title": [
+              "Вадим"
+            ],
+            "start": "2026-10-22 12:00"
+          }
+        },
+        {
+          "text": "Перенеси её на 15",
+          "expect": {
+            "action": "update_record",
+            "ok": true,
+            "awaiting": "none",
+            "target_focus": true,
+            "start": "2026-10-22 15:00"
+          }
+        },
+        {
+          "text": "верни",
+          "expect": {
+            "action": "undo_last",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ],
+      "db": true
+    },
+    {
+      "id": "un.11",
+      "category": "после смены статуса",
+      "turns": [
+        {
+          "text": "Отмени встречу с Эдуардом",
+          "expect": {
+            "action": "set_status",
+            "status": "cancelled",
+            "ok": true,
+            "awaiting": "none",
+            "target_text": [
+              "Эдуард"
+            ]
+          }
+        },
+        {
+          "text": "Верни как было",
+          "expect": {
+            "action": "undo_last",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ],
+      "db": true,
+      "records": [
+        {
+          "type": "meeting",
+          "title": "Встреча с Эдуардом",
+          "start": "2026-10-22 14:00"
+        }
+      ]
+    },
+    {
+      "id": "un.12",
+      "category": "после смены статуса",
+      "turns": [
+        {
+          "text": "Отметь выполненной задачу про отчёт",
+          "expect": {
+            "action": "set_status",
+            "status": "done",
+            "ok": true,
+            "awaiting": "none",
+            "target_text": [
+              "отчёт"
+            ]
+          }
+        },
+        {
+          "text": "Верни",
+          "expect": {
+            "action": "undo_last",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ],
+      "db": true,
+      "records": [
+        {
+          "type": "task",
+          "title": "Сдать отчёт",
+          "deadline": "2026-10-23 23:59"
+        }
+      ]
+    },
+    {
+      "id": "un.13",
+      "category": "после смены статуса",
+      "turns": [
+        {
+          "text": "Отмени все планёрки",
+          "expect": {
+            "action": "set_status",
+            "status": "cancelled",
+            "ok": false,
+            "awaiting": "confirm",
+            "target_all": true
+          }
+        },
+        {
+          "text": "да",
+          "expect": {
+            "action": "set_status",
+            "status": "cancelled",
+            "ok": true,
+            "awaiting": "none",
+            "target_all": true
+          }
+        },
+        {
+          "text": "Верни как было",
+          "expect": {
+            "action": "undo_last",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ],
+      "db": true,
+      "records": [
+        {
+          "type": "meeting",
+          "title": "Планёрка по релизу",
+          "start": "2026-10-22 10:00"
+        },
+        {
+          "type": "meeting",
+          "title": "Планёрка отдела",
+          "start": "2026-10-26 10:00"
+        }
+      ]
+    },
+    {
+      "id": "un.14",
+      "category": "после смены статуса",
+      "turns": [
+        {
+          "text": "Я позвонил Максиму",
+          "expect": {
+            "action": "set_status",
+            "status": "done",
+            "ok": true,
+            "awaiting": "none",
+            "target_text": [
+              "Максим"
+            ]
+          }
+        },
+        {
+          "text": "Нет, откати",
+          "expect": {
+            "action": "undo_last",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ],
+      "db": true,
+      "records": [
+        {
+          "type": "reminder",
+          "title": "Позвонить Максиму",
+          "start": "2026-10-22 09:00"
+        }
+      ]
+    },
+    {
+      "id": "un.15",
+      "category": "после смены статуса",
+      "turns": [
+        {
+          "text": "Убери встречу с Петром",
+          "expect": {
+            "action": "set_status",
+            "status": "cancelled",
+            "ok": true,
+            "awaiting": "none",
+            "target_text": [
+              "Петр"
+            ]
+          }
+        },
+        {
+          "text": "Отмени последнее",
+          "expect": {
+            "action": "undo_last",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ],
+      "db": true,
+      "records": [
+        {
+          "type": "meeting",
+          "title": "Встреча с Петром",
+          "start": "2026-10-22 12:00"
+        }
+      ]
+    },
+    {
+      "id": "un.16",
+      "category": "откатывать нечего",
+      "turns": [
+        {
+          "text": "Верни как было",
+          "expect": {
+            "action": "undo_last",
+            "ok": false
+          }
+        }
+      ],
+      "db": true
+    },
+    {
+      "id": "un.17",
+      "category": "откатывать нечего",
+      "turns": [
+        {
+          "text": "Отмени последнее",
+          "expect": {
+            "action": "undo_last",
+            "ok": false
+          }
+        }
+      ],
+      "db": true
+    },
+    {
+      "id": "un.18",
+      "category": "откатывать нечего",
+      "turns": [
+        {
+          "text": "Что у меня завтра?",
+          "expect": {
+            "action": "list_records"
+          }
+        },
+        {
+          "text": "Верни как было",
+          "expect": {
+            "action": "undo_last",
+            "ok": false
+          }
+        }
+      ],
+      "db": true,
+      "records": [
+        {
+          "type": "meeting",
+          "title": "Встреча с Лукой",
+          "start": "2026-10-22 12:00"
+        }
+      ]
+    },
+    {
+      "id": "un.19",
+      "category": "откатывать нечего",
+      "turns": [
+        {
+          "text": "Найди встречу с Иваном",
+          "expect": {
+            "action": "search_records"
+          }
+        },
+        {
+          "text": "Откати",
+          "expect": {
+            "action": "undo_last",
+            "ok": false
+          }
+        }
+      ],
+      "db": true,
+      "records": [
+        {
+          "type": "meeting",
+          "title": "Встреча с Иваном",
+          "start": "2026-10-22 12:00"
+        }
+      ]
+    },
+    {
+      "id": "un.20",
+      "category": "откатывать нечего",
+      "turns": [
+        {
+          "text": "Что ты умеешь?",
+          "expect": {
+            "action": "help",
+            "kind": "help"
+          }
+        },
+        {
+          "text": "Верни как было",
+          "expect": {
+            "action": "undo_last",
+            "ok": false
+          }
+        }
+      ],
+      "db": true
+    }
+  ]
+}

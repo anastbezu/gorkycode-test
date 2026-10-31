@@ -1,0 +1,1673 @@
+{
+  "dataset": "status",
+  "source": "генерация моделью по контрактам docs/contracts",
+  "author": "Claude Sonnet 5.5, 2026-10-29",
+  "now": "2026-10-21 10:00",
+  "timezone": "Europe/Moscow",
+  "cases": [
+    {
+      "id": "st.1",
+      "category": "вид статуса",
+      "turns": [
+        {
+          "text": "Я позвонил Максиму",
+          "expect": {
+            "action": "set_status",
+            "status": "done",
+            "ok": true,
+            "awaiting": "none",
+            "target_text": [
+              "Максим"
+            ]
+          }
+        }
+      ],
+      "db": true,
+      "records": [
+        {
+          "type": "reminder",
+          "title": "Позвонить Максиму",
+          "start": "2026-10-22 09:00"
+        }
+      ]
+    },
+    {
+      "id": "st.2",
+      "category": "вид статуса",
+      "turns": [
+        {
+          "text": "Готово, смету отправил",
+          "expect": {
+            "action": "set_status",
+            "status": "done",
+            "ok": true,
+            "awaiting": "none",
+            "target_text": [
+              "смет"
+            ]
+          }
+        }
+      ],
+      "db": true,
+      "records": [
+        {
+          "type": "task",
+          "title": "Отправить смету",
+          "deadline": "2026-10-23 23:59"
+        }
+      ]
+    },
+    {
+      "id": "st.3",
+      "category": "вид статуса",
+      "turns": [
+        {
+          "text": "Отмени встречу с Олегом",
+          "expect": {
+            "action": "set_status",
+            "status": "cancelled",
+            "ok": true,
+            "awaiting": "none",
+            "target_text": [
+              "Олег"
+            ]
+          }
+        }
+      ],
+      "db": true,
+      "records": [
+        {
+          "type": "meeting",
+          "title": "Встреча с Олегом",
+          "start": "2026-10-22 14:00"
+        }
+      ]
+    },
+    {
+      "id": "st.4",
+      "category": "вид статуса",
+      "turns": [
+        {
+          "text": "Отмени напоминание про зубного",
+          "expect": {
+            "action": "set_status",
+            "status": "cancelled",
+            "ok": true,
+            "awaiting": "none",
+            "target_text": [
+              "зубн"
+            ]
+          }
+        }
+      ],
+      "db": true,
+      "records": [
+        {
+          "type": "reminder",
+          "title": "Записаться к зубному",
+          "start": "2026-10-22 09:30"
+        }
+      ]
+    },
+    {
+      "id": "st.5",
+      "category": "вид статуса",
+      "turns": [
+        {
+          "text": "Задача по презентации выполнена",
+          "expect": {
+            "action": "set_status",
+            "status": "done",
+            "ok": true,
+            "awaiting": "none",
+            "target_text": [
+              "презентац"
+            ]
+          }
+        }
+      ],
+      "db": true,
+      "records": [
+        {
+          "type": "task",
+          "title": "Доделать презентацию",
+          "deadline": "2026-10-24 23:59"
+        }
+      ]
+    },
+    {
+      "id": "st.6",
+      "category": "вид статуса",
+      "turns": [
+        {
+          "text": "Отмени встречу с Тарасом",
+          "expect": {
+            "action": "set_status",
+            "status": "cancelled",
+            "ok": true,
+            "awaiting": "none",
+            "target_text": [
+              "Тарас"
+            ]
+          }
+        },
+        {
+          "text": "Верни встречу с Тарасом в активные",
+          "expect": {
+            "action": "set_status",
+            "status": "active",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ],
+      "db": true,
+      "records": [
+        {
+          "type": "meeting",
+          "title": "Встреча с Тарасом",
+          "start": "2026-10-22 11:00"
+        }
+      ]
+    },
+    {
+      "id": "st.7",
+      "category": "вид статуса",
+      "turns": [
+        {
+          "text": "Я сделал задачу про парковку",
+          "expect": {
+            "action": "set_status",
+            "status": "done",
+            "ok": true,
+            "awaiting": "none",
+            "target_text": [
+              "парковк"
+            ]
+          }
+        },
+        {
+          "text": "Нет, не сделал, верни её в активные",
+          "expect": {
+            "action": "set_status",
+            "status": "active",
+            "ok": true,
+            "awaiting": "none",
+            "target_focus": true
+          }
+        }
+      ],
+      "db": true,
+      "records": [
+        {
+          "type": "task",
+          "title": "Оплатить парковку",
+          "deadline": "2026-10-23 23:59"
+        }
+      ]
+    },
+    {
+      "id": "st.8",
+      "category": "вид статуса",
+      "turns": [
+        {
+          "text": "Задача про склад готова",
+          "expect": {
+            "action": "set_status",
+            "status": "done",
+            "ok": true,
+            "awaiting": "none",
+            "target_text": [
+              "склад"
+            ]
+          }
+        },
+        {
+          "text": "Сними отметку выполнено с задачи про склад",
+          "expect": {
+            "action": "set_status",
+            "status": "active",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ],
+      "db": true,
+      "records": [
+        {
+          "type": "task",
+          "title": "Разобрать склад",
+          "deadline": "2026-10-24 23:59"
+        }
+      ]
+    },
+    {
+      "id": "st.9",
+      "category": "вид статуса",
+      "turns": [
+        {
+          "text": "Встреча с Асей не состоится",
+          "expect": {
+            "action": "set_status",
+            "status": "cancelled",
+            "ok": true,
+            "awaiting": "none",
+            "target_text": [
+              "Ас"
+            ]
+          }
+        }
+      ],
+      "db": true,
+      "records": [
+        {
+          "type": "meeting",
+          "title": "Встреча с Асей",
+          "start": "2026-10-22 16:00"
+        }
+      ]
+    },
+    {
+      "id": "st.10",
+      "category": "вид статуса",
+      "turns": [
+        {
+          "text": "Всё, с налогами разобрался",
+          "expect": {
+            "action": "set_status",
+            "status": "done",
+            "ok": true,
+            "awaiting": "none",
+            "target_text": [
+              "налог"
+            ]
+          }
+        }
+      ],
+      "db": true,
+      "records": [
+        {
+          "type": "task",
+          "title": "Заплатить налоги",
+          "deadline": "2026-10-23 23:59"
+        }
+      ]
+    },
+    {
+      "id": "st.11",
+      "category": "цель по номеру",
+      "turns": [
+        {
+          "text": "Что у меня завтра?",
+          "expect": {
+            "action": "list_records"
+          }
+        },
+        {
+          "text": "Вторую отмени",
+          "expect": {
+            "action": "set_status",
+            "status": "cancelled",
+            "ok": true,
+            "awaiting": "none",
+            "target_index": 2
+          }
+        }
+      ],
+      "db": true,
+      "records": [
+        {
+          "type": "meeting",
+          "title": "Планёрка по релизу",
+          "start": "2026-10-22 10:00"
+        },
+        {
+          "type": "meeting",
+          "title": "Встреча с Лукой",
+          "start": "2026-10-22 13:00"
+        },
+        {
+          "type": "task",
+          "title": "Заказать пропуск",
+          "start": "2026-10-22 17:00"
+        }
+      ]
+    },
+    {
+      "id": "st.12",
+      "category": "цель по номеру",
+      "turns": [
+        {
+          "text": "Какие планы на завтра?",
+          "expect": {
+            "action": "list_records"
+          }
+        },
+        {
+          "text": "Третье выполнено",
+          "expect": {
+            "action": "set_status",
+            "status": "done",
+            "ok": true,
+            "awaiting": "none",
+            "target_index": 3
+          }
+        }
+      ],
+      "db": true,
+      "records": [
+        {
+          "type": "meeting",
+          "title": "Планёрка по релизу",
+          "start": "2026-10-22 10:00"
+        },
+        {
+          "type": "meeting",
+          "title": "Встреча с Лукой",
+          "start": "2026-10-22 13:00"
+        },
+        {
+          "type": "task",
+          "title": "Заказать пропуск",
+          "start": "2026-10-22 17:00"
+        }
+      ]
+    },
+    {
+      "id": "st.13",
+      "category": "цель по номеру",
+      "turns": [
+        {
+          "text": "Покажи завтрашнее",
+          "expect": {
+            "action": "list_records"
+          }
+        },
+        {
+          "text": "Первую отмени, не надо её",
+          "expect": {
+            "action": "set_status",
+            "status": "cancelled",
+            "ok": true,
+            "awaiting": "none",
+            "target_index": 1
+          }
+        }
+      ],
+      "db": true,
+      "records": [
+        {
+          "type": "meeting",
+          "title": "Планёрка по релизу",
+          "start": "2026-10-22 10:00"
+        },
+        {
+          "type": "meeting",
+          "title": "Встреча с Лукой",
+          "start": "2026-10-22 13:00"
+        },
+        {
+          "type": "task",
+          "title": "Заказать пропуск",
+          "start": "2026-10-22 17:00"
+        }
+      ]
+    },
+    {
+      "id": "st.14",
+      "category": "цель по номеру",
+      "turns": [
+        {
+          "text": "Что у меня завтра?",
+          "expect": {
+            "action": "list_records"
+          }
+        },
+        {
+          "text": "Третью выполнил",
+          "expect": {
+            "action": "set_status",
+            "status": "done",
+            "ok": true,
+            "awaiting": "none",
+            "target_index": 3
+          }
+        },
+        {
+          "text": "А вторую отмени",
+          "expect": {
+            "action": "set_status",
+            "status": "cancelled",
+            "ok": true,
+            "awaiting": "none",
+            "target_index": 2
+          }
+        }
+      ],
+      "db": true,
+      "records": [
+        {
+          "type": "meeting",
+          "title": "Планёрка по релизу",
+          "start": "2026-10-22 10:00"
+        },
+        {
+          "type": "meeting",
+          "title": "Встреча с Лукой",
+          "start": "2026-10-22 13:00"
+        },
+        {
+          "type": "task",
+          "title": "Заказать пропуск",
+          "start": "2026-10-22 17:00"
+        }
+      ]
+    },
+    {
+      "id": "st.15",
+      "category": "цель по номеру",
+      "turns": [
+        {
+          "text": "чё там завтра",
+          "expect": {
+            "action": "list_records"
+          }
+        },
+        {
+          "text": "ну вторую убери",
+          "expect": {
+            "action": "set_status",
+            "status": "cancelled",
+            "ok": true,
+            "awaiting": "none",
+            "target_index": 2
+          }
+        }
+      ],
+      "db": true,
+      "records": [
+        {
+          "type": "meeting",
+          "title": "Планёрка по релизу",
+          "start": "2026-10-22 10:00"
+        },
+        {
+          "type": "meeting",
+          "title": "Встреча с Лукой",
+          "start": "2026-10-22 13:00"
+        },
+        {
+          "type": "task",
+          "title": "Заказать пропуск",
+          "start": "2026-10-22 17:00"
+        }
+      ]
+    },
+    {
+      "id": "st.16",
+      "category": "цель по номеру",
+      "turns": [
+        {
+          "text": "Какие у меня задачи?",
+          "expect": {
+            "action": "list_records"
+          }
+        },
+        {
+          "text": "Первую отметь выполненной",
+          "expect": {
+            "action": "set_status",
+            "status": "done",
+            "ok": true,
+            "awaiting": "none",
+            "target_index": 1
+          }
+        }
+      ],
+      "db": true,
+      "records": [
+        {
+          "type": "task",
+          "title": "Отправить смету клиенту",
+          "deadline": "2026-10-23 23:59"
+        },
+        {
+          "type": "task",
+          "title": "Заказать воду в офис",
+          "deadline": "2026-10-27 23:59"
+        }
+      ]
+    },
+    {
+      "id": "st.17",
+      "category": "цель её",
+      "turns": [
+        {
+          "text": "Добавь встречу с Ренатом завтра в 11",
+          "expect": {
+            "action": "create_record",
+            "ok": true,
+            "awaiting": "none",
+            "type": "meeting",
+            "title": [
+              "Ренат"
+            ],
+            "start": "2026-10-22 11:00"
+          }
+        },
+        {
+          "text": "Отмени её",
+          "expect": {
+            "action": "set_status",
+            "status": "cancelled",
+            "ok": true,
+            "awaiting": "none",
+            "target_focus": true
+          }
+        }
+      ],
+      "db": true
+    },
+    {
+      "id": "st.18",
+      "category": "цель её",
+      "turns": [
+        {
+          "text": "Напомни завтра в 9 утра позвонить в налоговую",
+          "expect": {
+            "action": "create_record",
+            "ok": true,
+            "awaiting": "none",
+            "type": "reminder",
+            "title": [
+              "налогов"
+            ],
+            "start": "2026-10-22 09:00"
+          }
+        },
+        {
+          "text": "Всё, выполнено",
+          "expect": {
+            "action": "set_status",
+            "status": "done",
+            "ok": true,
+            "awaiting": "none",
+            "target_focus": true
+          }
+        }
+      ],
+      "db": true
+    },
+    {
+      "id": "st.19",
+      "category": "цель её",
+      "turns": [
+        {
+          "text": "Какие у меня встречи завтра?",
+          "expect": {
+            "action": "list_records"
+          }
+        },
+        {
+          "text": "Отметь её выполненной",
+          "expect": {
+            "action": "set_status",
+            "status": "done",
+            "ok": true,
+            "awaiting": "none",
+            "target_focus": true
+          }
+        }
+      ],
+      "db": true,
+      "records": [
+        {
+          "type": "meeting",
+          "title": "Встреча с аудитором",
+          "start": "2026-10-22 16:00"
+        }
+      ]
+    },
+    {
+      "id": "st.20",
+      "category": "цель её",
+      "turns": [
+        {
+          "text": "Что у меня завтра?",
+          "expect": {
+            "action": "list_records"
+          }
+        },
+        {
+          "text": "Отмени эту встречу",
+          "expect": {
+            "action": "set_status",
+            "status": "cancelled",
+            "ok": true,
+            "awaiting": "none",
+            "target_focus": true
+          }
+        }
+      ],
+      "db": true,
+      "records": [
+        {
+          "type": "meeting",
+          "title": "Встреча с аудитором",
+          "start": "2026-10-22 16:00"
+        }
+      ]
+    },
+    {
+      "id": "st.21",
+      "category": "цель её",
+      "turns": [
+        {
+          "text": "Поставь задачу купить кофе",
+          "expect": {
+            "action": "create_record",
+            "ok": true,
+            "awaiting": "none",
+            "type": "task",
+            "title": [
+              "кофе"
+            ]
+          }
+        },
+        {
+          "text": "Удали эту задачу",
+          "expect": {
+            "action": "set_status",
+            "status": "cancelled",
+            "ok": true,
+            "awaiting": "none",
+            "target_focus": true
+          }
+        }
+      ],
+      "db": true
+    },
+    {
+      "id": "st.22",
+      "category": "цель её",
+      "turns": [
+        {
+          "text": "Перенеси созвон с Вектором на пятницу",
+          "expect": {
+            "action": "update_record",
+            "ok": true,
+            "target_text": [
+              "Вектор"
+            ]
+          }
+        },
+        {
+          "text": "Её отметь выполненной",
+          "expect": {
+            "action": "set_status",
+            "status": "done",
+            "ok": true,
+            "awaiting": "none",
+            "target_focus": true
+          }
+        }
+      ],
+      "db": true,
+      "records": [
+        {
+          "type": "meeting",
+          "title": "Созвон с Вектором",
+          "start": "2026-10-22 12:00"
+        }
+      ]
+    },
+    {
+      "id": "st.23",
+      "category": "цель по описанию",
+      "turns": [
+        {
+          "text": "Отмени встречу с Дианой",
+          "expect": {
+            "action": "set_status",
+            "status": "cancelled",
+            "ok": true,
+            "awaiting": "none",
+            "target_text": [
+              "Диан"
+            ]
+          }
+        }
+      ],
+      "db": true,
+      "records": [
+        {
+          "type": "meeting",
+          "title": "Встреча с Дианой",
+          "start": "2026-10-22 15:00"
+        }
+      ]
+    },
+    {
+      "id": "st.24",
+      "category": "цель по описанию",
+      "turns": [
+        {
+          "text": "Отметь выполненной задачу про ремонт",
+          "expect": {
+            "action": "set_status",
+            "status": "done",
+            "ok": true,
+            "awaiting": "none",
+            "target_text": [
+              "ремонт"
+            ]
+          }
+        }
+      ],
+      "db": true,
+      "records": [
+        {
+          "type": "task",
+          "title": "Заказать ремонт принтера",
+          "deadline": "2026-10-24 23:59"
+        }
+      ]
+    },
+    {
+      "id": "st.25",
+      "category": "цель по описанию",
+      "turns": [
+        {
+          "text": "Отметь выполненной задачу про оплату",
+          "expect": {
+            "action": "set_status",
+            "status": "done",
+            "ok": false,
+            "awaiting": "choice",
+            "target_text": [
+              "оплат"
+            ]
+          }
+        }
+      ],
+      "db": true,
+      "records": [
+        {
+          "type": "task",
+          "title": "Оплатить хостинг",
+          "deadline": "2026-10-23 23:59"
+        },
+        {
+          "type": "task",
+          "title": "Оплатить аренду",
+          "deadline": "2026-10-25 23:59"
+        }
+      ]
+    },
+    {
+      "id": "st.26",
+      "category": "цель по описанию",
+      "turns": [
+        {
+          "text": "Отметь выполненной задачу про оплату",
+          "expect": {
+            "action": "set_status",
+            "status": "done",
+            "ok": false,
+            "awaiting": "choice",
+            "target_text": [
+              "оплат"
+            ]
+          }
+        },
+        {
+          "text": "Вторую",
+          "expect": {
+            "action": "set_status",
+            "status": "done",
+            "ok": true,
+            "awaiting": "none",
+            "target_index": 2
+          }
+        }
+      ],
+      "db": true,
+      "records": [
+        {
+          "type": "task",
+          "title": "Оплатить хостинг",
+          "deadline": "2026-10-23 23:59"
+        },
+        {
+          "type": "task",
+          "title": "Оплатить аренду",
+          "deadline": "2026-10-25 23:59"
+        }
+      ]
+    },
+    {
+      "id": "st.27",
+      "category": "цель по описанию",
+      "turns": [
+        {
+          "text": "Отмени встречу с Анфисой",
+          "expect": {
+            "action": "set_status",
+            "ok": false
+          }
+        }
+      ],
+      "db": true,
+      "records": [
+        {
+          "type": "meeting",
+          "title": "Планёрка по релизу",
+          "start": "2026-10-22 10:00"
+        }
+      ]
+    },
+    {
+      "id": "st.28",
+      "category": "цель по описанию",
+      "turns": [
+        {
+          "text": "Отмени встречу в пятницу в три",
+          "expect": {
+            "action": "set_status",
+            "status": "cancelled",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ],
+      "db": true,
+      "records": [
+        {
+          "type": "meeting",
+          "title": "Встреча с поставщиком",
+          "start": "2026-10-23 15:00"
+        },
+        {
+          "type": "meeting",
+          "title": "Встреча с Лукой",
+          "start": "2026-10-23 10:00"
+        }
+      ]
+    },
+    {
+      "id": "st.29",
+      "category": "цель по описанию",
+      "turns": [
+        {
+          "text": "ну отмени там встречу с Марком",
+          "expect": {
+            "action": "set_status",
+            "status": "cancelled",
+            "ok": true,
+            "awaiting": "none",
+            "target_text": [
+              "Марк"
+            ]
+          }
+        }
+      ],
+      "db": true,
+      "records": [
+        {
+          "type": "meeting",
+          "title": "Встреча с Марком",
+          "start": "2026-10-22 12:00"
+        }
+      ]
+    },
+    {
+      "id": "st.30",
+      "category": "цель по описанию",
+      "turns": [
+        {
+          "text": "атмени созвон с Севером",
+          "expect": {
+            "action": "set_status",
+            "status": "cancelled",
+            "ok": true,
+            "awaiting": "none",
+            "target_text": [
+              "Север"
+            ]
+          }
+        }
+      ],
+      "db": true,
+      "records": [
+        {
+          "type": "meeting",
+          "title": "Созвон с Севером",
+          "start": "2026-10-22 12:00"
+        }
+      ]
+    },
+    {
+      "id": "st.31",
+      "category": "массовая смена",
+      "turns": [
+        {
+          "text": "Удали всё, что у меня завтра",
+          "expect": {
+            "action": "set_status",
+            "status": "cancelled",
+            "ok": false,
+            "awaiting": "confirm",
+            "target_all": true
+          }
+        }
+      ],
+      "db": true,
+      "records": [
+        {
+          "type": "meeting",
+          "title": "Планёрка по релизу",
+          "start": "2026-10-22 10:00"
+        },
+        {
+          "type": "meeting",
+          "title": "Встреча с Лукой",
+          "start": "2026-10-22 13:00"
+        },
+        {
+          "type": "task",
+          "title": "Заказать пропуск",
+          "start": "2026-10-22 17:00"
+        }
+      ]
+    },
+    {
+      "id": "st.32",
+      "category": "массовая смена",
+      "turns": [
+        {
+          "text": "Удали всё, что у меня завтра",
+          "expect": {
+            "action": "set_status",
+            "status": "cancelled",
+            "ok": false,
+            "awaiting": "confirm",
+            "target_all": true
+          }
+        },
+        {
+          "text": "Да",
+          "expect": {
+            "action": "set_status",
+            "status": "cancelled",
+            "ok": true,
+            "awaiting": "none",
+            "target_all": true
+          }
+        }
+      ],
+      "db": true,
+      "records": [
+        {
+          "type": "meeting",
+          "title": "Планёрка по релизу",
+          "start": "2026-10-22 10:00"
+        },
+        {
+          "type": "meeting",
+          "title": "Встреча с Лукой",
+          "start": "2026-10-22 13:00"
+        },
+        {
+          "type": "task",
+          "title": "Заказать пропуск",
+          "start": "2026-10-22 17:00"
+        }
+      ]
+    },
+    {
+      "id": "st.33",
+      "category": "массовая смена",
+      "turns": [
+        {
+          "text": "Очисти завтрашний день",
+          "expect": {
+            "action": "set_status",
+            "status": "cancelled",
+            "ok": false,
+            "awaiting": "confirm",
+            "target_all": true
+          }
+        },
+        {
+          "text": "Да, все",
+          "expect": {
+            "action": "set_status",
+            "status": "cancelled",
+            "ok": true,
+            "awaiting": "none",
+            "target_all": true
+          }
+        }
+      ],
+      "db": true,
+      "records": [
+        {
+          "type": "meeting",
+          "title": "Планёрка по релизу",
+          "start": "2026-10-22 10:00"
+        },
+        {
+          "type": "meeting",
+          "title": "Встреча с Лукой",
+          "start": "2026-10-22 13:00"
+        },
+        {
+          "type": "task",
+          "title": "Заказать пропуск",
+          "start": "2026-10-22 17:00"
+        }
+      ]
+    },
+    {
+      "id": "st.34",
+      "category": "массовая смена",
+      "turns": [
+        {
+          "text": "Отмени всё на завтра",
+          "expect": {
+            "action": "set_status",
+            "status": "cancelled",
+            "ok": false,
+            "awaiting": "confirm",
+            "target_all": true
+          }
+        },
+        {
+          "text": "не надо",
+          "expect": {
+            "action": "none",
+            "awaiting": "none"
+          }
+        }
+      ],
+      "db": true,
+      "records": [
+        {
+          "type": "meeting",
+          "title": "Планёрка по релизу",
+          "start": "2026-10-22 10:00"
+        },
+        {
+          "type": "meeting",
+          "title": "Встреча с Лукой",
+          "start": "2026-10-22 13:00"
+        },
+        {
+          "type": "task",
+          "title": "Заказать пропуск",
+          "start": "2026-10-22 17:00"
+        }
+      ]
+    },
+    {
+      "id": "st.35",
+      "category": "массовая смена",
+      "turns": [
+        {
+          "text": "Отмени все планёрки",
+          "expect": {
+            "action": "set_status",
+            "status": "cancelled",
+            "ok": false,
+            "awaiting": "confirm",
+            "target_all": true,
+            "target_text": [
+              "планёрк"
+            ]
+          }
+        }
+      ],
+      "db": true,
+      "records": [
+        {
+          "type": "meeting",
+          "title": "Планёрка по релизу",
+          "start": "2026-10-22 10:00"
+        },
+        {
+          "type": "meeting",
+          "title": "Планёрка отдела",
+          "start": "2026-10-26 10:00"
+        },
+        {
+          "type": "meeting",
+          "title": "Планёрка с продажами",
+          "start": "2026-10-28 10:00"
+        }
+      ]
+    },
+    {
+      "id": "st.36",
+      "category": "массовая смена",
+      "turns": [
+        {
+          "text": "Отметь всё на сегодня выполненным",
+          "expect": {
+            "action": "set_status",
+            "status": "done",
+            "ok": false,
+            "awaiting": "confirm",
+            "target_all": true
+          }
+        }
+      ],
+      "db": true,
+      "records": [
+        {
+          "type": "task",
+          "title": "Заказать пропуск",
+          "start": "2026-10-21 12:00"
+        },
+        {
+          "type": "meeting",
+          "title": "Встреча с Лукой",
+          "start": "2026-10-21 15:00"
+        }
+      ]
+    },
+    {
+      "id": "st.37",
+      "category": "массовая смена",
+      "turns": [
+        {
+          "text": "Отмени все созвоны с Вектором",
+          "expect": {
+            "action": "set_status",
+            "status": "cancelled",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ],
+      "db": true,
+      "records": [
+        {
+          "type": "meeting",
+          "title": "Созвон с Вектором",
+          "start": "2026-10-22 12:00"
+        },
+        {
+          "type": "meeting",
+          "title": "Планёрка по релизу",
+          "start": "2026-10-22 10:00"
+        }
+      ]
+    },
+    {
+      "id": "st.38",
+      "category": "массовая смена",
+      "turns": [
+        {
+          "text": "Отмени всё на завтра",
+          "expect": {
+            "action": "set_status",
+            "status": "cancelled",
+            "ok": false,
+            "awaiting": "confirm",
+            "target_all": true
+          }
+        },
+        {
+          "text": "Да",
+          "expect": {
+            "action": "set_status",
+            "status": "cancelled",
+            "ok": true,
+            "awaiting": "none",
+            "target_all": true
+          }
+        },
+        {
+          "text": "Верни как было",
+          "expect": {
+            "action": "undo_last",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ],
+      "db": true,
+      "records": [
+        {
+          "type": "meeting",
+          "title": "Планёрка по релизу",
+          "start": "2026-10-22 10:00"
+        },
+        {
+          "type": "meeting",
+          "title": "Встреча с Лукой",
+          "start": "2026-10-22 13:00"
+        },
+        {
+          "type": "task",
+          "title": "Заказать пропуск",
+          "start": "2026-10-22 17:00"
+        }
+      ]
+    },
+    {
+      "id": "st.39",
+      "category": "массовая смена",
+      "turns": [
+        {
+          "text": "Отмени всё на завтра",
+          "expect": {
+            "action": "set_status",
+            "status": "cancelled",
+            "ok": true,
+            "awaiting": "none"
+          }
+        }
+      ],
+      "db": true,
+      "records": [
+        {
+          "type": "meeting",
+          "title": "Встреча с Лукой",
+          "start": "2026-10-22 13:00"
+        }
+      ]
+    },
+    {
+      "id": "st.40",
+      "category": "массовая смена",
+      "turns": [
+        {
+          "text": "Закрой все задачи на этой неделе",
+          "expect": {
+            "action": "set_status",
+            "status": "done",
+            "ok": false,
+            "awaiting": "confirm",
+            "target_all": true
+          }
+        }
+      ],
+      "db": true,
+      "records": [
+        {
+          "type": "task",
+          "title": "Отправить смету",
+          "deadline": "2026-10-23 23:59"
+        },
+        {
+          "type": "task",
+          "title": "Заказать воду",
+          "deadline": "2026-10-24 23:59"
+        },
+        {
+          "type": "task",
+          "title": "Сдать отчёт",
+          "deadline": "2026-10-30 23:59"
+        }
+      ]
+    },
+    {
+      "id": "st.41",
+      "category": "не эту а ту",
+      "turns": [
+        {
+          "text": "Отмени встречу с Олесей по найму",
+          "expect": {
+            "action": "set_status",
+            "status": "cancelled",
+            "ok": true,
+            "awaiting": "none",
+            "target_text": [
+              "найм"
+            ]
+          }
+        },
+        {
+          "text": "Нет, не ту, а с Олесей по бюджету",
+          "expect": {
+            "action": "set_status",
+            "status": "cancelled",
+            "ok": true,
+            "awaiting": "none",
+            "replaces_last": true,
+            "target_text": [
+              "бюджет"
+            ]
+          }
+        }
+      ],
+      "db": true,
+      "records": [
+        {
+          "type": "meeting",
+          "title": "Встреча с Олесей по найму",
+          "start": "2026-10-22 11:00"
+        },
+        {
+          "type": "meeting",
+          "title": "Встреча с Олесей по бюджету",
+          "start": "2026-10-22 15:00"
+        }
+      ]
+    },
+    {
+      "id": "st.42",
+      "category": "не эту а ту",
+      "turns": [
+        {
+          "text": "Отметь выполненной задачу про склад",
+          "expect": {
+            "action": "set_status",
+            "status": "done",
+            "ok": true,
+            "awaiting": "none",
+            "target_text": [
+              "склад"
+            ]
+          }
+        },
+        {
+          "text": "Не эту, а про парковку",
+          "expect": {
+            "action": "set_status",
+            "status": "done",
+            "ok": true,
+            "awaiting": "none",
+            "replaces_last": true,
+            "target_text": [
+              "парковк"
+            ]
+          }
+        }
+      ],
+      "db": true,
+      "records": [
+        {
+          "type": "task",
+          "title": "Разобрать склад",
+          "deadline": "2026-10-24 23:59"
+        },
+        {
+          "type": "task",
+          "title": "Оплатить парковку",
+          "deadline": "2026-10-23 23:59"
+        }
+      ]
+    },
+    {
+      "id": "st.43",
+      "category": "не эту а ту",
+      "turns": [
+        {
+          "text": "Что у меня завтра?",
+          "expect": {
+            "action": "list_records"
+          }
+        },
+        {
+          "text": "Отмени вторую",
+          "expect": {
+            "action": "set_status",
+            "status": "cancelled",
+            "ok": true,
+            "awaiting": "none",
+            "target_index": 2
+          }
+        },
+        {
+          "text": "Нет, не вторую, а третью",
+          "expect": {
+            "action": "set_status",
+            "status": "cancelled",
+            "ok": true,
+            "awaiting": "none",
+            "replaces_last": true,
+            "target_index": 3
+          }
+        }
+      ],
+      "db": true,
+      "records": [
+        {
+          "type": "meeting",
+          "title": "Планёрка по релизу",
+          "start": "2026-10-22 10:00"
+        },
+        {
+          "type": "meeting",
+          "title": "Встреча с Лукой",
+          "start": "2026-10-22 13:00"
+        },
+        {
+          "type": "task",
+          "title": "Заказать пропуск",
+          "start": "2026-10-22 17:00"
+        }
+      ]
+    },
+    {
+      "id": "st.44",
+      "category": "не эту а ту",
+      "turns": [
+        {
+          "text": "Отмени встречу с Ярославом",
+          "expect": {
+            "action": "set_status",
+            "status": "cancelled",
+            "ok": true,
+            "awaiting": "none",
+            "target_text": [
+              "Ярослав"
+            ]
+          }
+        },
+        {
+          "text": "Ой, не с Ярославом, а с Ростиславом",
+          "expect": {
+            "action": "set_status",
+            "status": "cancelled",
+            "ok": true,
+            "awaiting": "none",
+            "replaces_last": true,
+            "target_text": [
+              "Ростислав"
+            ]
+          }
+        }
+      ],
+      "db": true,
+      "records": [
+        {
+          "type": "meeting",
+          "title": "Встреча с Ярославом",
+          "start": "2026-10-22 12:00"
+        },
+        {
+          "type": "meeting",
+          "title": "Встреча с Ростиславом",
+          "start": "2026-10-22 16:00"
+        }
+      ]
+    },
+    {
+      "id": "st.45",
+      "category": "не эту а ту",
+      "turns": [
+        {
+          "text": "Я позвонил Георгию",
+          "expect": {
+            "action": "set_status",
+            "status": "done",
+            "ok": true,
+            "awaiting": "none",
+            "target_text": [
+              "Георги"
+            ]
+          }
+        },
+        {
+          "text": "Нет, я Григорию позвонил, не Георгию",
+          "expect": {
+            "action": "set_status",
+            "status": "done",
+            "ok": true,
+            "awaiting": "none",
+            "replaces_last": true,
+            "target_text": [
+              "Григор"
+            ]
+          }
+        }
+      ],
+      "db": true,
+      "records": [
+        {
+          "type": "reminder",
+          "title": "Позвонить Георгию",
+          "start": "2026-10-22 09:00"
+        },
+        {
+          "type": "reminder",
+          "title": "Позвонить Григорию",
+          "start": "2026-10-22 10:00"
+        }
+      ]
+    },
+    {
+      "id": "st.46",
+      "category": "синонимы",
+      "turns": [
+        {
+          "text": "Сделал, задачу про курьера можно закрыть",
+          "expect": {
+            "action": "set_status",
+            "status": "done",
+            "ok": true,
+            "awaiting": "none",
+            "target_text": [
+              "курьер"
+            ]
+          }
+        }
+      ],
+      "db": true,
+      "records": [
+        {
+          "type": "task",
+          "title": "Вызвать курьера",
+          "deadline": "2026-10-23 23:59"
+        }
+      ]
+    },
+    {
+      "id": "st.47",
+      "category": "синонимы",
+      "turns": [
+        {
+          "text": "Закрой задачу про печать",
+          "expect": {
+            "action": "set_status",
+            "status": "done",
+            "ok": true,
+            "awaiting": "none",
+            "target_text": [
+              "печат"
+            ]
+          }
+        }
+      ],
+      "db": true,
+      "records": [
+        {
+          "type": "task",
+          "title": "Распечатать договор",
+          "deadline": "2026-10-23 23:59"
+        }
+      ]
+    },
+    {
+      "id": "st.48",
+      "category": "синонимы",
+      "turns": [
+        {
+          "text": "Убери встречу с Петром из календаря",
+          "expect": {
+            "action": "set_status",
+            "status": "cancelled",
+            "ok": true,
+            "awaiting": "none",
+            "target_text": [
+              "Петр"
+            ]
+          }
+        }
+      ],
+      "db": true,
+      "records": [
+        {
+          "type": "meeting",
+          "title": "Встреча с Петром",
+          "start": "2026-10-22 12:00"
+        }
+      ]
+    },
+    {
+      "id": "st.49",
+      "category": "синонимы",
+      "turns": [
+        {
+          "text": "Удали напоминание про полив",
+          "expect": {
+            "action": "set_status",
+            "status": "cancelled",
+            "ok": true,
+            "awaiting": "none",
+            "target_text": [
+              "полив"
+            ]
+          }
+        }
+      ],
+      "db": true,
+      "records": [
+        {
+          "type": "reminder",
+          "title": "Полить цветы",
+          "start": "2026-10-22 08:00"
+        }
+      ]
+    },
+    {
+      "id": "st.50",
+      "category": "синонимы",
+      "turns": [
+        {
+          "text": "Встреча с Виктором отпала",
+          "expect": {
+            "action": "set_status",
+            "status": "cancelled",
+            "ok": true,
+            "awaiting": "none",
+            "target_text": [
+              "Виктор"
+            ]
+          }
+        }
+      ],
+      "db": true,
+      "records": [
+        {
+          "type": "meeting",
+          "title": "Встреча с Виктором",
+          "start": "2026-10-22 12:00"
+        }
+      ]
+    }
+  ]
+}

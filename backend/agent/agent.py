@@ -10,6 +10,7 @@ import openai
 from pydantic import ValidationError
 
 from schemas import (
+    ActionResult,
     AskUser,
     ChatResponse,
     CreateRecord,
@@ -26,11 +27,24 @@ from services.records import get_record
 from .actions import execute
 from .change_replies import reply_for_change
 from .changes import CHANGE_ACTIONS, execute_change
-from .context import build_state_context, record_summary
+from .context import build_state_context
 from .llm import LLMConfigError, make_client
 from .presentation import MAX_SHOWN
-from .replies import question_for_missing, reply_for_result
+from .replies import (
+    MODEL_DOWN,
+    NOT_CONFIGURED,
+    NOT_PARSED,
+    REFUSED_CHOICE,
+    REFUSED_DRAFT,
+    SAY_REST,
+    draft_reminder,
+    question_for_missing,
+    reply_for_result,
+)
+from .spoken import counted, type_words
 from .state import (
+    choose_candidate,
+    chosen_number,
     complete_from_draft,
     continues_pending,
     is_refusal,
@@ -56,7 +70,6 @@ COMMAND = re.compile(
     r"создайте|запланируй|отмени|отмените|перенеси|перенесите|сдвинь|отметь|удали)\b",
     re.IGNORECASE,
 )
-SAY_REST = "Остальное скажите отдельно."
 
 
 def several_commands(text: str) -> bool:
@@ -113,6 +126,65 @@ async def get_action(
         raise ActionParseError(str(e)) from e
 
 
+async def _model_action(
+    db,
+    user_id: UUID,
+    conversation_id: UUID,
+    state,
+    text: str,
+    now: datetime,
+    timezone_name: str,
+    llm_config: LLMConfig | None,
+):
+    """Действие от модели по реплике и контексту состояния; ошибка модели — готовый ответ.
+
+    Фокус, которого больше нет (запись удалена или чужая), снимается в `state` на месте.
+    """
+    # Один Session: чтения последовательные, все записи проверяются по user_id.
+    ids = list(state.shown[:MAX_SHOWN])
+    if state.focus_record_id is not None:
+        ids.append(state.focus_record_id)
+    if state.last_action is not None:
+        ids.extend(state.last_action.record_ids[:3])
+    records = {}
+    for rid in dict.fromkeys(ids):
+        record = await to_thread(get_record, db, user_id, rid)
+        if record is not None and record.user_id == user_id and record.id == rid:
+            records[rid] = record
+    if state.focus_record_id not in records:
+        state.focus_record_id = None
+    context = build_state_context(state, records, timezone_name)
+    try:
+        return await get_action(text, now, timezone_name, llm_config, context=context)
+    except LLMConfigError:
+        reply = NOT_CONFIGURED
+    except openai.APIError:
+        # таймаут, сеть, лимиты, 5xx
+        reply = MODEL_DOWN
+    except ActionParseError:
+        reply = NOT_PARSED
+    return ChatResponse(conversation_id=conversation_id, reply=reply, awaiting=state.awaiting)
+
+
+async def _no_such_number(
+    db, user_id: UUID, conversation_id: UUID, state, number: int
+) -> ChatResponse:
+    """«номер 5», а кандидатов три: ничего не меняем, ожидание остаётся. Кандидаты — снова в
+    ответе, чтобы интерфейс показал тот же список и чипы."""
+    candidates = []
+    for record_id in state.candidates:
+        record = await to_thread(get_record, db, user_id, record_id)
+        if record is not None:
+            candidates.append(record)
+    reply = f"Нет записи под номером {number}."
+    result = ActionResult(
+        action=state.pending.root.action, ok=False, error=reply, candidates=candidates
+    )
+    return ChatResponse(
+        conversation_id=conversation_id, reply=reply, result=result, awaiting=state.awaiting
+    )
+
+
 async def process_user_turn(
     db,
     user_id: UUID,
@@ -135,47 +207,25 @@ async def process_user_turn(
         await to_thread(save_conversation_state, db, state)
         return ChatResponse(
             conversation_id=conversation_id,
-            reply="Хорошо, не ставлю." if creating else "Хорошо, ничего не меняю.",
+            reply=REFUSED_DRAFT if creating else REFUSED_CHOICE,
         )
 
-    # Один Session: чтения последовательные, все записи проверяются по user_id.
-    ids = list(state.shown[:MAX_SHOWN])
-    if state.focus_record_id is not None:
-        ids.append(state.focus_record_id)
-    if state.last_action is not None:
-        ids.extend(state.last_action.record_ids[:3])
-    records = {}
-    for rid in dict.fromkeys(ids):
-        record = await to_thread(get_record, db, user_id, rid)
-        if record is not None and record.user_id == user_id and record.id == rid:
-            records[rid] = record
-    if state.focus_record_id not in records:
-        state.focus_record_id = None
-    context = build_state_context(state, records, timezone_name)
-    try:
-        action = await get_action(
-            text, now, timezone_name, llm_config, context=context
+    # «номер N» на выбор или подтверждение (чип быстрого ответа) — без модели: отложенное
+    # действие над N-й записью из кандидатов.
+    number = chosen_number(text, state)
+    target_state = state
+    if number is not None:
+        if not 1 <= number <= len(state.candidates):
+            return await _no_such_number(db, user_id, conversation_id, state, number)
+        action = choose_candidate(state, number)
+        # Номер — N-я запись кандидатов, как в чипе, даже если экран с тех пор сменился.
+        target_state = state.model_copy(update={"shown": list(state.candidates)})
+    else:
+        action = await _model_action(
+            db, user_id, conversation_id, state, text, now, timezone_name, llm_config
         )
-    except LLMConfigError:
-        return ChatResponse(
-            conversation_id=conversation_id,
-            reply="Ассистент не настроен: не указан ключ API или модель LLM. "
-            "Задайте их в настройках.",
-            awaiting=state.awaiting,
-        )
-    except openai.APIError:
-        # таймаут, сеть, лимиты, 5xx
-        return ChatResponse(
-            conversation_id=conversation_id,
-            reply="Сервис распознавания временно недоступен. Попробуйте ещё раз чуть позже.",
-            awaiting=state.awaiting,
-        )
-    except ActionParseError:
-        return ChatResponse(
-            conversation_id=conversation_id,
-            reply="Не удалось разобрать запрос. Попробуйте сформулировать иначе.",
-            awaiting=state.awaiting,
-        )
+        if isinstance(action, ChatResponse):
+            return action
 
     if isinstance(action, AskUser):
         state = update_state(state, action, None)
@@ -211,7 +261,7 @@ async def process_user_turn(
     change = None
     if action.action in CHANGE_ACTIONS:
         # Изменение, статус, откат: нужна цель из состояния и прежние значения для отката.
-        change = await execute_change(db, user_id, action, state, now=now)
+        change = await execute_change(db, user_id, action, target_state, now=now)
         action = change.applied or action
         result = change.result
     else:
@@ -221,22 +271,21 @@ async def process_user_turn(
     await to_thread(save_conversation_state, db, state)
 
     if change is not None:
-        reply = reply_for_change(change, action, timezone_name)
+        reply = reply_for_change(change, action, timezone_name, now,
+                                 shown_count=len(target_state.shown))
     elif result.candidates:
-        choices = "; ".join(
-            f"{index}) {record_summary(record, timezone_name)}"
-            for index, record in enumerate(result.candidates[:MAX_SHOWN], 1)
-        )
-        reply = f"Какую запись выбрать? {choices}."
+        found = counted(len(result.candidates), type_words(result.candidates))
+        reply = f"Нашёл {found}. Какую именно?"
     elif not result.ok and result.missing:
-        reply = question_for_missing(result.missing)
+        draft = state.pending.root if state.pending else action
+        reply = question_for_missing(result.missing, draft)
     else:
         reply = reply_for_result(result, timezone_name, action=action, now=now)
-    if state.pending_skipped and state.pending is not None:
+    if state.pending_skipped and state.pending is not None and "?" not in reply:
+        # Один вопрос на ответ: если сама реплика спрашивает (выбор, подтверждение),
+        # о черновике не напоминаем (assistant-texts 6.3).
         pending = state.pending.root
-        title = getattr(pending, "title", None)
-        reminder = f"Запись «{title}» ещё не создана." if title else "Действие ещё не завершено."
-        reply += " " + reminder + " " + question_for_missing(state.missing)
+        reply += " " + draft_reminder(getattr(pending, "title", None), state.missing, pending)
 
     if EXTRA_CALLS.get() or several_commands(text):
         reply += " " + SAY_REST

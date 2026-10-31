@@ -61,5 +61,5 @@ def test_date_in_past_is_polite_error(db: Session, monkeypatch) -> None:
     response, rows = _turn(db, monkeypatch, action, "Напомни вчера позвонить Ивану")
 
     assert response.result.ok is False
-    assert "прошлом" in response.reply
+    assert response.reply == "Вчера в 10:00 уже прошло, запись не создана. Назовите другое время."
     assert rows == []

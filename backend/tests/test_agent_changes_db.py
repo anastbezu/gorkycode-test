@@ -87,14 +87,14 @@ def test_move_by_text_then_undo_then_nothing_to_undo(dialog) -> None:
 
     reply = dialog.say("Перенеси встречу с Иваном на пятницу", move).reply
     assert dialog.row(meeting).start == at(23, 15)
-    assert "Встреча с Иваном" in reply and "23.10 в 15:00" in reply
+    assert "Встреча с Иваном" in reply and "послезавтра, 23 октября, в 15:00" in reply
     last = dialog.state().last_action
     assert last.action == "update_record" and last.record_ids == [meeting.id]
     assert datetime.fromisoformat(last.before[0]["start"]) == at(22, 15)
 
     reply = dialog.say("Верни", UndoLast()).reply
     assert dialog.row(meeting).start == at(22, 15)
-    assert reply.startswith("Вернул как было")
+    assert reply == "Вернул «Встреча с Иваном» — завтра, 22 октября, в 15:00."
     assert dialog.state().last_action is None
     assert dialog.say("Верни", UndoLast()).reply == "Нечего возвращать."
 
@@ -103,7 +103,7 @@ def test_cancel_is_immediate_and_offers_undo(dialog) -> None:
     meeting = dialog.add("Встреча с дизайнером", at(22, 11))
     reply = dialog.say("Отмени встречу с дизайнером", cancel(text="встречу с дизайнером")).reply
     assert dialog.row(meeting).status == RecordStatus.CANCELLED
-    assert "Отменил" in reply and "22.10 в 11:00" in reply and "верни" in reply
+    assert "Отменил" in reply and "завтра, 22 октября, в 11:00" in reply and "верни" in reply
 
     dialog.say("Верни", UndoLast())
     assert dialog.row(meeting).status == RecordStatus.ACTIVE
@@ -117,8 +117,8 @@ def test_ambiguous_target_changes_nothing_until_choice(dialog) -> None:
 
     response = dialog.say("Перенеси встречу с Иваном на пятницу", move)
     assert response.awaiting == "choice"
-    assert "1) «Встреча с Иваном» на 22.10 в 15:00" in response.reply
-    assert "2) «Встреча с Иваном» на 27.10 в 08:45" in response.reply
+    # Номера — на экране (candidates), текст их не повторяет (assistant-texts 7).
+    assert response.reply == "Нашёл 2 встречи. Какую именно?"
     assert dialog.row(first).start == at(22, 15) and dialog.row(second).start == at(27, 8, 45)
     state = dialog.state()
     assert state.shown == [first.id, second.id] == state.candidates
@@ -153,7 +153,9 @@ def test_mass_cancel_asks_then_cancels_all_and_undo_restores_all(dialog) -> None
         types=[RecordType.MEETING], date_from=at(19), date_to=at(26)))
 
     response = dialog.say("Отмени все созвоны на этой неделе", mass)
-    assert response.reply.startswith("Отменить 3 записи: 1) «Созвон 0»")
+    # Команда на неделю — у записей называется день (assistant-texts 7, пример 7.22).
+    assert response.reply == ("Нашёл 3 встречи: завтра в 10:00 — созвон 0; завтра в 11:00 — "
+                              "созвон 1; завтра в 12:00 — созвон 2. Отменить все?")
     assert all(dialog.row(c).status == RecordStatus.ACTIVE for c in calls)
 
     response = dialog.say("Да", cancel(all=True))
@@ -177,7 +179,7 @@ def test_replaces_last_returns_first_and_changes_second(dialog) -> None:
     assert dialog.row(integration).status == RecordStatus.ACTIVE
     assert dialog.row(site).status == RecordStatus.CANCELLED
     assert reply.startswith("Вернул «Созвон с Вектором по интеграции»")
-    assert "Отменил: «Созвон с Вектором по сайту»" in reply
+    assert "Отменил «Созвон с Вектором по сайту»" in reply
     assert dialog.state().last_action.record_ids == [site.id]
 
 
@@ -187,7 +189,7 @@ def test_correction_right_after_create_uses_focus(dialog) -> None:
     dialog.say("Поставь встречу с Максимом завтра в 15", create)
     fix = UpdateRecord(target=TargetRef(focus=True), start=at(22, 16), time_given=True)
     reply = dialog.say("Нет, не в 15, а в 16", fix).reply
-    assert "22.10 в 16:00" in reply
+    assert "завтра, 22 октября, в 16:00" in reply
     [row] = dialog.db.query(models.Record).filter_by(user_id=dialog.user_id).all()
     assert row.start == at(22, 16)
 
@@ -218,7 +220,7 @@ def test_move_to_day_keeps_previous_time(dialog) -> None:
     reply = dialog.say("Перенеси встречу с Иваном на пятницу", move).reply
     assert dialog.row(meeting).start == at(23, 15)
     assert dialog.row(meeting).all_day is False
-    assert "23.10 в 15:00" in reply
+    assert "послезавтра, 23 октября, в 15:00" in reply
 
 
 def test_replaces_last_keeps_status_of_previous_action(dialog) -> None:
@@ -258,7 +260,7 @@ def test_new_mass_request_during_choice_is_not_taken_as_confirmation(dialog) -> 
 
     response = dialog.say("Отмени все созвоны", cancel(all=True, text="созвоны"))
     # Новый массовый запрос: своё подтверждение по созвонам, ничего не изменено.
-    assert response.awaiting == "choice"
+    assert response.awaiting == "confirm"
     assert dialog.state().candidates == [c.id for c in calls]
     assert all(dialog.row(r).status == RecordStatus.ACTIVE for r in reports + calls)
 
@@ -272,7 +274,7 @@ def test_yes_to_other_mass_question_with_other_status_is_new_request(dialog) -> 
     dialog.say("Отмени все созвоны", cancel(all=True, text="созвоны"))
     done_all = SetStatus(target=TargetRef(all=True, text="созвоны"), status=RecordStatus.DONE)
     response = dialog.say("Нет, отметь все созвоны выполненными", done_all)
-    assert response.awaiting == "choice"  # новое подтверждение, а не отмена по старому
+    assert response.awaiting == "confirm"  # новое подтверждение, а не отмена по старому
     assert all(dialog.row(c).status == RecordStatus.ACTIVE for c in calls)
 
 
@@ -330,7 +332,7 @@ def test_corrected_status_reply_when_target_is_single(dialog) -> None:
     wrong = SetStatus(target=TargetRef(text="по сайту"), status=RecordStatus.ACTIVE,
                       replaces_last=True)
     reply = dialog.say("Нет, не этот, а тот, что по сайту", wrong).reply
-    assert "Отменил: «Созвон с Вектором по сайту»" in reply
+    assert "Отменил «Созвон с Вектором по сайту»" in reply
     assert "в активные" not in reply
 
 
@@ -340,7 +342,7 @@ def test_shift_by_description_is_counted_by_code(dialog) -> None:
     later = UpdateRecord(target=TargetRef(text="встречу с Натальей"), shift_minutes=60)
     reply = dialog.say("Перенеси встречу с Натальей на час позже", later).reply
     assert dialog.row(meeting).start == at(27, 17, 30)
-    assert "27.10 в 17:30" in reply
+    assert "во вторник, 27 октября, в 17:30" in reply
 
     dialog.say("Верни как было", UndoLast())
     assert dialog.row(meeting).start == at(27, 16, 30)

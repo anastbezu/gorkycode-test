@@ -10,6 +10,7 @@ from uuid import uuid4
 
 import httpx
 import pytest
+from fastapi import FastAPI
 
 import api.deps as deps
 import api.tts as route
@@ -164,6 +165,24 @@ async def test_invalid_json(client):
     )
     assert response.status_code == 422
     assert isinstance(response.json()["detail"], str)
+
+
+async def test_validation_belongs_to_router():
+    """TTS сохраняет строковый detail без обработчика main/errors."""
+    isolated = FastAPI()
+    isolated.include_router(route.router)
+    isolated.dependency_overrides[get_session] = lambda: object()
+    async with REAL_CLIENT(
+        transport=httpx.ASGITransport(app=isolated), base_url="http://test"
+    ) as client:
+        response = await client.post("/api/tts", json={"text": 123})
+        assert response.status_code == 422
+        assert isinstance(response.json()["detail"], str)
+        response = await client.post(
+            "/api/tts", content=b"{", headers={"Content-Type": "application/json"}
+        )
+        assert response.status_code == 422
+        assert isinstance(response.json()["detail"], str)
 
 
 @pytest.mark.parametrize(

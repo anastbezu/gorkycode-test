@@ -60,10 +60,15 @@ const zira = { lang: 'en-US', name: 'Zira', localService: true };
 
 beforeEach(() => {
   vi.resetModules();
+  vi.stubGlobal('window', {});
   synthesize.mockReset().mockRejectedValue(new Error('offline'));
   audio = new FakeAudio();
   vi.stubGlobal('Audio', class { constructor() { return audio; } });
-  vi.stubGlobal('localStorage', { getItem: () => null, setItem: vi.fn() });
+  const stored = new Map<string, string>();
+  vi.stubGlobal('localStorage', {
+    getItem: (key: string) => stored.get(key) ?? null,
+    setItem: vi.fn((key: string, value: string) => { stored.set(key, value); }),
+  });
   vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:test');
   vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
 });
@@ -134,7 +139,10 @@ describe('озвучка', () => {
     synthesize.mockImplementation(() => new Promise<Blob>((r) => { resolve = r; }));
     const { speak } = await import('./speech');
     const done = speak('Ответ', vi.fn());
-    await vi.advanceTimersByTimeAsync(16_000);
+    await vi.advanceTimersByTimeAsync(6_999);
+    expect(synthesize.mock.calls[0][1].aborted).toBe(false);
+    expect(spoken).toHaveLength(0);
+    await vi.advanceTimersByTimeAsync(1);
     expect(synthesize.mock.calls[0][1].aborted).toBe(true);
     expect(spoken).toHaveLength(1);
     resolve(new Blob(['late']));
@@ -161,9 +169,11 @@ describe('озвучка', () => {
     installSynth([irina]);
     let resolve!: (blob: Blob) => void;
     synthesize.mockImplementation(() => new Promise<Blob>((r) => { resolve = r; }));
-    const { speak, setSpeechEnabled } = await import('./speech');
+    const { speak, setVoiceOutputEnabled } = await import('./speech');
+    const { saveVoiceOutput } = await import('./storage');
     const done = speak('Ответ', vi.fn());
-    setSpeechEnabled(false);
+    saveVoiceOutput(false);
+    setVoiceOutputEnabled(false);
     expect(synthesize.mock.calls[0][1].aborted).toBe(true);
     resolve(new Blob(['late']));
     await done;
@@ -171,15 +181,58 @@ describe('озвучка', () => {
     expect(synthesize).toHaveBeenCalledOnce();
     expect(audio.play).not.toHaveBeenCalled();
     expect(spoken).toHaveLength(0);
-    expect(localStorage.setItem).toHaveBeenCalledWith('gorky.speechEnabled', 'false');
+    expect(localStorage.setItem).toHaveBeenCalledWith('gorky.voiceOutput', 'false');
   });
 
   it('сохранённое выключение действует после перезагрузки', async () => {
     installSynth([irina]);
-    vi.stubGlobal('localStorage', { getItem: () => 'false' });
+    const { saveVoiceOutput } = await import('./storage');
+    saveVoiceOutput(false);
     const { speak } = await import('./speech');
     await speak('Ответ', vi.fn());
     expect(synthesize).not.toHaveBeenCalled();
+  });
+
+  it('единственная настройка включает звук обратно, даже без localStorage', async () => {
+    installSynth([irina]);
+    vi.stubGlobal('localStorage', { getItem: () => { throw new Error('denied'); } });
+    synthesize.mockResolvedValue(new Blob(['wav']));
+    const { speak, setVoiceOutputEnabled, prepareSpeech } = await import('./speech');
+    setVoiceOutputEnabled(false);
+    prepareSpeech();
+    await speak('Выключено', vi.fn());
+    expect(audio.play).not.toHaveBeenCalled();
+    expect(synthesize).not.toHaveBeenCalled();
+    setVoiceOutputEnabled(true);
+    await speak('Включено', vi.fn());
+    expect(synthesize).toHaveBeenCalledOnce();
+    expect(audio.play).toHaveBeenCalledOnce();
+  });
+
+  it('старый ключ второго выключателя больше не управляет голосом', async () => {
+    installSynth([irina]);
+    localStorage.setItem('gorky.speechEnabled', 'false');
+    const { saveVoiceOutput } = await import('./storage');
+    saveVoiceOutput(true);
+    synthesize.mockResolvedValue(new Blob(['wav']));
+    const { speak } = await import('./speech');
+    await speak('Ответ', vi.fn());
+    expect(audio.play).toHaveBeenCalledOnce();
+  });
+
+  it('fallback после таймаута использует естественный голос из develop', async () => {
+    vi.useFakeTimers();
+    const google = { lang: 'ru-RU', name: 'Google русский', localService: false };
+    installSynth([irina, google]);
+    synthesize.mockImplementation((_text, signal: AbortSignal) => new Promise((_r, reject) => {
+      signal.addEventListener('abort', () => reject(new Error('aborted')));
+    }));
+    const { speak } = await import('./speech');
+    const done = speak('Ответ', vi.fn());
+    await vi.advanceTimersByTimeAsync(7_000);
+    await done;
+    expect(spoken).toHaveLength(1);
+    expect(spoken[0].voice.name).toBe('Google русский');
   });
 
   it('длинный текст читает браузер целиком без HTTP', async () => {
@@ -200,6 +253,25 @@ describe('озвучка', () => {
     expect(spoken[0].text).toBe('Готово: «Купить хлеб».');
     expect(spoken[0].voice.name).toBe('Irina');
     expect(unavailable).not.toHaveBeenCalled();
+  });
+
+  it('выбирает самый естественный русский голос', async () => {
+    const { pickRussian } = await import('./speech');
+    const google = { lang: 'ru-RU', name: 'Google русский', localService: false };
+    const svetlana = {
+      lang: 'ru-RU',
+      name: 'Microsoft Svetlana Online (Natural) - Russian (Russia)',
+      localService: false,
+    };
+    const milena = { lang: 'ru_RU', name: 'Milena (Enhanced)', localService: true };
+    const remote = { lang: 'ru-RU', name: 'Some voice', localService: false };
+    const pick = (voices: FakeVoice[]) =>
+      pickRussian(voices as unknown as SpeechSynthesisVoice[])?.name;
+    expect(pick([irina, google, svetlana, zira])).toBe(svetlana.name);
+    expect(pick([irina, google])).toBe('Google русский');
+    expect(pick([irina, milena])).toBe('Milena (Enhanced)');
+    expect(pick([remote, irina])).toBe('Irina');
+    expect(pick([zira])).toBeUndefined();
   });
 
   it('нет русского голоса — не говорит и сообщает', async () => {

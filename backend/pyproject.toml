@@ -17,6 +17,7 @@ dependencies = [
     "python-multipart>=0.0.9",
     "httpx>=0.27.0",
     "argon2-cffi>=23.1.0",
+    "cryptography>=43.0.0",
     # Поиск (search-01): модель эмбеддингов, основы слов, нечёткое сравнение слов,
     # словарные формы слов (падежи имён: «Сергею» ↔ «Сергеем»).
     "sentence-transformers>=5.0.0",
@@ -31,6 +32,11 @@ dev = [
     "pytest>=8.0.0",
     "httpx>=0.27.0",
     "ruff>=0.6.0",
+]
+eval = [
+    "fpdf2>=2.9.0",
+    "matplotlib>=3.11.2",
+    "seaborn>=0.13.2",
 ]
 
 [tool.uv]

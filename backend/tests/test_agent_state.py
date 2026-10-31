@@ -50,7 +50,7 @@ def draft(state):
 
 @pytest.mark.parametrize("phrase", [
     "Не надо!!!", " ЗАБУДЬ… ", "Отмена", "проехали", "забей", "неважно", "отбой", "стоп",
-    "НЕ\tНАДО", "«не надо»", "не, надо",
+    "НЕ\tНАДО", "«не надо»", "не, надо", "Передумал", "я передумал.", "не надо, наверное",
 ])
 def test_refusal_matches_whole_normalized_phrase_only(state, phrase):
     assert is_refusal(phrase, draft(state))
@@ -60,6 +60,13 @@ def test_refusal_matches_whole_normalized_phrase_only(state, phrase):
 @pytest.mark.parametrize("phrase", ["Отмени встречу с Иваном", "не надо отменять", "стоп кран"])
 def test_commands_are_not_refusals(state, phrase):
     assert not is_refusal(phrase, draft(state))
+
+
+def test_no_refuses_only_confirmation(state):
+    confirm = state.model_copy(update={"candidates": [uuid4()], "awaiting": "confirm"})
+    assert is_refusal("Нет.", confirm)
+    assert not is_refusal("нет", draft(state))
+    assert not is_refusal("нет, в 16", confirm)
 
 
 def test_reset_preserves_history_and_leaves_input_unchanged(state):
@@ -191,9 +198,13 @@ def test_group_order_matches_state_reply_and_context(state, kind):
     assert new.shown == [first.id, other.id, latest.id] and new.focus_record_id is None
     reply = reply_for_list(records, action, "UTC", NOW) if kind == "list_records" \
         else reply_for_search(records, "всё", "UTC", NOW)
-    # Текст может свернуть повторы, но без номеров: они не совпали бы с экраном
-    assert "Созвон — 2 раза, последний 05.01.2030" in reply and "1)" not in reply
-    assert reply.casefold().index("созвон") < reply.casefold().index("отчёт")
+    # Номеров в тексте нет: они на экране. Список называет записи по времени без свёртки,
+    # поиск — одну ближайшую (assistant-texts 8, 9).
+    assert "1)" not in reply
+    if kind == "list_records":
+        assert reply.casefold().index("созвон") < reply.casefold().index("отчёт")
+    else:
+        assert reply.startswith("Нашёл 3 задачи. Ближайшая")
     context = build_state_context(new, {r.id: r for r in records}, "UTC")
     assert context.index('1) task "Созвон"') < context.index('2) task "Отчёт"') \
         < context.index('3) task "Созвон"')

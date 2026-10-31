@@ -9,11 +9,11 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from db import models
+from eval.cases import CASES
+from eval.compare import compare
+from eval.harness import TZ, Harness
 from schemas import CreateRecord
 from services import get_conversation_state
-from tests.agent_cases import CASES
-from tests.agent_compare import compare
-from tests.agent_live import TZ, Harness
 
 
 def scripted(*actions):
@@ -106,27 +106,21 @@ def test_ask_with_draft_keeps_reminder_time_3_5(db: Session, monkeypatch) -> Non
     assert get_conversation_state(db, conversation_id, user_id).pending is None
 
 
-def test_meeting_time_without_day_asks_day_3_8(db: Session, monkeypatch) -> None:
-    from schemas import AskDraft, AskUser
-
-    ask = AskUser(question="На какой день?", missing=["start"], draft=AskDraft(
-        type="meeting", title="встреча с Сергеем", time="14:45"))
+def test_meeting_time_without_day_is_today_3_8(db: Session, monkeypatch) -> None:
     answer = CreateRecord(type="meeting", title="встреча с Сергеем",
-                          start=datetime(2026, 10, 22, tzinfo=TZ), time_given=False)
-    harness = Harness(monkeypatch, scripted(ask, answer), db=db)
+                          start=datetime(2026, 10, 21, 14, 45, tzinfo=TZ), time_given=True)
+    harness = Harness(monkeypatch, scripted(answer), db=db)
     user_id, conversation_id = uuid4(), uuid4()
 
     observed, _ = harness.run_turn("Встреча с Сергеем в 14:45", user_id, conversation_id)
     assert compare(expect("3.8", 0), observed, TZ) == []
-    observed, _ = harness.run_turn("Завтра", user_id, conversation_id)
-    assert compare(expect("3.8", 1), observed, TZ) == []
     [row] = records(db, user_id)
-    assert row.start == datetime(2026, 10, 22, 14, 45, tzinfo=TZ)
+    assert row.start == datetime(2026, 10, 21, 14, 45, tzinfo=TZ)
     assert row.all_day is False
 
 
 # --- Раздел 7 и пересечения: «идеальная модель» проходит кейсы на настоящем коде -----------
-# Если кейс здесь падает, расходятся ожидание в agent_cases.py и код агента, а не модель.
+# Если кейс здесь падает, расходятся ожидание в наборе test-cases.json и код агента, а не модель.
 
 def _ideal_model_actions() -> dict:
     import pytest as _pytest  # noqa: F401  (только чтобы файл не терял импорты при правке)

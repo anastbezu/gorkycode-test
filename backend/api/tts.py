@@ -1,9 +1,13 @@
 """POST /api/tts: текст ответа → WAV, ошибки не затрагивают действие агента."""
 
 import logging
-from typing import Annotated
+from collections.abc import Callable, Coroutine
+from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
+from fastapi.routing import APIRoute
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from stt.rate_limit import RateLimiter
@@ -12,7 +16,29 @@ from tts import TTSUnavailableError, synthesize
 from .deps import USER_ID_HEADER, CurrentUser, get_current_user_id
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/api", tags=["voice"])
+
+
+class TTSRoute(APIRoute):
+    """Строковый detail по контракту TTS, включая ошибку разбора JSON."""
+
+    def get_route_handler(self) -> Callable[[Request], Coroutine[Any, Any, Response]]:
+        handler = super().get_route_handler()
+
+        async def handle(request: Request) -> Response:
+            try:
+                return await handler(request)
+            except RequestValidationError:
+                return JSONResponse(
+                    status_code=422,
+                    content={
+                        "detail": "Нужен text: непустая строка до 1000 символов, без лишних полей."
+                    },
+                )
+
+        return handle
+
+
+router = APIRouter(prefix="/api", tags=["voice"], route_class=TTSRoute)
 rate_limiter = RateLimiter(15, 60)
 global_rate_limiter = RateLimiter(120, 60)
 

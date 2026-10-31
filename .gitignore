@@ -28,3 +28,6 @@ logs/
 .vscode/
 .DS_Store
 Thumbs.db
+
+# отчёты живого прогона агента
+live_report*.txt
