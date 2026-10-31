@@ -40,6 +40,10 @@ async def _owned(db, user_id: UUID, ids: list[UUID]) -> list[Record]:
     return records
 
 
+# Нет ни фокуса, ни описания: ответ строит change_replies по действию (assistant-texts 6.2).
+NO_TARGET = "Какую запись? Назовите её или выберите из списка."
+
+
 def _described(target: TargetRef) -> bool:
     return bool(target.text) or target.when is not None or target.filters is not None
 
@@ -69,7 +73,7 @@ async def resolve_target(
             if records:
                 return Target(records=records)
         if not target.text:
-            return Target(error="Какую запись? Назовите её или выберите из списка.")
+            return Target(error=NO_TARGET)
         # Фокуса нет, но запись описана («перенеси встречу с Натальей») — ищем по описанию.
 
     if target.all and confirming and not _described(target):
@@ -86,7 +90,7 @@ async def resolve_target(
         return Target(error="Не понял, какие записи. Назовите их.")
 
     if not _described(target):
-        return Target(error="Какую запись? Назовите её или выберите из списка.")
+        return Target(error=NO_TARGET)
 
     match = await to_thread(
         find_target, db, user_id, target.text, target.when, target.filters, statuses, MAX_ALL + 1

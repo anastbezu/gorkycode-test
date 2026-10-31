@@ -35,10 +35,8 @@ def test_several_records_keep_result_order_without_numbers():
         make("Средний договор", start=datetime(2026, 6, 1, 9, 0, tzinfo=MSK)),
     ]
     reply = reply_for_search(records, "договор", TZ, NOW)
-    assert reply.startswith("Нашёл 3 записи.")
-    assert "Свежий договор" in reply
-    assert "20 октября, в 09:00" in reply
-    assert reply.index("«Старый") < reply.index("«Свежий") < reply.index("«Средний")
+    # Слово по типу, одна запись — последняя по дате, а не первая в выдаче (assistant-texts 9).
+    assert reply == "Нашёл 3 задачи. Последняя — 20 октября, в 09:00: «Свежий договор»."
     assert "1)" not in reply  # номера — только на экране
 
 
@@ -68,8 +66,7 @@ def test_repeated_title_names_nearest_upcoming():
         make("Созвон с юристами", start=datetime(2026, 9, 1, 10, 0, tzinfo=MSK)),
     ]
     reply = reply_for_search(records, "созвон юристы", TZ, NOW)
-    assert reply.startswith("Нашёл 3 записи.")
-    assert "Созвон с юристами — 3 раза, ближайший 26.10.2026" in reply
+    assert reply == "«Созвон с юристами» — 3 раза. Ближайшая — завтра в 11:00."
 
 
 def test_repeated_title_all_past_names_latest():
@@ -78,7 +75,7 @@ def test_repeated_title_all_past_names_latest():
         make("Позвонить Дмитрием", start=datetime(2026, 6, 9, 10, 45, tzinfo=MSK)),
     ]
     reply = reply_for_search(records, "звонил Дмитрию", TZ, NOW)
-    assert "Позвонить Дмитрием — 2 раза, последний 20.10.2026" in reply
+    assert reply == "«Позвонить Дмитрием» — 2 раза. Последняя — 20 октября, в 11:00."
 
 
 def test_similar_hits_say_not_found_exactly_and_list_similar(monkeypatch):
@@ -97,7 +94,7 @@ def test_similar_hits_say_not_found_exactly_and_list_similar(monkeypatch):
     assert result.records == [lease]
     reply = reply_for_result(result, TZ, action=action, now=NOW)
     assert reply == (
-        "Точно не нашёл «договор аренды». Похожие: «Договор поставки» — завтра, в 15:00."
+        "Точно не нашёл «договор аренды». Похожие: «Договор поставки» — завтра в 15:00."
     )
     # Наружу (ChatResponse.result: ActionResult) признак не уходит — контракт API прежний.
     from schemas import ChatResponse
@@ -119,4 +116,4 @@ def test_exact_hits_reply_as_before(monkeypatch):
     action = SearchRecords(query="договор аренды", filters=SearchFilters())
     result = asyncio.run(actions_module.execute(None, uuid4(), action, now=NOW))
     assert reply_for_result(result, TZ, action=action, now=NOW) == (
-        "«Договор аренды» — завтра, в 15:00.")
+        "«Договор аренды» — завтра в 15:00.")

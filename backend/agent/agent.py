@@ -27,10 +27,21 @@ from services.records import get_record
 from .actions import execute
 from .change_replies import reply_for_change
 from .changes import CHANGE_ACTIONS, execute_change
-from .context import build_state_context, record_summary
+from .context import build_state_context
 from .llm import LLMConfigError, make_client
 from .presentation import MAX_SHOWN
-from .replies import question_for_missing, reply_for_result
+from .replies import (
+    MODEL_DOWN,
+    NOT_CONFIGURED,
+    NOT_PARSED,
+    REFUSED_CHOICE,
+    REFUSED_DRAFT,
+    SAY_REST,
+    draft_reminder,
+    question_for_missing,
+    reply_for_result,
+)
+from .spoken import counted, type_words
 from .state import (
     choose_candidate,
     chosen_number,
@@ -59,7 +70,6 @@ COMMAND = re.compile(
     r"создайте|запланируй|отмени|отмените|перенеси|перенесите|сдвинь|отметь|удали)\b",
     re.IGNORECASE,
 )
-SAY_REST = "Остальное скажите отдельно."
 
 
 def several_commands(text: str) -> bool:
@@ -147,14 +157,12 @@ async def _model_action(
     try:
         return await get_action(text, now, timezone_name, llm_config, context=context)
     except LLMConfigError:
-        reply = (
-            "Ассистент не настроен: не указан ключ API или модель LLM. Задайте их в настройках."
-        )
+        reply = NOT_CONFIGURED
     except openai.APIError:
         # таймаут, сеть, лимиты, 5xx
-        reply = "Сервис распознавания временно недоступен. Попробуйте ещё раз чуть позже."
+        reply = MODEL_DOWN
     except ActionParseError:
-        reply = "Не удалось разобрать запрос. Попробуйте сформулировать иначе."
+        reply = NOT_PARSED
     return ChatResponse(conversation_id=conversation_id, reply=reply, awaiting=state.awaiting)
 
 
@@ -199,7 +207,7 @@ async def process_user_turn(
         await to_thread(save_conversation_state, db, state)
         return ChatResponse(
             conversation_id=conversation_id,
-            reply="Хорошо, не ставлю." if creating else "Хорошо, ничего не меняю.",
+            reply=REFUSED_DRAFT if creating else REFUSED_CHOICE,
         )
 
     # «номер N» на выбор или подтверждение (чип быстрого ответа) — без модели: отложенное
@@ -263,22 +271,21 @@ async def process_user_turn(
     await to_thread(save_conversation_state, db, state)
 
     if change is not None:
-        reply = reply_for_change(change, action, timezone_name)
+        reply = reply_for_change(change, action, timezone_name, now,
+                                 shown_count=len(target_state.shown))
     elif result.candidates:
-        choices = "; ".join(
-            f"{index}) {record_summary(record, timezone_name)}"
-            for index, record in enumerate(result.candidates[:MAX_SHOWN], 1)
-        )
-        reply = f"Какую запись выбрать? {choices}."
+        found = counted(len(result.candidates), type_words(result.candidates))
+        reply = f"Нашёл {found}. Какую именно?"
     elif not result.ok and result.missing:
-        reply = question_for_missing(result.missing)
+        draft = state.pending.root if state.pending else action
+        reply = question_for_missing(result.missing, draft)
     else:
         reply = reply_for_result(result, timezone_name, action=action, now=now)
-    if state.pending_skipped and state.pending is not None:
+    if state.pending_skipped and state.pending is not None and "?" not in reply:
+        # Один вопрос на ответ: если сама реплика спрашивает (выбор, подтверждение),
+        # о черновике не напоминаем (assistant-texts 6.3).
         pending = state.pending.root
-        title = getattr(pending, "title", None)
-        reminder = f"Запись «{title}» ещё не создана." if title else "Действие ещё не завершено."
-        reply += " " + reminder + " " + question_for_missing(state.missing)
+        reply += " " + draft_reminder(getattr(pending, "title", None), state.missing, pending)
 
     if EXTRA_CALLS.get() or several_commands(text):
         reply += " " + SAY_REST

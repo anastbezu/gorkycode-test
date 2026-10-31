@@ -12,6 +12,7 @@ import pytest
 from agent import actions as actions_module
 from agent import agent as agent_module
 from agent.agent import ActionParseError, process_user_turn
+from agent.replies import MODEL_DOWN
 from schemas import ActionResult, AskUser, ConversationState, CreateRecord, Help, SearchRecords
 from services.records import validate_create
 
@@ -54,7 +55,7 @@ def test_llm_timeout_gives_polite_reply(monkeypatch):
 
     monkeypatch.setattr(agent_module, "get_action", boom)
     cid, r = turn()
-    assert "временно недоступен" in r.reply
+    assert r.reply == MODEL_DOWN  # не «сервис распознавания»: речь уже распознана (И-02)
     assert r.conversation_id == cid
     assert r.result is None
 
@@ -65,7 +66,7 @@ def test_unparseable_action_gives_polite_reply(monkeypatch):
 
     monkeypatch.setattr(agent_module, "get_action", bad)
     _, r = turn()
-    assert "Не удалось разобрать" in r.reply
+    assert r.reply.startswith("Не понял запрос, ничего не сохранено.")
 
 
 def test_meeting_without_time_asks_question(monkeypatch):
@@ -75,7 +76,8 @@ def test_meeting_without_time_asks_question(monkeypatch):
     monkeypatch.setattr(agent_module, "get_action", meeting)
     _, r = turn("поставь встречу с Иваном завтра")
     assert r.awaiting == "answer"
-    assert "время" in r.reply
+    # День не назван — спрашиваем и день, и время (assistant-texts 6.2).
+    assert r.reply == "На какой день и во сколько поставить встречу?"
 
 
 def test_missing_llm_config_gives_polite_reply(monkeypatch):
@@ -205,7 +207,7 @@ def test_unfinished_draft_survives_questions_errors_and_independent_search(
     assert state.awaiting == "answer"
     if next_step == "service_error":
         assert response.result.ok is False
-        assert "прошлом" in response.reply
+        assert "уже прошло, запись не создана" in response.reply
 
 
 def test_get_action_sends_only_current_text_and_compact_context(monkeypatch):
@@ -313,7 +315,7 @@ def test_help_does_not_list_or_create_records(monkeypatch, kind):
     assert result.result.action == "help"
     assert result.result.ok
     assert result.awaiting is None
-    assert "задачами" in result.reply
+    assert "задачи, встречи и напоминания" in result.reply and "?" not in result.reply
 
 
 @pytest.mark.parametrize("action_name", ["list_records", "search_records"])
@@ -410,7 +412,7 @@ def test_refusal_clears_waiting_before_llm_or_record_reads(
     response = asyncio.run(process_user_turn(None, uid, cid, "  НЕ   НАДО!!! ", "UTC"))
     model.assert_not_awaited()
     assert response.awaiting is None and response.result is None
-    assert response.reply == "Хорошо, не ставлю."
+    assert response.reply == "Хорошо, ничего не записал."
     saved = conversation_store[cid]
     assert saved.pending is None and not saved.pending_skipped
     assert saved.candidates == saved.missing == []
@@ -478,11 +480,11 @@ def test_interrupted_creation_resumes_once_then_expires(
 
     assert send("Поставь встречу с Иваном завтра").awaiting == "time"
     detour = send("А что у меня завтра?")
-    assert "ещё не создана" in detour.reply and "Встреча с Иваном" in detour.reply
+    assert "Запись «Встреча с Иваном» так и не создана — на какое время?" in detour.reply
     assert conversation_store[cid].pending_skipped
     if second_detour:
         second = send("Какая погода?")
-        assert second.awaiting is None and "ещё не создана" not in second.reply
+        assert second.awaiting is None and "не создана" not in second.reply
         assert conversation_store[cid].pending is None
     final = send("В 16")
     if second_detour:
