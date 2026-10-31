@@ -53,16 +53,16 @@ def test_long_list_is_shortened():
     records = [make("task", f"Дело {i}", start=datetime(2026, 10, 26, 9 + i, 0, tzinfo=MSK))
                for i in range(5)]
     reply = reply_for_list(records, TOMORROW, TZ, NOW)
-    assert "5 дел" in reply
-    assert "Остальные на экране" in reply
-    assert reply.count("—") == 3  # вслух только три пункта
+    assert reply.startswith("На завтра — 5 дел. Первые по времени: 09:00 — дело 0;")
+    assert reply.endswith("Остальные на экране.")
+    assert reply.count(";") == 2  # вслух только три пункта
 
 
 def test_multi_day_period_names_days():
     records = [make("meeting", "Планёрка", start=datetime(2026, 10, 30, 10, 0, tzinfo=MSK))]
     reply = reply_for_list(records, WEEK, TZ, NOW)
-    assert reply.startswith("С 26 октября по 1 ноября")
-    assert "в пятницу в 10:00" in reply
+    # Неделя с понедельника по воскресенье узнаётся по датам (assistant-texts 4).
+    assert reply == "На следующей неделе — одно дело: в пятницу в 10:00 — планёрка."
 
 
 def test_reply_for_result_uses_list_reply():
