@@ -11,11 +11,12 @@ import os
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
-from api import auth, chat, health, items, stt
+from api import auth, chat, health, items, stt, tts
 from api.deps import USER_ID_HEADER
 from db import SessionLocal
 from search.warmup import warm_up
@@ -124,7 +125,18 @@ app = FastAPI(
     ),
     lifespan=lifespan,
 )
-app.add_exception_handler(RequestValidationError, auth.credentials_validation_handler)
+
+
+async def validation_handler(request: Request, exc: RequestValidationError):
+    if request.url.path == "/api/tts":
+        return JSONResponse(
+            status_code=422,
+            content={"detail": "Нужен text: непустая строка до 1000 символов, без лишних полей."},
+        )
+    return await auth.credentials_validation_handler(request, exc)
+
+
+app.add_exception_handler(RequestValidationError, validation_handler)
 
 app.add_middleware(
     CORSMiddleware,
@@ -140,3 +152,4 @@ app.include_router(auth.router)
 app.include_router(chat.router)
 app.include_router(items.router)
 app.include_router(stt.router)
+app.include_router(tts.router)

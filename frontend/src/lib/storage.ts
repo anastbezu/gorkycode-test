@@ -14,6 +14,15 @@ const KEY_AUTH = 'gorky.auth';
 const KEY_CHAT = 'gorky.chat';
 const KEY_LLM = 'gorky.llm';
 export const KEY_THEME = 'gorky.theme';
+const KEY_SPEECH = 'gorky.speechEnabled';
+
+export function loadSpeechEnabled(): boolean {
+  return read<boolean>(KEY_SPEECH) !== false;
+}
+
+export function saveSpeechEnabled(enabled: boolean): void {
+  write(KEY_SPEECH, enabled);
+}
 
 export interface UserMessage {
   id: string;

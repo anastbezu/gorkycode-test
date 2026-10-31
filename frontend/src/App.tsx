@@ -31,12 +31,13 @@ import {
   MoonIcon,
   SendIcon,
   SettingsIcon,
+  SpeakerIcon,
   SunIcon,
   WifiOffIcon,
 } from './components/icons';
 import { addDaysToKey, browserTimeZone, dayKey, localMidnightIso } from './lib/dates';
 import { canRecord, microphoneErrorText, startRecording, type Recording } from './lib/recorder';
-import { speak, stopSpeaking } from './lib/speech';
+import { isSpeechEnabled, prepareSpeech, setSpeechEnabled, speak, stopSpeaking } from './lib/speech';
 import {
   applyTheme,
   loadChat,
@@ -169,6 +170,8 @@ export function App() {
   const [draft, setDraft] = useState('');
   const [llmConfig, setLlmConfig] = useState<LLMConfig>(loadLLMConfig);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [speechEnabled, updateSpeechEnabled] = useState(isSpeechEnabled);
+  useEffect(() => () => stopSpeaking(), []);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [theme, setTheme] = useState<ThemeChoice | null>(loadTheme);
   const [systemDark, setSystemDark] = useState<boolean>(() => {
@@ -363,6 +366,7 @@ export function App() {
       if (!trimmed || sending.current) return;
       sending.current = true;
       stopSpeaking();
+      prepareSpeech();
       setBanner(null);
       setPending(true);
       if (!isRetry) {
@@ -452,6 +456,7 @@ export function App() {
     }
     if (sending.current) return;
     stopSpeaking();
+    prepareSpeech();
     setBanner(null);
     try {
       let rec: Recording | null = null;
@@ -501,6 +506,21 @@ export function App() {
           </h1>
         )}
         <div className="header__actions">
+          <button
+            type="button"
+            className="icon-btn"
+            aria-label={speechEnabled ? 'Выключить озвучку' : 'Включить озвучку'}
+            title={speechEnabled ? 'Выключить озвучку' : 'Включить озвучку'}
+            aria-pressed={speechEnabled}
+            onClick={() => {
+              const value = !speechEnabled;
+              setSpeechEnabled(value);
+              updateSpeechEnabled(value);
+              if (value) prepareSpeech();
+            }}
+          >
+            <SpeakerIcon enabled={speechEnabled} />
+          </button>
           <button
             type="button"
             className="icon-btn"

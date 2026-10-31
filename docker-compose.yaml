@@ -38,6 +38,10 @@ services:
       STT_API_KEY: ${STT_API_KEY:-}
       STT_MODEL: ${STT_MODEL:-}
       STT_THINKING_LEVEL: ${STT_THINKING_LEVEL:-}
+      TTS_ENABLED: ${TTS_ENABLED:-1}
+      TTS_API_KEY: ${TTS_API_KEY:-}
+      TTS_MODEL: ${TTS_MODEL:-gemini-3.8-flash-lite-tts}
+      TTS_VOICE: ${TTS_VOICE:-Kore}
       DEMO_ACCOUNTS: ${DEMO_ACCOUNTS:-}
       CORS_ORIGINS: ${CORS_ORIGINS:-}
     depends_on:

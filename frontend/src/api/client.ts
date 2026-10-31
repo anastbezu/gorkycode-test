@@ -341,6 +341,34 @@ export async function setItemStatus(id: string, status: RecordStatus, tz: string
 
 // --- /api/stt -----------------------------------------------------------------------------
 
+/** Полный WAV. Отмена/общий дедлайн управляются модулем воспроизведения. */
+export async function synthesizeSpeech(text: string, signal: AbortSignal): Promise<Blob> {
+  let retriedUser = false;
+  for (;;) {
+    const { res, sentId } = await asUser((id, token) => {
+      signal.throwIfAborted();
+      return fetch('/api/tts', {
+        method: 'POST',
+        headers: headersFor(id, token, { 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ text }),
+        signal,
+      });
+    });
+    signal.throwIfAborted();
+    if (!retriedUser && recoverBadUser(res, sentId)) {
+      retriedUser = true;
+      continue;
+    }
+    if (!res.ok || res.headers.get('Content-Type')?.split(';')[0].trim() !== 'audio/wav') {
+      throw new Error('TTS unavailable');
+    }
+    const blob = await res.blob();
+    signal.throwIfAborted();
+    if (!blob.size) throw new Error('Empty TTS audio');
+    return blob;
+  }
+}
+
 const STT_TIMEOUT_MS = 60_000;
 
 /**

@@ -107,6 +107,64 @@ const items = {
 };
 const noLlm = { base_url: null, model: null, api_key: null };
 
+describe('TTS', () => {
+  it('передаёт текст, токен и сигнал отмены; возвращает WAV', async () => {
+    const client = await freshClient(null, { token: 'jwt-123', account: { id: 'acc-1', login: 'demo', demo: false } });
+    const fetcher = vi.fn().mockResolvedValue(new Response('wav', { headers: { 'Content-Type': 'audio/wav' } }));
+    vi.stubGlobal('fetch', fetcher);
+    const signal = new AbortController().signal;
+    const blob = await client.synthesizeSpeech('Ответ', signal);
+    expect(await blob.text()).toBe('wav');
+    const [url, init] = fetcher.mock.calls[0];
+    expect(url).toBe('/api/tts');
+    expect(init.headers.get('Authorization')).toBe('Bearer jwt-123');
+    expect(JSON.parse(init.body)).toEqual({ text: 'Ответ' });
+    expect(init.signal).toBe(signal);
+  });
+
+  it('сохраняет выданный гостевой id', async () => {
+    const client = await freshClient();
+    const fetcher = vi.fn().mockImplementation(() => Promise.resolve(new Response('wav', { headers: { 'Content-Type': 'audio/wav', 'X-User-Id': NEW_ID } })));
+    vi.stubGlobal('fetch', fetcher);
+    await client.synthesizeSpeech('Ответ', new AbortController().signal);
+    await client.synthesizeSpeech('Ещё ответ', new AbortController().signal);
+    expect(fetcher.mock.calls[1][1].headers.get('X-User-Id')).toBe(NEW_ID);
+  });
+
+  it.each([429, 503])('не повторяет TTS после %s', async (status) => {
+    const client = await freshClient(NEW_ID);
+    const fetcher = vi.fn().mockResolvedValue(new Response('', { status }));
+    vi.stubGlobal('fetch', fetcher);
+    await expect(client.synthesizeSpeech('Ответ', new AbortController().signal)).rejects.toThrow();
+    expect(fetcher).toHaveBeenCalledOnce();
+  });
+
+  it('401 сохраняет общую обработку истечения сессии', async () => {
+    const client = await freshClient(null, { token: 'jwt-expired', account: { id: 'acc-1', login: 'demo', demo: false } });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('', { status: 401 })));
+    const expired = vi.fn();
+    client.onSessionExpired(expired);
+    await expect(client.synthesizeSpeech('Ответ', new AbortController().signal)).rejects.toMatchObject({ status: 401 });
+    expect(expired).toHaveBeenCalledOnce();
+  });
+
+  it.each([['text/html', 'html'], ['audio/wav', '']])('отклоняет неверный ответ %s', async (type, body) => {
+    const client = await freshClient(NEW_ID);
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(body, { headers: { 'Content-Type': type } })));
+    await expect(client.synthesizeSpeech('Ответ', new AbortController().signal)).rejects.toThrow();
+  });
+
+  it('уже отменённый запрос не уходит в сеть', async () => {
+    const client = await freshClient(NEW_ID);
+    const fetcher = vi.fn();
+    vi.stubGlobal('fetch', fetcher);
+    const controller = new AbortController();
+    controller.abort();
+    await expect(client.synthesizeSpeech('Ответ', controller.signal)).rejects.toThrow();
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+});
+
 beforeEach(() => {
   calls = [];
   vi.stubGlobal('fetch', fakeServer());
