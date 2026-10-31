@@ -58,6 +58,25 @@ describe('озвучка', () => {
     expect(unavailable).not.toHaveBeenCalled();
   });
 
+  it('выбирает самый естественный русский голос', async () => {
+    const { pickRussian } = await import('./speech');
+    const google = { lang: 'ru-RU', name: 'Google русский', localService: false };
+    const svetlana = {
+      lang: 'ru-RU',
+      name: 'Microsoft Svetlana Online (Natural) - Russian (Russia)',
+      localService: false,
+    };
+    const milena = { lang: 'ru_RU', name: 'Milena (Enhanced)', localService: true };
+    const remote = { lang: 'ru-RU', name: 'Some voice', localService: false };
+    const pick = (voices: FakeVoice[]) =>
+      pickRussian(voices as unknown as SpeechSynthesisVoice[])?.name;
+    expect(pick([irina, google, svetlana, zira])).toBe(svetlana.name);
+    expect(pick([irina, google])).toBe('Google русский');
+    expect(pick([irina, milena])).toBe('Milena (Enhanced)');
+    expect(pick([remote, irina])).toBe('Irina');
+    expect(pick([zira])).toBeUndefined();
+  });
+
   it('нет русского голоса — не говорит и сообщает', async () => {
     installSynth([zira]);
     const { speak } = await import('./speech');

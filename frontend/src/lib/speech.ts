@@ -1,6 +1,6 @@
 // Озвучка ответа голосом браузера (speechSynthesis), язык ru-RU. Серверного синтеза нет.
 // reply озвучивается как есть — тот же текст, что в чате (api.md, «Правила»).
-// Русского голоса может не быть (не проверено на iOS, Android, Windows) — тогда не озвучиваем.
+// Русского голоса может не быть (не проверено на iOS, Android) — тогда не озвучиваем.
 
 const VOICES_WAIT_MS = 1500;
 
@@ -22,10 +22,22 @@ function loadVoices(): Promise<SpeechSynthesisVoice[]> {
   });
 }
 
-function pickRussian(voices: SpeechSynthesisVoice[]): SpeechSynthesisVoice | null {
+// Чем естественнее голос, тем выше: нейросетевые голоса Edge («… Online (Natural)»),
+// сетевой «Google русский» в Chrome, улучшенные голоса Apple. Системные голоса вроде
+// Microsoft Irina звучат роботом — только если лучше нет.
+const NATURAL_VOICES = [/natural/i, /google/i, /premium|enhanced|siri/i];
+
+function voiceRank(voice: SpeechSynthesisVoice): number {
+  const index = NATURAL_VOICES.findIndex((pattern) => pattern.test(voice.name));
+  if (index >= 0) return index;
+  // Среди остальных локальный работает без сети и начинает говорить быстрее
+  return voice.localService ? NATURAL_VOICES.length : NATURAL_VOICES.length + 1;
+}
+
+export function pickRussian(voices: SpeechSynthesisVoice[]): SpeechSynthesisVoice | null {
   const ru = voices.filter((v) => v.lang.toLowerCase().replace('_', '-').startsWith('ru'));
-  // Локальный голос работает без сети и начинает говорить быстрее
-  return ru.find((v) => v.localService) ?? ru[0] ?? null;
+  if (ru.length === 0) return null;
+  return ru.reduce((best, v) => (voiceRank(v) < voiceRank(best) ? v : best));
 }
 
 /** Остановить текущую озвучку: новая запись или реплика — ассистент не говорит поверх пользователя. */
