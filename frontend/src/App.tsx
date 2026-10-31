@@ -40,7 +40,7 @@ import {
 } from './components/icons';
 import { addDaysToKey, browserTimeZone, dayKey, localMidnightIso } from './lib/dates';
 import { canRecord, microphoneErrorText, startRecording, type Recording } from './lib/recorder';
-import { speak, stopSpeaking } from './lib/speech';
+import { prepareSpeech, setVoiceOutputEnabled, speak, stopSpeaking } from './lib/speech';
 import {
   applyTheme,
   loadChat,
@@ -198,6 +198,7 @@ export function App() {
   const [draft, setDraft] = useState('');
   const [llmConfig, setLlmConfig] = useState<LLMConfig>(loadLLMConfig);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  useEffect(() => () => stopSpeaking(), []);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [theme, setTheme] = useState<ThemeChoice | null>(loadTheme);
   const [systemDark, setSystemDark] = useState<boolean>(() => {
@@ -456,6 +457,7 @@ export function App() {
       if (!trimmed || sending.current) return;
       sending.current = true;
       stopSpeaking();
+      prepareSpeech();
       setBanner(null);
       setPending(true);
       if (!isRetry) {
@@ -477,13 +479,12 @@ export function App() {
         });
         void panel.load();
         // Озвучивается каждый ответ — и на голос, и на набранный текст
-        if (voiceOutput) {
-          void speak(res.reply, () => {
-            if (noVoiceShown.current) return;
-            noVoiceShown.current = true;
-            setBanner({ text: NO_VOICE_TEXT });
-          });
-        }
+        // speak проверяет текущую настройку, а не значение до ожидания ответа LLM.
+        void speak(res.reply, () => {
+          if (noVoiceShown.current) return;
+          noVoiceShown.current = true;
+          setBanner({ text: NO_VOICE_TEXT });
+        });
       } catch (err) {
         onError?.();
         if (err instanceof ApiError && err.kind === 'rejected') {
@@ -572,6 +573,7 @@ export function App() {
     }
     if (sending.current) return;
     stopSpeaking();
+    prepareSpeech();
     setBanner(null);
     try {
       let rec: Recording | null = null;
@@ -958,7 +960,9 @@ export function App() {
             setCustomTz(newSettings.timezone);
 
             saveVoiceOutput(newSettings.voiceOutput);
+            setVoiceOutputEnabled(newSettings.voiceOutput);
             setVoiceOutput(newSettings.voiceOutput);
+            if (newSettings.voiceOutput && !voiceOutput) prepareSpeech();
 
             saveReminderSettings(newSettings.reminders);
             setReminders(newSettings.reminders);
