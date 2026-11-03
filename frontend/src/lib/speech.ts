@@ -44,6 +44,14 @@ function releaseAudio(): void {
   objectUrl = null;
 }
 
+// Кавычки, скобки и разметку голос читает вслух («бэкслеш позвонить Ивану бэкслеш»):
+// в озвучку они не идут, в чате текст остаётся как есть. Сервер чистит так же (tts.speech_text).
+const UNSPOKEN = /[«»„“”"<>\\[\]{}*_`]/g;
+
+export function speechText(text: string): string {
+  return text.replace(UNSPOKEN, '').replace(/\s+/g, ' ').trim();
+}
+
 // Растёт при каждой остановке: озвучка, которая ждала список голосов, не начнётся после новой реплики
 let generation = 0;
 
@@ -106,7 +114,7 @@ async function browserSpeak(text: string, onUnavailable: () => void, mine: numbe
     onUnavailable();
     return;
   }
-  const utterance = new SpeechSynthesisUtterance(text);
+  const utterance = new SpeechSynthesisUtterance(speechText(text));
   utterance.voice = voice;
   utterance.lang = voice.lang || 'ru-RU';
   try { speechSynthesis.speak(utterance); } catch { onUnavailable(); }

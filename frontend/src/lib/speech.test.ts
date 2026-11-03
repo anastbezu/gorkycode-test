@@ -244,15 +244,23 @@ describe('озвучка', () => {
     expect(spoken[0].text).toBe(text);
   });
 
-  it('говорит русским голосом и тем же текстом', async () => {
+  it('говорит русским голосом тем же текстом, но без кавычек', async () => {
     installSynth([zira, irina]);
     const { speak } = await import('./speech');
     const unavailable = vi.fn();
     await speak('Готово: «Купить хлеб».', unavailable);
     expect(spoken).toHaveLength(1);
-    expect(spoken[0].text).toBe('Готово: «Купить хлеб».');
+    expect(spoken[0].text).toBe('Готово: Купить хлеб.');
     expect(spoken[0].voice.name).toBe('Irina');
     expect(unavailable).not.toHaveBeenCalled();
+  });
+
+  it('кавычки, обратная косая и разметка не читаются вслух', async () => {
+    const { speechText } = await import('./speech');
+    expect(speechText('Нашёл \\"позвонить Ивану\\" — <завтра>  в 10:00')).toBe(
+      'Нашёл позвонить Ивану — завтра в 10:00',
+    );
+    expect(speechText('«CRM планёрка» [*тест*]')).toBe('CRM планёрка тест');
   });
 
   it('выбирает самый естественный русский голос', async () => {
