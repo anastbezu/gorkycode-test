@@ -44,6 +44,16 @@ async def _owned(db, user_id: UUID, ids: list[UUID]) -> list[Record]:
 NO_TARGET = "Какую запись? Назовите её или выберите из списка."
 
 
+async def _focus_matches(db, user_id: UUID, target: TargetRef, record: Record,
+                         statuses: list[RecordStatus]) -> bool:
+    """Модель прислала и `focus`, и описание: фокус берём, только если описание точно
+    находит эту запись. Иначе изменилась бы не та запись, что названа."""
+    match = await to_thread(
+        find_target, db, user_id, target.text, target.when, target.filters, statuses, MAX_ALL + 1
+    )
+    return any(found.id == record.id for found in match.exact)
+
+
 def _described(target: TargetRef) -> bool:
     return bool(target.text) or target.when is not None or target.filters is not None
 
@@ -70,11 +80,13 @@ async def resolve_target(
     if target.focus:
         if state.focus_record_id is not None:
             records = await _owned(db, user_id, [state.focus_record_id])
-            if records:
+            if records and (not target.text or await _focus_matches(db, user_id, target,
+                                                                   records[0], statuses)):
                 return Target(records=records)
         if not target.text:
             return Target(error=NO_TARGET)
-        # Фокуса нет, но запись описана («перенеси встречу с Натальей») — ищем по описанию.
+        # Фокуса нет или названа другая запись («перенеси позвонить Анне», а в фокусе
+        # «Позвонить Ивану») — ищем по описанию: названное важнее фокуса.
 
     if target.all and confirming and not _described(target):
         # «Да», «все» на «Отменить 3 записи?» — ровно то, что спросили.

@@ -18,6 +18,7 @@ import tts.client as gemini
 from db import get_session
 from main import app
 from stt.rate_limit import RateLimiter
+from tts import speech_text
 
 pytestmark = pytest.mark.anyio
 REAL_CLIENT = httpx.AsyncClient
@@ -92,7 +93,7 @@ def mock_provider(monkeypatch, handler):
     )
 
 
-async def test_success_exact_text_config_and_guest_header(client, monkeypatch, wav):
+async def test_success_text_config_and_guest_header(client, monkeypatch, wav):
     requests = []
 
     def handler(request):
@@ -100,7 +101,7 @@ async def test_success_exact_text_config_and_guest_header(client, monkeypatch, w
         return httpx.Response(200, json=payload(wav))
 
     mock_provider(monkeypatch, handler)
-    text = " Встреча с Иваном 05.03.2026 в 15:45. "
+    text = " Добавил задачу «Позвонить Ивану» 05.03.2026 в 15:45. "
     response = await client.post("/api/tts", json={"text": text})
     assert response.status_code == 200
     assert response.content == wav
@@ -108,11 +109,19 @@ async def test_success_exact_text_config_and_guest_header(client, monkeypatch, w
     assert response.headers["cache-control"] == "no-store"
     assert response.headers["X-User-Id"]
     body = json.loads(requests[0].content)
-    assert body["input"][0]["content"][0]["text"] == text
+    # Слова и даты — как в reply; кавычек нет: синтез читал их вслух.
+    assert body["input"][0]["content"][0]["text"] == (
+        "Добавил задачу Позвонить Ивану 05.03.2026 в 15:45.")
     assert body["model"] == "tts-test-model"
     assert body["generation_config"]["speech_config"] == [{"voice": "Kore"}]
     assert requests[0].headers["x-goog-api-key"] == "secret-test-key"
     assert "secret-test-key" not in str(requests[0].url)
+
+
+def test_speech_text_drops_quotes_and_markup():
+    assert speech_text('Вернул «Встреча с CRM» — завтра в 11:00.') == (
+        "Вернул Встреча с CRM — завтра в 11:00.")
+    assert speech_text('Нашёл "<позвонить Ивану>" \\ [тест]') == "Нашёл позвонить Ивану тест"
 
 
 async def test_account_auth(client, monkeypatch, wav):

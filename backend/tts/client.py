@@ -16,6 +16,16 @@ MAX_RESPONSE_BYTES = 12 * 1024 * 1024
 MAX_AUDIO_BYTES = 8 * 1024 * 1024
 
 
+# Кавычки и скобки синтез Gemini читает вслух («бэкслеш позвонить Ивану бэкслеш»): в тексте
+# для озвучки их нет. В чате reply остаётся как есть.
+UNSPOKEN = str.maketrans({ch: None for ch in "«»„“”\"<>\\[]{}*_`"})
+
+
+def speech_text(text: str) -> str:
+    """Текст для синтеза: без кавычек и разметки, лишние пробелы схлопнуты."""
+    return " ".join(text.translate(UNSPOKEN).split())
+
+
 class TTSUnavailableError(Exception):
     """Безопасная причина сбоя, без ключа, текста пользователя и ответа провайдера."""
 
@@ -56,9 +66,10 @@ def parse_audio(payload: dict) -> bytes:
 
 async def synthesize(text: str) -> bytes:
     key, model, voice = settings()
+    content = [{"type": "text", "text": speech_text(text)}]
     body = {
         "model": model,
-        "input": [{"type": "user_input", "content": [{"type": "text", "text": text}]}],
+        "input": [{"type": "user_input", "content": content}],
         "response_format": {"type": "audio"},
         "generation_config": {"speech_config": [{"voice": voice}]},
     }

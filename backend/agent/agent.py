@@ -1,4 +1,5 @@
 import json
+import logging
 import re
 from asyncio import to_thread
 from contextvars import ContextVar
@@ -54,6 +55,8 @@ from .state import (
 )
 from .system_prompt import build_compact_system_prompt
 from .tools import get_agent_tools, localize_tools
+
+log = logging.getLogger("uvicorn.error")
 
 
 class ActionParseError(Exception):
@@ -157,11 +160,18 @@ async def _model_action(
     try:
         return await get_action(text, now, timezone_name, llm_config, context=context)
     except LLMConfigError:
+        log.warning("LLM не настроена: нет ключа или модели")
         reply = NOT_CONFIGURED
-    except openai.APIError:
-        # таймаут, сеть, лимиты, 5xx
+    except openai.APIError as e:
+        # таймаут, сеть, лимиты, 5xx. В лог — тип и код, без текста пользователя и ключа:
+        # иначе «Ассистент сейчас не отвечает» нечем объяснить.
+        log.warning("LLM недоступна: %s, код %s", type(e).__name__,
+                    getattr(e, "status_code", None))
         reply = MODEL_DOWN
-    except ActionParseError:
+    except ActionParseError as e:
+        # Ошибка проверки полей может содержать текст записи — в лог только её тип.
+        log.warning("Ответ LLM не разобран: %s",
+                    type(e.__cause__).__name__ if e.__cause__ is not None else e)
         reply = NOT_PARSED
     return ChatResponse(conversation_id=conversation_id, reply=reply, awaiting=state.awaiting)
 
