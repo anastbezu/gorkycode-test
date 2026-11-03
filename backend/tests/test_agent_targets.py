@@ -137,3 +137,26 @@ def test_statuses_are_passed_to_find_target(db: Session, user_id, monkeypatch) -
     assert seen == [statuses]
 
 
+
+
+def test_named_record_wins_over_focus(db: Session, user_id, monkeypatch) -> None:
+    """В фокусе «Позвонить Ивану», а сказано «перенеси позвонить Анне»: модель прислала
+    и focus, и описание. Меняется названная запись, а не та, что в фокусе."""
+    from schemas import Record
+    ivan = Record.model_validate(add(db, user_id, "Позвонить Ивану"))
+    anna = Record.model_validate(add(db, user_id, "Позвонить Анне"))
+    state = ConversationState(conversation_id=uuid4(), user_id=user_id,
+                              focus_record_id=ivan.id)
+    found = {"позвонить Анне": TargetMatch(exact=[anna]),
+             "позвонить Ивану": TargetMatch(exact=[ivan]),
+             "позвонить Ольге": TargetMatch(similar=[ivan, anna])}
+    monkeypatch.setattr(targets_module, "find_target", lambda db, uid, text, *rest: found[text])
+
+    named = resolve(db, user_id, TargetRef(focus=True, text="позвонить Анне"), state)
+    assert named.records == [anna]
+    # Описание и есть фокус — берём фокус.
+    same = resolve(db, user_id, TargetRef(focus=True, text="позвонить Ивану"), state)
+    assert same.records == [ivan]
+    # Названной записи нет — не меняем фокус молча, а предлагаем похожие.
+    missing = resolve(db, user_id, TargetRef(focus=True, text="позвонить Ольге"), state)
+    assert missing.similar and not missing.records
